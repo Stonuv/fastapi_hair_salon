@@ -1,0 +1,1 @@
+pip freeze > requirements.txt <- "send" requirements of the project to files "requirements.txt"
