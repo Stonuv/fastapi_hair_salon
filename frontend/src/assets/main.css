@@ -1,0 +1,40 @@
+/* ── Google Fonts ─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap');
+
+/* ── Дизайн-токены ───────────────────────────────────────────── */
+:root {
+  --c-espresso:  #2C1810;   /* тёмно-коричневый — заголовки, текст */
+  --c-cream:     #F5EFE6;   /* сливочный — фон страницы            */
+  --c-caramel:   #8B6914;   /* карамель — акценты, цены            */
+  --c-matcha:    #4A7C59;   /* матча — кнопки, активные элементы   */
+  --c-latte:     #D4B896;   /* латте — бордеры, плейсхолдеры       */
+
+  --f-display:   'Cormorant Garamond', Georgia, serif;
+  --f-body:      'Inter', system-ui, sans-serif;
+}
+
+/* ── Сброс ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--f-body);
+  background: var(--c-cream);
+  color: var(--c-espresso);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+button { font-family: var(--f-body); }
+
+img { display: block; max-width: 100%; }
+
+a { color: inherit; }
