@@ -6,14 +6,16 @@ from .config import settings
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router)
 
+security = HTTPBearer()
+
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    # Явно регистрируем HTTPBearer — появится отдельное поле в Authorize
+    swagger_ui_init_oauth={},
 )
-
-security = HTTPBearer()
 
 app.add_middleware(
     CORSMiddleware,
