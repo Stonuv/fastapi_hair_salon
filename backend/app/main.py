@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 
 from .config import settings
-from .routes import auth_router, services_router, masters_router, appointments_router
+from .routes import (auth_router, services_router,
+                     masters_router, appointments_router, admin_router)
 
 app = FastAPI(
     title=settings.app_name,
@@ -12,10 +13,8 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
-# Добавляем HTTPBearer — Swagger покажет одно поле для токена
 security = HTTPBearer()
 
-# ── CORS ─────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -24,20 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Роуты ────────────────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(services_router)
 app.include_router(masters_router)
 app.include_router(appointments_router)
+app.include_router(admin_router)
 
 
-# ── Служебные эндпоинты ──────────────────────────────────────────
 @app.get("/")
 def root():
-    return {
-        "app": settings.app_name,
-        "docs": "/api/docs",
-    }
+    return {"app": settings.app_name, "docs": "/api/docs"}
 
 
 @app.get("/health")
