@@ -1,22 +1,38 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from .config import settings
 
-engine = create_engine(settings.database_url, connect_args={"check_same_thread": False})
+# ── Engine ───────────────────────────────────────────────────────
+# pool_pre_ping=True — проверяет соединение перед каждым запросом,
+# защищает от ошибок при простое (PostgreSQL закрывает idle-соединения).
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# ── Session factory ──────────────────────────────────────────────
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+)
+
+# ── Base для всех моделей ────────────────────────────────────────
 Base = declarative_base()
 
 
-def get_db():
+# ── FastAPI dependency ───────────────────────────────────────────
+def get_db() -> Session:
+    """
+    Dependency для FastAPI-роутов.
+    Открывает сессию на запрос и гарантированно закрывает её после.
+
+    Использование в роуте:
+        def my_route(db: Session = Depends(get_db)):
+            ...
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-
-def init_db():
-    Base.metadata.create_all(bind=engine)
