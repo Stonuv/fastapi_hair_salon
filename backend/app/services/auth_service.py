@@ -1,5 +1,5 @@
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -16,7 +16,11 @@ from ..schemas.user import UserCreate, UserResponse
 from ..schemas.auth import TokenResponse
 
 # ── Утилиты для паролей ──────────────────────────────────────────
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 # ── OAuth2 схема — указывает FastAPI где брать токен ─────────────
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -40,7 +44,7 @@ class AuthService:
                 detail="Пользователь с таким номером телефона уже существует",
             )
 
-        password_hash = pwd_context.hash(data.password)
+        password_hash = _hash_password(data.password)
         user = self.user_repo.create(data, password_hash)
 
         token = _create_access_token(user.id)
@@ -56,7 +60,7 @@ class AuthService:
 
         # Намеренно одно сообщение для обоих случаев —
         # не даём угадать, существует ли такой email.
-        if not user or not pwd_context.verify(password, user.password_hash):
+        if not user or not _verify_password(password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверный email или пароль",
@@ -92,7 +96,6 @@ def _decode_token(token: str) -> Optional[UUID]:
 
 
 # ── FastAPI Dependencies ──────────────────────────────────────────
-# Используются в роутах через Depends().
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -116,14 +119,6 @@ def get_current_user(
 
 
 def require_role(*roles: UserRole):
-    """
-    Фабрика dependency — проверяет роль пользователя.
-
-    Использование в роуте:
-        @router.post("/admin/...")
-        def admin_route(user = Depends(require_role(UserRole.admin))):
-            ...
-    """
     def dependency(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(
