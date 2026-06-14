@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
 
 from .config import settings
 from .routes import auth_router, services_router, masters_router, appointments_router
@@ -10,6 +11,9 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
+# Добавляем HTTPBearer — Swagger покажет одно поле для токена
+security = HTTPBearer()
 
 # ── CORS ─────────────────────────────────────────────────────────
 app.add_middleware(
