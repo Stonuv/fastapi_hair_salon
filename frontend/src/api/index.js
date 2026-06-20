@@ -40,3 +40,7 @@ export const appointmentsApi = {
 }
 
 export default api
+
+export const userApi = {
+  updateMe: (data) => api.patch('/auth/me', data),
+}

@@ -11,7 +11,7 @@ class UserRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    # ── Чтение ───────────────────────────────────────────────────
+    # Read 
 
     def get_by_id(self, user_id: UUID) -> Optional[User]:
         return self.db.query(User).filter(User.id == user_id).first()
@@ -25,7 +25,7 @@ class UserRepository:
     def get_all_by_role(self, role: UserRole) -> list[User]:
         return self.db.query(User).filter(User.role == role).all()
 
-    # ── Создание ─────────────────────────────────────────────────
+    # Create 
 
     def create(self, data: UserCreate, password_hash: str) -> User:
         """
@@ -45,7 +45,7 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
-    # ── Обновление ───────────────────────────────────────────────
+    # Update 
 
     def update(self, user: User, data: UserUpdate) -> User:
         """
@@ -59,7 +59,7 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
-    # ── Вспомогательное ──────────────────────────────────────────
+    # Вспомогательное 
 
     def email_exists(self, email: str) -> bool:
         return self.db.query(User).filter(User.email == email).first() is not None

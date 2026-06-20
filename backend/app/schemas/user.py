@@ -6,7 +6,7 @@ from uuid import UUID
 from ..models.enums import UserRole
 
 
-# ── Базовые поля ─────────────────────────────────────────────────
+# Базовые поля 
 
 class UserBase(BaseModel):
     email:      EmailStr    = Field(..., description="Email пользователя")
@@ -18,13 +18,13 @@ class UserBase(BaseModel):
                                       description="Номер телефона")
 
 
-# ── Создание ─────────────────────────────────────────────────────
+# Create
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="Пароль (мин. 8 символов)")
 
 
-# ── Обновление (все поля опциональны) ────────────────────────────
+# Update (все поля опциональны) 
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
@@ -32,7 +32,7 @@ class UserUpdate(BaseModel):
     phone:      Optional[str] = Field(None, max_length=20)
 
 
-# ── Ответ API ────────────────────────────────────────────────────
+# API Response 
 
 class UserResponse(BaseModel):
     id:         UUID        = Field(..., description="UUID пользователя")
