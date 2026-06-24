@@ -1,5 +1,5 @@
 <template>
-  <header class="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/95 backdrop-blur">
+  <header class="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/50 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
       <router-link to="/" class="flex items-baseline gap-2.5">
         <span class="font-display text-xl font-black uppercase tracking-tight text-ink-900">{{ content.header.brand_name }}</span>
