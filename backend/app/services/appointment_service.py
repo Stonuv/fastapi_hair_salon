@@ -1,16 +1,28 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
-from datetime import datetime, timedelta, timezone, date
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+from ..models.enums import AppointmentStatus, UserRole
+from ..models.user import User
 from ..repositories.appointment_repository import AppointmentRepository
 from ..repositories.master_repository import MasterRepository
-from ..repositories.service_repository import ServiceRepository
 from ..repositories.schedule_repository import ScheduleRepository
-from ..models.enums import AppointmentStatus
-from ..schemas.appointment import (AppointmentCreate, AppointmentResponse,
-                                   AppointmentBriefResponse, AppointmentListResponse,
-                                   SlotResponse, SlotListResponse)
+from ..repositories.service_repository import ServiceRepository
+from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
+                                   AppointmentResponse, SlotListResponse, SlotResponse)
+from ..schemas.pagination import PageResponse
+
+# Допустимые переходы статуса записи (1.5 — машина состояний).
+# pending -> confirmed -> done — основной путь, cancelled достижим из pending/confirmed.
+# done и cancelled — терминальные состояния, переходов из них нет.
+ALLOWED_TRANSITIONS: dict[AppointmentStatus, set[AppointmentStatus]] = {
+    AppointmentStatus.pending:   {AppointmentStatus.confirmed, AppointmentStatus.cancelled},
+    AppointmentStatus.confirmed: {AppointmentStatus.done, AppointmentStatus.cancelled},
+    AppointmentStatus.done:      set(),
+    AppointmentStatus.cancelled: set(),
+}
 
 
 class AppointmentService:
@@ -28,6 +40,10 @@ class AppointmentService:
         if not master or not master.is_active:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Мастер не найден или неактивен")
+
+        if master.user_id == client_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Нельзя записаться к себе")
 
         service = self.service_repo.get_by_id(data.service_id)
         if not service or not service.is_active:
@@ -86,30 +102,65 @@ class AppointmentService:
 
         return AppointmentResponse.model_validate(appointment)
 
-    def get_my_appointments(self, client_id: UUID) -> AppointmentListResponse:
-        appointments = self.appointment_repo.get_by_client(client_id)
-        return AppointmentListResponse(
-            appointments=[AppointmentBriefResponse.model_validate(a)
-                          for a in appointments],
-            total=len(appointments),
+    def list_for_client(self, client_id: UUID, *, page: int, page_size: int,
+                        status_filter: AppointmentStatus | None = None,
+                        ) -> PageResponse[AppointmentBriefResponse]:
+        """Мои записи (личный кабинет клиента)."""
+        appointments, total = self.appointment_repo.list_paginated(
+            page=page, page_size=page_size,
+            client_id=client_id, status=status_filter,
+        )
+        return PageResponse[AppointmentBriefResponse](
+            items=[AppointmentBriefResponse.model_validate(a) for a in appointments],
+            total=total, page=page, page_size=page_size,
         )
 
-    def get_master_appointments(self, master_id: UUID,
-                                date_from: datetime | None,
-                                date_to:   datetime | None) -> AppointmentListResponse:
-        appointments = self.appointment_repo.get_by_master(
-            master_id, date_from, date_to
+    def list_for_master(self, master_id: UUID, requesting_user: User, *,
+                        page: int, page_size: int,
+                        status_filter: AppointmentStatus | None = None,
+                        date_from: datetime | None = None,
+                        date_to: datetime | None = None,
+                        ) -> PageResponse[AppointmentBriefResponse]:
+        """
+        Записи конкретного мастера. Мастер может смотреть только свои —
+        админ может смотреть любые.
+        """
+        if requesting_user.role != UserRole.admin:
+            own_master = self.master_repo.get_by_user_id(requesting_user.id)
+            if not own_master or own_master.id != master_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Можно смотреть только свои записи")
+
+        appointments, total = self.appointment_repo.list_paginated(
+            page=page, page_size=page_size, master_id=master_id,
+            status=status_filter, date_from=date_from, date_to=date_to,
         )
-        return AppointmentListResponse(
-            appointments=[AppointmentBriefResponse.model_validate(a)
-                          for a in appointments],
-            total=len(appointments),
+        return PageResponse[AppointmentBriefResponse](
+            items=[AppointmentBriefResponse.model_validate(a) for a in appointments],
+            total=total, page=page, page_size=page_size,
         )
 
-    # ── Отмена ───────────────────────────────────────────────────
+    def list_all(self, *, page: int, page_size: int,
+                client_id: UUID | None = None,
+                master_id: UUID | None = None,
+                status_filter: AppointmentStatus | None = None,
+                date_from: datetime | None = None,
+                date_to: datetime | None = None,
+                ) -> PageResponse[AppointmentBriefResponse]:
+        """Все записи системы — для администратора (1.4: фильтр + пагинация)."""
+        appointments, total = self.appointment_repo.list_paginated(
+            page=page, page_size=page_size, client_id=client_id, master_id=master_id,
+            status=status_filter, date_from=date_from, date_to=date_to,
+        )
+        return PageResponse[AppointmentBriefResponse](
+            items=[AppointmentBriefResponse.model_validate(a) for a in appointments],
+            total=total, page=page, page_size=page_size,
+        )
+
+    # ── Отмена (клиентом) ─────────────────────────────────────────
 
     def cancel(self, appointment_id: UUID,
-               requesting_user_id: UUID) -> AppointmentResponse:
+              requesting_user_id: UUID) -> AppointmentResponse:
         appointment = self.appointment_repo.get_by_id(appointment_id)
         if not appointment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -119,14 +170,41 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Можно отменить только свою запись")
 
-        if appointment.status not in (AppointmentStatus.pending,
-                                      AppointmentStatus.confirmed):
+        if AppointmentStatus.cancelled not in ALLOWED_TRANSITIONS[appointment.status]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail=f"Нельзя отменить запись со статусом '{appointment.status}'")
+                                detail=f"Нельзя отменить запись со статусом '{appointment.status.value}'")
 
         appointment = self.appointment_repo.update_status(
             appointment, AppointmentStatus.cancelled
         )
+        return AppointmentResponse.model_validate(appointment)
+
+    # ── Смена статуса (мастером / админом) ───────────────────────
+
+    def update_status(self, appointment_id: UUID, new_status: AppointmentStatus,
+                      requesting_user: User) -> AppointmentResponse:
+        """
+        confirm/done/cancel со стороны мастера или администратора —
+        переход проверяется по ALLOWED_TRANSITIONS (1.5).
+        """
+        appointment = self.appointment_repo.get_by_id(appointment_id)
+        if not appointment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Запись не найдена")
+
+        if requesting_user.role != UserRole.admin:
+            own_master = self.master_repo.get_by_user_id(requesting_user.id)
+            if not own_master or own_master.id != appointment.master_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Можно менять статус только своих записей")
+
+        if new_status not in ALLOWED_TRANSITIONS[appointment.status]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Переход '{appointment.status.value}' → '{new_status.value}' недопустим",
+            )
+
+        appointment = self.appointment_repo.update_status(appointment, new_status)
         return AppointmentResponse.model_validate(appointment)
 
     # ── Свободные слоты ──────────────────────────────────────────
@@ -169,8 +247,8 @@ class AppointmentService:
         day_end = datetime.combine(target_date, schedule.end_time).replace(
             tzinfo=timezone.utc
         )
-        booked = self.appointment_repo.get_by_master(
-            master_id, date_from=day_start, date_to=day_end
+        booked = self.appointment_repo.get_by_master_in_range(
+            master_id, day_start, day_end
         )
         booked_ranges = [
             (a.start_time, a.end_time)

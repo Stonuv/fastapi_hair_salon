@@ -1,10 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 
 from .config import settings
 from .routes import (auth_router, services_router,
-                     masters_router, appointments_router, admin_router)
+                     masters_router, appointments_router, admin_router,
+                     reviews_router)
+
+# uvicorn настраивает только свои собственные логгеры (uvicorn.*) —
+# без этого вызова логгеры приложения (например, auth_service при
+# восстановлении пароля) молча проглатываются root-логгером.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 security = HTTPBearer()
 
@@ -30,6 +38,7 @@ app.include_router(services_router)
 app.include_router(masters_router)
 app.include_router(appointments_router)
 app.include_router(admin_router)
+app.include_router(reviews_router)
 
 
 @app.get("/")

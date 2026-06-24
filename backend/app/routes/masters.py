@@ -1,26 +1,41 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-from uuid import UUID
 from datetime import date
+from typing import Annotated, Literal
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..services.master_service import MasterService
-from ..services.appointment_service import AppointmentService
-from ..services.auth_service import get_current_admin, get_current_master, get_current_user
-from ..schemas.master import (MasterListResponse, MasterResponse,
-                               MasterUpdate, MasterServiceResponse)
-from ..schemas.schedule import ScheduleCreate, ScheduleUpdate, ScheduleResponse
 from ..schemas.appointment import SlotListResponse
+from ..schemas.master import (MasterBriefResponse, MasterResponse,
+                              MasterServiceResponse, MasterUpdate)
+from ..schemas.pagination import PageParams, PageResponse
+from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
+from ..services.appointment_service import AppointmentService
+from ..services.auth_service import get_current_admin
+from ..services.master_service import MasterService
 
 router = APIRouter(prefix="/api/masters", tags=["masters"])
 
 
 # ── Каталог ──────────────────────────────────────────────────────
 
-@router.get("", response_model=MasterListResponse)
-def get_masters(db: Session = Depends(get_db)):
-    """Список активных мастеров. Публичный эндпоинт."""
-    return MasterService(db).get_all()
+@router.get("", response_model=PageResponse[MasterBriefResponse])
+def get_masters(
+    *,
+    db: Session = Depends(get_db),
+    page_params: Annotated[PageParams, Depends()],
+    specialization: Annotated[str | None, Query(description="Поиск по специализации")] = None,
+    service_id: Annotated[UUID | None, Query(description="Фильтр: оказывает указанную услугу")] = None,
+    sort_by: Annotated[Literal["name", "coefficient"], Query()] = "name",
+    sort_order: Annotated[Literal["asc", "desc"], Query()] = "asc",
+):
+    """Каталог активных мастеров — фильтр + сортировка + пагинация (1.4). Публичный эндпоинт."""
+    return MasterService(db).list_paginated(
+        page=page_params.page, page_size=page_params.page_size,
+        specialization=specialization, service_id=service_id,
+        sort_by=sort_by, sort_order=sort_order,
+    )
 
 
 @router.get("/{master_id}", response_model=MasterResponse)

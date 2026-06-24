@@ -2,18 +2,21 @@
 # видел их при автогенерации миграций.
 
 from .enums import (
-    UserRole,
     AppointmentStatus,
-    NotificationType,
     NotificationChannel,
     NotificationStatus,
+    NotificationType,
+    UserRole,
 )
-from .user         import User
-from .master       import Master, MasterService
-from .service      import Service
-from .schedule     import Schedule
-from .appointment  import Appointment
+from .user import User
+from .master import Master, MasterService
+from .service import Service
+from .schedule import Schedule
+from .appointment import Appointment
 from .notification import Notification
+from .review import Review
+from .password_reset_token import PasswordResetToken
+from .login_attempt import LoginAttempt
 
 __all__ = [
     "UserRole",
@@ -28,4 +31,7 @@ __all__ = [
     "Schedule",
     "Appointment",
     "Notification",
+    "Review",
+    "PasswordResetToken",
+    "LoginAttempt",
 ]

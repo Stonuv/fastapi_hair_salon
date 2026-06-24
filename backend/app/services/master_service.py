@@ -1,14 +1,16 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from typing import Literal
 from uuid import UUID
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from ..repositories.master_repository import MasterRepository
-from ..repositories.service_repository import ServiceRepository
 from ..repositories.schedule_repository import ScheduleRepository
-from ..schemas.master import (MasterResponse, MasterBriefResponse,
-                               MasterListResponse, MasterUpdate,
-                               MasterServiceResponse)
-from ..schemas.schedule import ScheduleCreate, ScheduleUpdate, ScheduleResponse
+from ..repositories.service_repository import ServiceRepository
+from ..schemas.master import (MasterBriefResponse, MasterResponse,
+                              MasterServiceResponse, MasterUpdate)
+from ..schemas.pagination import PageResponse
+from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..schemas.service import ServiceResponse
 
 
@@ -20,18 +22,27 @@ class MasterService:
 
     # ── Каталог мастеров ─────────────────────────────────────────
 
-    def get_all(self) -> MasterListResponse:
-        masters = self.master_repo.get_all_active()
-        return MasterListResponse(
-            masters=[MasterBriefResponse(
-                id             = m.id,
-                first_name     = m.user.first_name,
-                last_name      = m.user.last_name,
-                specialization = m.specialization,
-                photo_url      = m.photo_url,
-                coefficient    = float(m.coefficient),
+    def list_paginated(
+        self, *, page: int, page_size: int,
+        specialization: str | None = None,
+        service_id: UUID | None = None,
+        sort_by: Literal["name", "coefficient"] = "name",
+        sort_order: Literal["asc", "desc"] = "asc",
+    ) -> PageResponse[MasterBriefResponse]:
+        masters, total = self.master_repo.list_paginated(
+            page=page, page_size=page_size, specialization=specialization,
+            service_id=service_id, sort_by=sort_by, sort_order=sort_order,
+        )
+        return PageResponse[MasterBriefResponse](
+            items=[MasterBriefResponse(
+                id=m.id,
+                first_name=m.user.first_name,
+                last_name=m.user.last_name,
+                specialization=m.specialization,
+                photo_url=m.photo_url,
+                coefficient=float(m.coefficient),
             ) for m in masters],
-            total=len(masters),
+            total=total, page=page, page_size=page_size,
         )
 
     def get_by_id(self, master_id: UUID) -> MasterResponse:

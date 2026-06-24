@@ -1,9 +1,13 @@
+import uuid
+from datetime import datetime, timezone
+from typing import Literal, Optional
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import Optional
-from uuid import UUID
 
 from ..models.service import Service
 from ..schemas.service import ServiceCreate, ServiceUpdate
+from ._query_utils import paginated
 
 
 class ServiceRepository:
@@ -12,19 +16,41 @@ class ServiceRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, service_id: UUID) -> Optional[Service]:
-        return self.db.query(Service).filter(Service.id == service_id).first()
+    def get_by_id(self, service_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[Service]:
+        stmt = select(Service).where(Service.id == service_id)
+        if not include_deleted:
+            stmt = stmt.where(Service.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_all_active(self) -> list[Service]:
-        return (
-            self.db.query(Service)
-            .filter(Service.is_active == True)
-            .all()
-        )
+    def list_paginated(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        is_active: bool | None = None,
+        sort_by: Literal["name", "price", "duration_min"] = "name",
+        sort_order: Literal["asc", "desc"] = "asc",
+    ) -> tuple[list[Service], int]:
+        """Каталог услуг — поиск по названию + фильтр по цене/активности (1.4)."""
+        stmt = select(Service).where(Service.deleted_at.is_(None))
+        if search:
+            stmt = stmt.where(Service.name.ilike(f"%{search}%"))
+        if min_price is not None:
+            stmt = stmt.where(Service.price >= min_price)
+        if max_price is not None:
+            stmt = stmt.where(Service.price <= max_price)
+        if is_active is not None:
+            stmt = stmt.where(Service.is_active.is_(is_active))
 
-    def get_all(self) -> list[Service]:
-        """Для админа — все услуги включая неактивные."""
-        return self.db.query(Service).all()
+        sort_column = {"name": Service.name, "price": Service.price,
+                      "duration_min": Service.duration_min}[sort_by]
+        order = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        stmt = stmt.order_by(order)
+
+        return paginated(self.db, stmt, page=page, page_size=page_size)
 
     # ── Создание ─────────────────────────────────────────────────
 
@@ -43,3 +69,8 @@ class ServiceRepository:
         self.db.commit()
         self.db.refresh(service)
         return service
+
+    def soft_delete(self, service: Service) -> None:
+        service.deleted_at = datetime.now(timezone.utc)
+        service.is_active = False
+        self.db.commit()

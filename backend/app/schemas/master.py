@@ -1,63 +1,63 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Annotated
 from uuid import UUID
 
-from .user import UserResponse
-from .service import ServiceResponse
+from pydantic import BaseModel, ConfigDict, Field
 
+from .service import ServiceResponse
+from .user import UserResponse
 
 # ── Услуга мастера (с возможным price_override) ──────────────────
 
+
 class MasterServiceResponse(BaseModel):
     """Услуга в контексте конкретного мастера — показывает итоговую цену."""
-    service:        ServiceResponse
-    price_override: Optional[float] = Field(
-        None, description="Индивидуальная цена мастера; None = базовая × коэффициент"
-    )
-    final_price:    float = Field(..., description="Итоговая цена для этого мастера")
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
+
+    service:        ServiceResponse
+    price_override: Annotated[float | None, Field(
+        default=None, description="Индивидуальная цена мастера; None = базовая × коэффициент"
+    )]
+    final_price:    Annotated[float, Field(description="Итоговая цена для этого мастера")]
 
 
 # ── Краткий профиль (для списков) ────────────────────────────────
 
+
 class MasterBriefResponse(BaseModel):
     """Краткая карточка мастера — для каталога и списков."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id:             UUID
     first_name:     str
     last_name:      str
-    specialization: Optional[str]
-    photo_url:      Optional[str]
+    specialization: str | None
+    photo_url:      str | None
     coefficient:    float
-
-    model_config = {"from_attributes": True}
 
 
 # ── Полный профиль (для страницы мастера) ────────────────────────
 
+
 class MasterResponse(BaseModel):
     """Полный профиль мастера с услугами."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id:             UUID
     user:           UserResponse
-    specialization: Optional[str]
-    photo_url:      Optional[str]
+    specialization: str | None
+    photo_url:      str | None
     coefficient:    float
     is_active:      bool
-
-    model_config = {"from_attributes": True}
 
 
 # ── Обновление профиля мастера ───────────────────────────────────
 
+
 class MasterUpdate(BaseModel):
-    specialization: Optional[str]   = Field(None, max_length=200)
-    photo_url:      Optional[str]   = Field(None, max_length=500)
-    coefficient:    Optional[float] = Field(None, gt=0)
-    is_active:      Optional[bool]  = None
-
-
-# ── Список мастеров ──────────────────────────────────────────────
-
-class MasterListResponse(BaseModel):
-    masters: list[MasterBriefResponse]
-    total:   int
+    specialization: Annotated[str | None, Field(default=None, max_length=200)]
+    photo_url:      Annotated[str | None, Field(default=None, max_length=500)]
+    coefficient:    Annotated[float | None, Field(default=None, gt=0)]
+    is_active:      Annotated[bool | None, Field(default=None)]

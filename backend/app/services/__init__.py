@@ -1,9 +1,11 @@
+from .admin_service       import AdminService
+from .appointment_service import AppointmentService
 from .auth_service        import (AuthService, get_current_user,
                                    require_role, get_current_client,
                                    get_current_master, get_current_admin)
-from .service_service     import ServiceService
 from .master_service      import MasterService
-from .appointment_service import AppointmentService
+from .review_service      import ReviewService
+from .service_service     import ServiceService
 
 __all__ = [
     "AuthService",
@@ -15,4 +17,6 @@ __all__ = [
     "ServiceService",
     "MasterService",
     "AppointmentService",
+    "AdminService",
+    "ReviewService",
 ]

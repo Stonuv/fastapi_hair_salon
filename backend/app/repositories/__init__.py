@@ -1,9 +1,13 @@
-from .user_repository         import UserRepository
-from .master_repository       import MasterRepository
-from .service_repository      import ServiceRepository
-from .schedule_repository     import ScheduleRepository
-from .appointment_repository  import AppointmentRepository
+from .appointment_repository import AppointmentRepository
+from .login_attempt_repository import LoginAttemptRepository
+from .master_repository import MasterRepository
 from .notification_repository import NotificationRepository
+from .password_reset_token_repository import PasswordResetTokenRepository
+from .review_repository import ReviewRepository
+from .schedule_repository import ScheduleRepository
+from .service_repository import ServiceRepository
+from .stats_repository import StatsRepository
+from .user_repository import UserRepository
 
 __all__ = [
     "UserRepository",
@@ -12,4 +16,8 @@ __all__ = [
     "ScheduleRepository",
     "AppointmentRepository",
     "NotificationRepository",
+    "ReviewRepository",
+    "PasswordResetTokenRepository",
+    "LoginAttemptRepository",
+    "StatsRepository",
 ]

@@ -1,9 +1,14 @@
+import uuid
+from datetime import datetime, timezone
+from typing import Literal, Optional
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
-from typing import Optional
-from uuid import UUID
 
 from ..models.master import Master, MasterService
+from ..models.user import User
 from ..schemas.master import MasterUpdate
+from ._query_utils import paginated
 
 
 class MasterRepository:
@@ -12,47 +17,64 @@ class MasterRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, master_id: UUID) -> Optional[Master]:
+    def get_by_id(self, master_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[Master]:
         """Загружает мастера вместе с профилем пользователя."""
-        return (
-            self.db.query(Master)
-            .options(joinedload(Master.user))
-            .filter(Master.id == master_id)
-            .first()
-        )
+        stmt = select(Master).options(joinedload(Master.user)).where(Master.id == master_id)
+        if not include_deleted:
+            stmt = stmt.where(Master.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_by_user_id(self, user_id: UUID) -> Optional[Master]:
-        return (
-            self.db.query(Master)
+    def get_by_user_id(self, user_id: uuid.UUID) -> Optional[Master]:
+        stmt = (
+            select(Master)
             .options(joinedload(Master.user))
-            .filter(Master.user_id == user_id)
-            .first()
+            .where(Master.user_id == user_id, Master.deleted_at.is_(None))
         )
+        return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_all_active(self) -> list[Master]:
-        """Список активных мастеров для каталога."""
-        return (
-            self.db.query(Master)
+    def list_paginated(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        specialization: str | None = None,
+        service_id: uuid.UUID | None = None,
+        sort_by: Literal["name", "coefficient"] = "name",
+        sort_order: Literal["asc", "desc"] = "asc",
+    ) -> tuple[list[Master], int]:
+        """Каталог активных мастеров — фильтр по специализации и/или оказываемой услуге."""
+        stmt = (
+            select(Master)
+            .join(Master.user)
             .options(joinedload(Master.user))
-            .filter(Master.is_active == True)
-            .all()
+            .where(Master.deleted_at.is_(None), Master.is_active.is_(True))
         )
+        if specialization:
+            stmt = stmt.where(Master.specialization.ilike(f"%{specialization}%"))
+        if service_id is not None:
+            stmt = stmt.join(Master.services).where(MasterService.service_id == service_id)
 
-    def get_with_services(self, master_id: UUID) -> Optional[Master]:
+        sort_column = User.last_name if sort_by == "name" else Master.coefficient
+        order = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        stmt = stmt.order_by(order)
+
+        return paginated(self.db, stmt, page=page, page_size=page_size)
+
+    def get_with_services(self, master_id: uuid.UUID) -> Optional[Master]:
         """Загружает мастера вместе с его услугами и базовыми ценами."""
-        return (
-            self.db.query(Master)
+        stmt = (
+            select(Master)
             .options(
                 joinedload(Master.user),
                 joinedload(Master.services).joinedload(MasterService.service),
             )
-            .filter(Master.id == master_id)
-            .first()
+            .where(Master.id == master_id, Master.deleted_at.is_(None))
         )
+        return self.db.execute(stmt).unique().scalar_one_or_none()
 
     # ── Создание ─────────────────────────────────────────────────
 
-    def create(self, user_id: UUID) -> Master:
+    def create(self, user_id: uuid.UUID) -> Master:
         """Создаёт профиль мастера для существующего пользователя."""
         master = Master(user_id=user_id)
         self.db.add(master)
@@ -69,42 +91,42 @@ class MasterRepository:
         self.db.refresh(master)
         return master
 
+    def deactivate(self, master: Master) -> None:
+        """Скрывает мастера из каталога без мягкого удаления (например, при смене роли)."""
+        master.is_active = False
+        self.db.commit()
+
+    def soft_delete(self, master: Master) -> None:
+        master.deleted_at = datetime.now(timezone.utc)
+        master.is_active = False
+        self.db.commit()
+
     # ── Услуги мастера ───────────────────────────────────────────
 
-    def add_service(self, master_id: UUID, service_id: UUID,
+    def add_service(self, master_id: uuid.UUID, service_id: uuid.UUID,
                     price_override: float | None = None) -> MasterService:
         ms = MasterService(
-            master_id      = master_id,
-            service_id     = service_id,
-            price_override = price_override,
+            master_id=master_id,
+            service_id=service_id,
+            price_override=price_override,
         )
         self.db.add(ms)
         self.db.commit()
         self.db.refresh(ms)
         return ms
 
-    def remove_service(self, master_id: UUID, service_id: UUID) -> bool:
-        ms = (
-            self.db.query(MasterService)
-            .filter(
-                MasterService.master_id  == master_id,
-                MasterService.service_id == service_id,
-            )
-            .first()
-        )
+    def remove_service(self, master_id: uuid.UUID, service_id: uuid.UUID) -> bool:
+        ms = self.get_master_service(master_id, service_id)
         if not ms:
             return False
         self.db.delete(ms)
         self.db.commit()
         return True
 
-    def get_master_service(self, master_id: UUID,
-                           service_id: UUID) -> Optional[MasterService]:
-        return (
-            self.db.query(MasterService)
-            .filter(
-                MasterService.master_id  == master_id,
-                MasterService.service_id == service_id,
-            )
-            .first()
+    def get_master_service(self, master_id: uuid.UUID,
+                           service_id: uuid.UUID) -> Optional[MasterService]:
+        stmt = select(MasterService).where(
+            MasterService.master_id == master_id,
+            MasterService.service_id == service_id,
         )
+        return self.db.execute(stmt).scalar_one_or_none()

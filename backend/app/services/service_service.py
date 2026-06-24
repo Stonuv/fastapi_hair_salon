@@ -1,20 +1,35 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from typing import Literal
 from uuid import UUID
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
 from ..repositories.service_repository import ServiceRepository
-from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse, ServiceListResponse
+from ..schemas.pagination import PageResponse
+from ..schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
 
 
 class ServiceService:
     def __init__(self, db: Session):
         self.service_repo = ServiceRepository(db)
 
-    def get_all(self) -> ServiceListResponse:
-        services = self.service_repo.get_all_active()
-        return ServiceListResponse(
-            services=[ServiceResponse.model_validate(s) for s in services],
-            total=len(services),
+    def list_paginated(
+        self, *, page: int, page_size: int,
+        search: str | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        is_active: bool | None = None,
+        sort_by: Literal["name", "price", "duration_min"] = "name",
+        sort_order: Literal["asc", "desc"] = "asc",
+    ) -> PageResponse[ServiceResponse]:
+        services, total = self.service_repo.list_paginated(
+            page=page, page_size=page_size, search=search,
+            min_price=min_price, max_price=max_price, is_active=is_active,
+            sort_by=sort_by, sort_order=sort_order,
+        )
+        return PageResponse[ServiceResponse](
+            items=[ServiceResponse.model_validate(s) for s in services],
+            total=total, page=page, page_size=page_size,
         )
 
     def get_by_id(self, service_id: UUID) -> ServiceResponse:

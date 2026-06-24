@@ -1,31 +1,65 @@
-from sqlalchemy.orm import Session
-from typing import Optional
-from uuid import UUID
+import uuid
+from datetime import datetime, timezone
+from typing import Literal, Optional
 
-from ..models.user import User
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
+
 from ..models.enums import UserRole
+from ..models.user import User
 from ..schemas.user import UserCreate, UserUpdate
+from ._query_utils import paginated
 
 
 class UserRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    # Read 
+    # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, user_id: UUID) -> Optional[User]:
-        return self.db.query(User).filter(User.id == user_id).first()
+    def get_by_id(self, user_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[User]:
+        stmt = select(User).where(User.id == user_id)
+        if not include_deleted:
+            stmt = stmt.where(User.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
 
     def get_by_email(self, email: str) -> Optional[User]:
-        return self.db.query(User).filter(User.email == email).first()
+        stmt = select(User).where(User.email == email, User.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
 
     def get_by_phone(self, phone: str) -> Optional[User]:
-        return self.db.query(User).filter(User.phone == phone).first()
+        stmt = select(User).where(User.phone == phone, User.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_all_by_role(self, role: UserRole) -> list[User]:
-        return self.db.query(User).filter(User.role == role).all()
+    def list_paginated(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        role: UserRole | None = None,
+        search: str | None = None,
+        sort_by: Literal["created_at", "email"] = "created_at",
+        sort_order: Literal["asc", "desc"] = "desc",
+    ) -> tuple[list[User], int]:
+        """Список пользователей для админ-панели: фильтр по роли + поиск по имени/email."""
+        stmt = select(User).where(User.deleted_at.is_(None))
+        if role is not None:
+            stmt = stmt.where(User.role == role)
+        if search:
+            pattern = f"%{search}%"
+            stmt = stmt.where(or_(
+                User.email.ilike(pattern),
+                User.first_name.ilike(pattern),
+                User.last_name.ilike(pattern),
+            ))
 
-    # Create 
+        sort_column = User.created_at if sort_by == "created_at" else User.email
+        order = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        stmt = stmt.order_by(order)
+
+        return paginated(self.db, stmt, page=page, page_size=page_size)
+
+    # ── Создание ─────────────────────────────────────────────────
 
     def create(self, data: UserCreate, password_hash: str) -> User:
         """
@@ -33,19 +67,19 @@ class UserRepository:
         Хешировать пароль — задача сервиса, не репозитория.
         """
         user = User(
-            email         = data.email,
-            password_hash = password_hash,
-            first_name    = data.first_name,
-            last_name     = data.last_name,
-            phone         = data.phone,
-            role          = UserRole.client,  # новый пользователь всегда клиент
+            email=data.email,
+            password_hash=password_hash,
+            first_name=data.first_name,
+            last_name=data.last_name,
+            phone=data.phone,
+            role=UserRole.client,  # новый пользователь всегда клиент
         )
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
         return user
 
-    # Update 
+    # ── Обновление ───────────────────────────────────────────────
 
     def update(self, user: User, data: UserUpdate) -> User:
         """
@@ -59,10 +93,24 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
-    # Вспомогательное 
+    def set_password(self, user: User, password_hash: str) -> None:
+        user.password_hash = password_hash
+        self.db.commit()
+
+    def set_role(self, user: User, role: UserRole) -> User:
+        user.role = role
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def soft_delete(self, user: User) -> None:
+        user.deleted_at = datetime.now(timezone.utc)
+        self.db.commit()
+
+    # ── Вспомогательное ──────────────────────────────────────────
 
     def email_exists(self, email: str) -> bool:
-        return self.db.query(User).filter(User.email == email).first() is not None
+        return self.get_by_email(email) is not None
 
     def phone_exists(self, phone: str) -> bool:
-        return self.db.query(User).filter(User.phone == phone).first() is not None
+        return self.get_by_phone(phone) is not None

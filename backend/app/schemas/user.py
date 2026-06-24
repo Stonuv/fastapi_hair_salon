@@ -1,46 +1,48 @@
-from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime
-from typing import Optional
+from typing import Annotated
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
 from ..models.enums import UserRole
+from .fields import NameStr, PhoneStr
 
+# ── Базовые поля ─────────────────────────────────────────────────
 
-# Базовые поля 
 
 class UserBase(BaseModel):
-    email:      EmailStr    = Field(..., description="Email пользователя")
-    first_name: str         = Field(..., min_length=1, max_length=100,
-                                    description="Имя")
-    last_name:  str         = Field(..., min_length=1, max_length=100,
-                                    description="Фамилия")
-    phone:      Optional[str] = Field(None, max_length=20,
-                                      description="Номер телефона")
+    email:      Annotated[EmailStr, Field(description="Email пользователя")]
+    first_name: Annotated[NameStr,  Field(description="Имя")]
+    last_name:  Annotated[NameStr,  Field(description="Фамилия")]
+    phone:      Annotated[PhoneStr | None, Field(default=None, description="Номер телефона")]
 
 
-# Create
+# ── Создание ─────────────────────────────────────────────────────
+
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, description="Пароль (мин. 8 символов)")
+    password: Annotated[str, Field(min_length=8, description="Пароль (мин. 8 символов)")]
 
 
-# Update (все поля опциональны) 
+# ── Обновление (все поля опциональны) ────────────────────────────
+
 
 class UserUpdate(BaseModel):
-    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    last_name:  Optional[str] = Field(None, min_length=1, max_length=100)
-    phone:      Optional[str] = Field(None, max_length=20)
+    first_name: Annotated[NameStr | None, Field(default=None)]
+    last_name:  Annotated[NameStr | None, Field(default=None)]
+    phone:      Annotated[PhoneStr | None, Field(default=None)]
 
 
-# API Response 
+# ── API Response ─────────────────────────────────────────────────
+
 
 class UserResponse(BaseModel):
-    id:         UUID        = Field(..., description="UUID пользователя")
+    model_config = ConfigDict(from_attributes=True)
+
+    id:         Annotated[UUID, Field(description="UUID пользователя")]
     email:      str
     first_name: str
     last_name:  str
-    phone:      Optional[str]
-    role:       UserRole    = Field(..., description="Роль: client / master / admin")
+    phone:      str | None
+    role:       Annotated[UserRole, Field(description="Роль: client / master / admin")]
     created_at: datetime
-
-    model_config = {"from_attributes": True}

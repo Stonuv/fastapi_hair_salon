@@ -1,34 +1,57 @@
-import uuid
-from sqlalchemy import Column, String, Enum, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Index, String, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from .enums import UserRole
+from .mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from .login_attempt import LoginAttempt
+    from .master import Master
+    from .password_reset_token import PasswordResetToken
+    from .appointment import Appointment
+    from .review import Review
 
 
-class User(Base):
-    __tablename__ = "users" # Название таблицы
+class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "users"
+    __table_args__ = (
+        # Уникальность email/телефона действует только среди "живых" записей —
+        # иначе мягко удалённый пользователь блокирует email от повторной регистрации.
+        Index("uq_users_email_active", "email", unique=True,
+              postgresql_where=text("deleted_at IS NULL")),
+        Index("uq_users_phone_active", "phone", unique=True,
+              postgresql_where=text("deleted_at IS NULL AND phone IS NOT NULL")),
+        Index("ix_users_role", "role"),
+    )
 
-    # Атрибуты таблицы, какие поля есть и какого они типа
-    id            = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email         = Column(String(255), nullable=False, unique=True, index=True)
-    password_hash = Column(String(255), nullable=False)
-    first_name    = Column(String(100), nullable=False)
-    last_name     = Column(String(100), nullable=False)
-    phone         = Column(String(20),  unique=True) # added nullable=False
-    role          = Column(Enum(UserRole), nullable=False, default=UserRole.client)
-    created_at    = Column(DateTime(timezone=True), nullable=False,
-                           default=lambda: datetime.now(timezone.utc))
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(20))
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.client
+    )
 
     # Профиль мастера (только если role = 'master')
-    master_profile = relationship("Master", back_populates="user",
-                                  uselist=False, cascade="all, delete-orphan")
-
+    master_profile: Mapped["Master | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
     # Записи клиента (только если role = 'client')
-    appointments   = relationship("Appointment", back_populates="client",
-                                  foreign_keys="Appointment.client_id")
+    appointments: Mapped[list["Appointment"]] = relationship(
+        back_populates="client", foreign_keys="Appointment.client_id"
+    )
+    reviews: Mapped[list["Review"]] = relationship(
+        back_populates="client", foreign_keys="Review.client_id"
+    )
+    login_attempts: Mapped[list["LoginAttempt"]] = relationship(back_populates="user")
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"

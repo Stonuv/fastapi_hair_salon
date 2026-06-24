@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+"Барбершоп «Сайтама»" — a barbershop booking CMS. FastAPI + SQLAlchemy + PostgreSQL backend, Vue 3 + Pinia + Vite frontend. This is a coursework/portfolio project built against an explicit graded requirements spec (see "Project requirements spec" below) — features like RBAC, overlap-checked booking, an admin panel, and API docs exist because the spec scores them, not just for their own sake.
+
+## Commands
+
+### Backend (run from `backend/`)
+```bash
+source venv/bin/activate                 # venv already created, Python 3.14
+pip install -r requirements.txt
+python run.py                            # uvicorn on :8000, reload=settings.debug, docs at /api/docs
+alembic revision --autogenerate -m "..." # new migration (models/__init__.py imports must stay exhaustive or autogen misses tables)
+alembic upgrade head
+```
+There is no configured lint/format/test command (no pytest, black, ruff, or eslint config present in either package) — don't assume one exists.
+
+### Frontend (run from `frontend/`)
+```bash
+npm install
+npm run dev       # vite dev server, expects backend on :8000 (proxy baseURL is "/api")
+npm run build
+```
+
+### Type checking
+`pyrightconfig.json` points `venvPath`/`venv` at `./backend/.venv`, but the actual virtualenv directory is `backend/venv` — pyright will silently fail to find the interpreter until this is reconciled.
+
+## Architecture
+
+### Backend layering
+Strict `routes -> services -> repositories -> models` layering, one file per entity across all four layers:
+- **routes/** — FastAPI routers, only request/response wiring + `Depends`-based auth. No business logic.
+- **services/** — business rules, orchestrate one or more repositories, raise `HTTPException` directly (no separate exception-translation layer).
+- **repositories/** — all `Session`/query code lives here. Routes and services never touch `db.query` directly.
+- **models/** — SQLAlchemy ORM classes, one file per table. **`models/__init__.py` must import every model** — Alembic's autogenerate only sees models reachable from that file.
+
+`database.py` exposes `get_db()` as the FastAPI dependency; every route takes `db: Session = Depends(get_db)`.
+
+`models/mixins.py` provides `UUIDPrimaryKeyMixin`, `TimestampMixin` (DB-side `created_at`), and `SoftDeleteMixin` (`deleted_at` + `is_deleted` property) — mixed into models rather than repeating the same three columns everywhere. `repositories/_query_utils.py::paginated()` is the shared offset/limit + count helper used by every `list_paginated()` repository method; pair it with `schemas/pagination.py`'s `PageParams` (FastAPI class-dependency for `?page=&page_size=`, max 20/page) and generic `PageResponse[T]` for the response side.
+
+### Auth & RBAC
+JWT bearer auth via `python-jose`, password hashing via `bcrypt`, all in `services/auth_service.py`. Three roles in `models/enums.py::UserRole`: `client`, `master`, `admin`. Role gates are built with `require_role(*roles)`, which produces a FastAPI dependency; the three pre-built ones are `get_current_client`, `get_current_master`, `get_current_admin` (all of which also implicitly allow `admin`). A `Master` is a 1:1 profile attached to a `User` with `role == master` — `master_repo.get_by_user_id()` is how services map "the logged-in user" to "their master row" for ownership checks.
+
+### Booking / overlap logic
+This is the core business rule and is intentionally enforced at two layers:
+1. **Application layer** — `AppointmentRepository.get_overlapping()` checks `start_time < end_time AND end_time > start_time` against non-cancelled appointments for a master, called from `AppointmentService.create()` before insert.
+2. **Database layer** — the initial Alembic migration (`alembic/versions/0001_initial.py`) adds the `btree_gist` extension and an `EXCLUDE USING gist` constraint on `appointments`, which cannot be expressed via SQLAlchemy's declarative API and is written as raw SQL in the migration. This is the actual race-condition-proof guarantee; the repository check is a pre-flight for a clean error message. The constraint carries `WHERE (status <> 'cancelled')` — without that predicate a cancelled appointment would permanently block re-booking the same slot at the DB level even though the app-level check allows it (this was a real bug, fixed when the schema was rewritten).
+
+Appointment status follows an explicit state machine, `ALLOWED_TRANSITIONS` in `services/appointment_service.py`: `pending → {confirmed, cancelled}`, `confirmed → {done, cancelled}`, `done`/`cancelled` are terminal. `AppointmentService.update_status()` (master/admin, via `PATCH /api/appointments/{id}/status`) and `.cancel()` (client-only, via `POST /api/appointments/{id}/cancel`) both check against this table — don't mutate `appointment.status` directly anywhere else.
+
+`AppointmentService.create()` also computes `end_time` (`start_time + service.duration_min`) and `final_price` (`MasterService.price_override` if set, else `service.price * master.coefficient`) before handing off to the repository — repositories never compute, only persist. `final_price` is snapshotted onto the appointment row at creation time and is not recalculated if the service price changes later.
+
+Available slots (`AppointmentService.get_available_slots`) are generated by walking the master's `Schedule` for that weekday in fixed `service.duration_min` increments and dropping any slot that overlaps an existing non-cancelled appointment — this is separate code from the overlap check above and can drift from it if one is changed without the other.
+
+### Data model
+Tables: `users`, `masters` (1:1 to a `user`), `master_services` (M:N join between `masters`/`services`, carries optional `price_override`), `services`, `schedules` (per-master, per-weekday working hours), `appointments`, `notifications` (1:N off `appointments`, has a `(appointment_id, type, channel)` unique constraint to prevent duplicate sends), `reviews` (1:1 off a `done` appointment — denormalizes `master_id`/`service_id` from the appointment so master/service review queries don't need a join), `password_reset_tokens` (only a SHA-256 hash of the token is stored, never the raw token), `login_attempts` (audit log, `user_id` nullable since a failed login may not match any account). All PKs are UUIDs generated client-side (`uuid.uuid4` default).
+
+FK `ondelete` is deliberate: `CASCADE` for owned child rows (master's services/schedules, appointment's notifications/review, password reset tokens, review's denormalized FKs), `RESTRICT` on `appointments.{client_id,master_id,service_id}` so a user/master/service can't be deleted out from under historical bookings, `SET NULL` on `login_attempts.user_id`.
+
+`User`, `Master`, and `Service` use `SoftDeleteMixin` (`deleted_at`) instead of hard delete — `AdminService.delete_user()`/`delete_service()` set the timestamp rather than calling `db.delete()`, and every repository read path filters `deleted_at IS NULL` by default. Because soft-deleted rows still occupy their `email`/`phone`/`user_id` values, uniqueness on those columns is enforced via **partial unique indexes** (`WHERE deleted_at IS NULL`, see `0001_initial.py`) rather than plain `unique=True` — otherwise a soft-deleted user would permanently block that email from re-registering. `Service.is_active` is a separate, unrelated boolean — it's the catalog publish/unpublish toggle, not a deletion marker.
+
+`Master` exposes `first_name`/`last_name` as Python `@property` passthroughs to `self.user` — needed because `AppointmentResponse.master: MasterBriefResponse` validates straight off the ORM `Master` object via `from_attributes=True`, and `MasterBriefResponse` expects those fields at the top level.
+
+### Frontend
+Vue 3 `<script setup>` + Pinia + Vue Router, no TypeScript. `src/stores/auth.js` is the single source of truth for session state (token in `localStorage` + reactive `user`); `src/api/index.js` wraps axios with a request interceptor that attaches the bearer token, grouped into per-resource API objects (`authApi`, `mastersApi`, `servicesApi`, `appointmentsApi`, `userApi`). Routes in `src/router/index.js` are flat (no nested routes, no route-level auth guards yet — role gating happens only via what the backend returns/rejects).
+
+## Project requirements spec
+
+The original task brief (in Russian, `claude_hints.md`) encodes the grading rubric this project is built against. Key mandates for any backend code you write or modify:
+- **Pydantic v2 strict**: `Annotated[...]`-style field declarations, `model_config = ConfigDict(from_attributes=True)` — no v1 `class Config`, no bare `Field(...)` without `Annotated`. Followed throughout `schemas/`; shared `Annotated` aliases live in `schemas/fields.py` (e.g. `NameStr`, `PositiveMoney`) specifically for the reuse-across-schemas reason the spec calls out.
+- **SQLAlchemy 2.0 strict**: `Mapped[...]` + `mapped_column()`, typed `Mapped[list["X"]]` relationships, no legacy `Column(...)` and no `db.query(Model)`. Followed throughout `models/` and `repositories/` (the latter use `select()` + `session.execute()`).
+- Every FK needs an explicit `ondelete` (`CASCADE`, `RESTRICT`, or `SET NULL`) — see the Data model section above for which is used where.
+- Booking overlap checks must stay atomic / race-safe — this is the rubric's top business-logic priority, hence the DB-level `EXCLUDE` constraint described above.
+- Rubric also expects: search/filter/pagination (`PageParams`/`PageResponse[T]`, used on services/masters/appointments/reviews/admin-users lists), a state machine for appointment status transitions (`ALLOWED_TRANSITIONS`), an admin dashboard with stats (`GET /api/admin/stats`), Swagger docs (already at `/api/docs`). Still outstanding / explicitly out of scope: OAuth login and real email delivery (no SMTP provider — password reset logs the link via `logging` instead, see `AuthService.request_password_reset()`), responsive frontend work, deployment/HTTPS/CI — treat these as the backlog when asked "what's left."

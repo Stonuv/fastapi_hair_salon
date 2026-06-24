@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from .config import settings
 
 # ── Engine ───────────────────────────────────────────────────────
@@ -17,8 +17,10 @@ SessionLocal = sessionmaker(
     autoflush=False,
 )
 
-# ── Base для всех моделей ────────────────────────────────────────
-Base = declarative_base()
+
+# ── Base для всех моделей (SQLAlchemy 2.0 style) ──────────────────
+class Base(DeclarativeBase):
+    pass
 
 
 # ── FastAPI dependency ───────────────────────────────────────────

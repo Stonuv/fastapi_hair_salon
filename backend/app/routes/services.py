@@ -1,19 +1,36 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+from typing import Annotated, Literal
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..services.service_service import ServiceService
+from ..schemas.pagination import PageParams, PageResponse
+from ..schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
 from ..services.auth_service import get_current_admin
-from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse, ServiceListResponse
+from ..services.service_service import ServiceService
 
 router = APIRouter(prefix="/api/services", tags=["services"])
 
 
-@router.get("", response_model=ServiceListResponse)
-def get_services(db: Session = Depends(get_db)):
-    """Каталог активных услуг. Публичный эндпоинт."""
-    return ServiceService(db).get_all()
+@router.get("", response_model=PageResponse[ServiceResponse])
+def get_services(
+    *,
+    db: Session = Depends(get_db),
+    page_params: Annotated[PageParams, Depends()],
+    search: Annotated[str | None, Query(description="Поиск по названию")] = None,
+    min_price: Annotated[float | None, Query(ge=0, description="Минимальная цена")] = None,
+    max_price: Annotated[float | None, Query(ge=0, description="Максимальная цена")] = None,
+    is_active: Annotated[bool | None, Query(description="Только активные/неактивные")] = None,
+    sort_by: Annotated[Literal["name", "price", "duration_min"], Query()] = "name",
+    sort_order: Annotated[Literal["asc", "desc"], Query()] = "asc",
+):
+    """Каталог услуг — поиск + фильтр по цене/активности + сортировка + пагинация (1.4). Публичный эндпоинт."""
+    return ServiceService(db).list_paginated(
+        page=page_params.page, page_size=page_params.page_size,
+        search=search, min_price=min_price, max_price=max_price, is_active=is_active,
+        sort_by=sort_by, sort_order=sort_order,
+    )
 
 
 @router.get("/{service_id}", response_model=ServiceResponse)
