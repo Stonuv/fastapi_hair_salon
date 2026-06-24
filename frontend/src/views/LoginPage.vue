@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-[calc(100vh-65px)] items-center justify-center px-4 py-12">
     <BaseCard class="w-full max-w-md">
-      <h1 class="text-center text-2xl font-bold">Вход</h1>
+      <h1 class="text-center font-display text-2xl font-black uppercase tracking-tight text-ink-900">Вход</h1>
       <p class="mt-1 text-center text-sm text-ink-600">Войдите, чтобы записаться к мастеру</p>
 
       <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">

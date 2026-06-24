@@ -1,8 +1,8 @@
 <template>
   <div>
     <section class="border-b border-stone-200 bg-white px-4 py-16 text-center sm:px-6">
-      <p class="text-sm font-medium uppercase tracking-widest text-brand-700">Барбершоп «Сайтама»</p>
-      <h1 class="mt-3 font-display text-4xl font-bold text-ink-900 sm:text-5xl">
+      <p class="font-mono text-xs uppercase tracking-[0.16em] text-brand-700">Барбершоп «Сайтама»</p>
+      <h1 class="mt-3 font-display text-4xl font-black uppercase tracking-tight text-ink-900 sm:text-5xl">
         Мастера, которым доверяют
       </h1>
       <p class="mx-auto mt-3 max-w-md text-ink-600">

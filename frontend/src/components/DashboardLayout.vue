@@ -2,14 +2,14 @@
   <div class="flex min-h-screen bg-stone-50">
     <aside class="hidden w-64 flex-col bg-brand-900 text-white lg:flex">
       <div class="px-6 py-5">
-        <router-link to="/" class="font-display text-lg font-bold">Сайтама</router-link>
+        <router-link to="/" class="font-display text-lg font-black uppercase tracking-tight">Сайтама</router-link>
       </div>
       <nav class="flex-1 space-y-1 px-3">
         <slot name="nav" />
       </nav>
       <div class="border-t border-white/10 p-3">
         <button
-          class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/80 transition-colors duration-200 hover:bg-white/10"
+          class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 font-mono text-xs uppercase tracking-wide text-white/80 transition-colors duration-200 hover:bg-white/10"
           @click="handleLogout"
         >
           <ArrowLeftOnRectangleIcon class="h-5 w-5" aria-hidden="true" />
@@ -23,7 +23,7 @@
         <div class="absolute inset-0 bg-ink-900/40" @click="mobileOpen = false" />
         <aside class="absolute inset-y-0 left-0 flex w-64 flex-col bg-brand-900 text-white">
           <div class="flex items-center justify-between px-6 py-5">
-            <span class="font-display text-lg font-bold">Сайтама</span>
+            <span class="font-display text-lg font-black uppercase tracking-tight">Сайтама</span>
             <button class="cursor-pointer" aria-label="Закрыть меню" @click="mobileOpen = false">
               <XMarkIcon class="h-6 w-6" aria-hidden="true" />
             </button>
@@ -41,10 +41,10 @@
           <button class="cursor-pointer text-ink-900 lg:hidden" aria-label="Открыть меню" @click="mobileOpen = true">
             <Bars3Icon class="h-6 w-6" aria-hidden="true" />
           </button>
-          <h1 class="text-xl font-semibold text-ink-900">{{ title }}</h1>
+          <h1 class="font-display text-xl font-bold uppercase tracking-tight text-ink-900">{{ title }}</h1>
         </div>
-        <router-link to="/profile" class="flex items-center gap-2 text-sm font-medium text-ink-900 hover:text-brand-900">
-          <UserCircleIcon class="h-6 w-6 text-brand-900" aria-hidden="true" />
+        <router-link to="/profile" class="flex items-center gap-2 font-mono text-xs uppercase tracking-wide text-ink-900 hover:text-brand-700">
+          <UserCircleIcon class="h-6 w-6 text-ink-900" aria-hidden="true" />
           <span class="hidden sm:inline">{{ auth.user?.first_name }}</span>
         </router-link>
       </header>

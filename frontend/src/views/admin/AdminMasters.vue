@@ -24,6 +24,9 @@
             <BaseButton variant="ghost" size="sm" @click="toggleExpand(m.id)">
               {{ expanded === m.id ? 'Скрыть услуги' : 'Услуги' }}
             </BaseButton>
+            <BaseButton variant="ghost" size="sm" @click="toggleSchedule(m.id)">
+              {{ expandedSchedule === m.id ? 'Скрыть расписание' : 'Расписание' }}
+            </BaseButton>
           </div>
         </div>
 
@@ -52,6 +55,43 @@
             <BaseInput v-model="newServicePrice[m.id]" type="number" min="0" step="1" placeholder="Цена (необязательно)" class="w-44" />
             <BaseButton type="submit" size="sm" :disabled="!newService[m.id]">Добавить</BaseButton>
           </form>
+        </div>
+
+        <div v-if="expandedSchedule === m.id" class="mt-4 border-t border-stone-200 pt-4">
+          <div v-if="schedules[m.id]?.loading" class="space-y-2">
+            <Skeleton height="h-10" />
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="day in schedules[m.id]?.days ?? []"
+              :key="day.value"
+              class="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 px-3 py-2"
+            >
+              <label class="flex w-32 flex-shrink-0 items-center gap-2 text-sm font-medium text-ink-900">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 cursor-pointer rounded border-stone-200 text-brand-900 focus:ring-brand-900/30"
+                  v-model="day.is_working"
+                />
+                {{ day.label }}
+              </label>
+              <template v-if="day.is_working">
+                <BaseInput v-model="day.start_time" type="time" class="w-32" />
+                <span class="text-ink-600">—</span>
+                <BaseInput v-model="day.end_time" type="time" class="w-32" />
+              </template>
+              <span v-else class="text-sm text-ink-600">Выходной</span>
+              <BaseButton
+                size="sm"
+                variant="ghost"
+                class="ml-auto"
+                :loading="savingScheduleDay === `${m.id}-${day.value}`"
+                @click="saveScheduleDay(m, day)"
+              >
+                Сохранить
+              </BaseButton>
+            </div>
+          </div>
         </div>
       </BaseCard>
     </div>
@@ -89,6 +129,11 @@ const expanded = ref(null)
 const masterServices = reactive({})
 const newService = reactive({})
 const newServicePrice = reactive({})
+
+const expandedSchedule = ref(null)
+const schedules = reactive({})
+const savingScheduleDay = ref(null)
+const dayLabels = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
 
 async function load() {
   loading.value = true
@@ -149,6 +194,46 @@ async function removeService(master, serviceId) {
     toast.success('Услуга убрана')
   } catch (err) {
     toast.error(extractErrorMessage(err))
+  }
+}
+
+async function toggleSchedule(masterId) {
+  expandedSchedule.value = expandedSchedule.value === masterId ? null : masterId
+  if (expandedSchedule.value && !schedules[masterId]) {
+    schedules[masterId] = {
+      loading: true,
+      days: dayLabels.map((label, value) => ({ value, label, is_working: false, start_time: '09:00', end_time: '18:00' })),
+    }
+    try {
+      const { data } = await mastersApi.getSchedule(masterId)
+      for (const entry of data) {
+        const day = schedules[masterId].days[entry.day_of_week]
+        day.is_working = entry.is_working
+        day.start_time = entry.start_time.slice(0, 5)
+        day.end_time = entry.end_time.slice(0, 5)
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Не удалось загрузить расписание'))
+    } finally {
+      schedules[masterId].loading = false
+    }
+  }
+}
+
+async function saveScheduleDay(master, day) {
+  savingScheduleDay.value = `${master.id}-${day.value}`
+  try {
+    await mastersApi.setSchedule(master.id, {
+      day_of_week: day.value,
+      start_time: `${day.start_time}:00`,
+      end_time: `${day.end_time}:00`,
+      is_working: day.is_working,
+    })
+    toast.success(`Расписание на ${day.label.toLowerCase()} сохранено`)
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось сохранить расписание'))
+  } finally {
+    savingScheduleDay.value = null
   }
 }
 

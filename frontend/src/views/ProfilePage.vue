@@ -5,7 +5,7 @@
         {{ initials }}
       </div>
       <div class="flex-1">
-        <p class="text-xs font-medium uppercase tracking-wide text-brand-700">Личный кабинет</p>
+        <p class="font-mono text-[11px] font-medium uppercase tracking-wide text-brand-700">Личный кабинет</p>
         <h1 class="font-display text-2xl font-bold text-ink-900">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</h1>
         <p class="text-sm text-ink-600">{{ auth.user?.email }}</p>
       </div>
@@ -25,7 +25,7 @@
 
     <section class="mt-10">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="font-display text-xl font-bold text-ink-900">Мои записи</h2>
+        <h2 class="font-display text-xl font-bold uppercase tracking-tight text-ink-900">Мои записи</h2>
         <BaseSelect v-model="statusFilter" class="w-48">
           <option value="">Все статусы</option>
           <option value="pending">Ожидают</option>
@@ -45,7 +45,7 @@
         title="У вас пока нет записей"
         description="Выберите мастера и запишитесь онлайн"
       >
-        <router-link to="/"><BaseButton class="mt-2" size="sm">Записаться</BaseButton></router-link>
+        <router-link :to="{ name: 'masters' }"><BaseButton class="mt-2" size="sm">Записаться</BaseButton></router-link>
       </EmptyState>
 
       <div v-else class="space-y-3">
@@ -84,7 +84,7 @@
       <div v-if="reviewTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" @click="reviewTarget = null" />
         <BaseCard class="relative w-full max-w-md">
-          <h2 class="text-lg font-semibold text-ink-900">Оставить отзыв</h2>
+          <h2 class="font-display text-lg font-bold uppercase tracking-tight text-ink-900">Оставить отзыв</h2>
           <p class="mt-1 text-sm text-ink-600">{{ reviewTarget.master_name }} · {{ reviewTarget.service_name }}</p>
           <div class="mt-4">
             <StarRatingInput v-model="reviewForm.rating" />

@@ -4,34 +4,44 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Playfair Display', 'serif'],
-        sans: ['Inter', 'sans-serif'],
+        display: ['"Golos Text"', 'sans-serif'],
+        sans: ['"Golos Text"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       },
       colors: {
         brand: {
-          900: '#78350F',
-          800: '#92400E',
-          700: '#B45309',
+          900: '#111111',
+          800: '#3A3A3A',
+          700: '#5C5C5C',
         },
         accent: {
           400: '#FBBF24',
-          100: '#FEF3C7',
+          100: '#ECEAE5',
         },
         ink: {
-          900: '#2B1607',
-          600: '#52453B',
+          900: '#111111',
+          600: '#5C5955',
         },
         stone: {
-          50: '#FBF8F3',
-          200: '#E7DDD0',
+          50: '#F4F3F0',
+          200: '#E3E1DC',
         },
         danger: '#B91C1C',
         success: '#15803D',
       },
+      borderRadius: {
+        DEFAULT: '1px',
+        sm: '1px',
+        md: '2px',
+        lg: '2px',
+        xl: '2px',
+        '2xl': '2px',
+        '3xl': '2px',
+      },
       boxShadow: {
-        sm: '0 1px 2px rgba(43, 22, 7, 0.06)',
-        md: '0 4px 6px rgba(43, 22, 7, 0.08)',
-        lg: '0 10px 15px rgba(43, 22, 7, 0.1)',
+        sm: '0 1px 2px rgba(17, 17, 17, 0.04)',
+        md: '0 2px 5px rgba(17, 17, 17, 0.06)',
+        lg: '0 6px 16px rgba(17, 17, 17, 0.08)',
       },
     },
   },

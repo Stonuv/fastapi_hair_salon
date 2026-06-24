@@ -1,25 +1,28 @@
 <template>
-  <header class="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-      <router-link to="/" class="font-display text-xl font-bold text-brand-900">Сайтама</router-link>
+  <header class="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/95 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      <router-link to="/" class="flex items-baseline gap-2.5">
+        <span class="font-display text-xl font-black uppercase tracking-tight text-ink-900">Сайтама</span>
+        <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600">Барбершоп</span>
+      </router-link>
 
-      <nav class="hidden items-center gap-6 sm:flex">
+      <nav class="hidden items-center gap-8 sm:flex">
         <router-link
-          to="/"
-          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
-          active-class="text-brand-900"
+          :to="{ name: 'masters' }"
+          class="font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors duration-200 hover:text-brand-700"
+          active-class="text-brand-700"
         >Мастера</router-link>
         <router-link
           v-if="auth.isAdmin"
           to="/admin"
-          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
-          active-class="text-brand-900"
+          class="font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors duration-200 hover:text-brand-700"
+          active-class="text-brand-700"
         >Админ-панель</router-link>
         <router-link
           v-if="auth.isMaster"
           to="/dashboard"
-          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
-          active-class="text-brand-900"
+          class="font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors duration-200 hover:text-brand-700"
+          active-class="text-brand-700"
         >Кабинет мастера</router-link>
       </nav>
 
@@ -27,26 +30,26 @@
         <template v-if="auth.isLoggedIn">
           <router-link
             to="/profile"
-            class="flex items-center gap-2 text-sm font-medium text-ink-900 transition-colors duration-200 hover:text-brand-900"
+            class="flex items-center gap-2 font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors duration-200 hover:text-brand-700"
           >
-            <UserCircleIcon class="h-6 w-6 text-brand-900" aria-hidden="true" />
+            <UserCircleIcon class="h-6 w-6 text-ink-900" aria-hidden="true" />
             <span class="hidden sm:inline">{{ auth.user?.first_name }}</span>
           </router-link>
           <BaseButton variant="ghost" size="sm" @click="handleLogout">Выйти</BaseButton>
         </template>
         <template v-else>
-          <router-link to="/login" class="text-sm font-medium text-ink-600 hover:text-brand-900">Войти</router-link>
+          <router-link to="/login" class="font-mono text-xs uppercase tracking-wide text-ink-900 hover:text-brand-700">Войти</router-link>
           <router-link to="/register">
-            <BaseButton variant="primary" size="sm">Регистрация</BaseButton>
+            <BaseButton variant="primary" size="sm">Записаться ↗</BaseButton>
           </router-link>
         </template>
       </div>
     </div>
 
     <nav class="flex items-center gap-4 overflow-x-auto border-t border-stone-200 px-4 py-2 sm:hidden">
-      <router-link to="/" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Мастера</router-link>
-      <router-link v-if="auth.isAdmin" to="/admin" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Админ</router-link>
-      <router-link v-if="auth.isMaster" to="/dashboard" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Кабинет</router-link>
+      <router-link :to="{ name: 'masters' }" class="whitespace-nowrap font-mono text-xs uppercase tracking-wide text-ink-900" active-class="text-brand-700">Мастера</router-link>
+      <router-link v-if="auth.isAdmin" to="/admin" class="whitespace-nowrap font-mono text-xs uppercase tracking-wide text-ink-900" active-class="text-brand-700">Админ</router-link>
+      <router-link v-if="auth.isMaster" to="/dashboard" class="whitespace-nowrap font-mono text-xs uppercase tracking-wide text-ink-900" active-class="text-brand-700">Кабинет</router-link>
     </nav>
   </header>
 </template>

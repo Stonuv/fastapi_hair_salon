@@ -2,7 +2,7 @@
   <div class="flex min-h-[calc(100vh-65px)] items-center justify-center px-4 py-12">
     <BaseCard class="w-full max-w-md">
       <template v-if="!token">
-        <h1 class="text-center text-2xl font-bold">Восстановление пароля</h1>
+        <h1 class="text-center font-display text-2xl font-black uppercase tracking-tight text-ink-900">Восстановление пароля</h1>
         <p class="mt-1 text-center text-sm text-ink-600">
           Укажите email — если он зарегистрирован, мы пришлём ссылку для сброса пароля
         </p>
@@ -16,7 +16,7 @@
       </template>
 
       <template v-else>
-        <h1 class="text-center text-2xl font-bold">Новый пароль</h1>
+        <h1 class="text-center font-display text-2xl font-black uppercase tracking-tight text-ink-900">Новый пароль</h1>
         <p class="mt-1 text-center text-sm text-ink-600">Введите новый пароль для своего аккаунта</p>
 
         <form class="mt-6 space-y-4" novalidate @submit.prevent="submitConfirm">

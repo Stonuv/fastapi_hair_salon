@@ -14,7 +14,7 @@
           </div>
         </div>
         <div class="text-center sm:text-left">
-          <p class="text-xs font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
+          <p class="font-mono text-[11px] font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
           <h1 class="mt-1 font-display text-3xl font-bold text-ink-900">{{ fullName }}</h1>
           <p v-if="reviewsTotal" class="mt-1 flex items-center justify-center gap-1 text-sm text-ink-600 sm:justify-start">
             <StarIcon class="h-4 w-4 text-accent-400" aria-hidden="true" />
@@ -39,7 +39,7 @@
             @click="selectService(ms)"
           >
             <span class="font-medium text-ink-900">{{ ms.service.name }}</span>
-            <span class="whitespace-nowrap text-sm text-brand-700">{{ ms.service.duration_min }} мин · {{ ms.final_price }} ₽</span>
+            <span class="whitespace-nowrap font-mono text-sm text-brand-700">{{ ms.service.duration_min }} мин · {{ ms.final_price }} ₽</span>
           </button>
         </div>
       </section>
@@ -55,7 +55,7 @@
             :class="selectedDate === d.iso ? 'border-brand-900 bg-accent-100/60' : 'border-stone-200 bg-white hover:border-brand-900/50'"
             @click="selectDate(d.iso)"
           >
-            <span class="text-xs uppercase tracking-wide text-brand-700">{{ d.day }}</span>
+            <span class="font-mono text-xs uppercase tracking-wide text-brand-700">{{ d.day }}</span>
             <span class="mt-0.5 text-sm text-ink-900">{{ d.label }}</span>
           </button>
         </div>
@@ -72,11 +72,11 @@
           <button
             v-for="slot in slots"
             :key="slot.start_time"
-            class="cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors duration-200"
+            class="cursor-pointer rounded-lg border px-4 py-2 font-mono text-sm transition-colors duration-200"
             :class="selectedSlot?.start_time === slot.start_time
               ? 'border-brand-900 bg-brand-900 text-white'
               : 'border-stone-200 bg-white text-ink-900 hover:border-brand-900/50'"
-            @click="selectedSlot = slot"
+            @click="selectSlot(slot)"
           >
             {{ formatTime(slot.start_time) }}
           </button>
@@ -101,21 +101,21 @@
             <span class="text-ink-600">Дата и время</span>
             <span class="text-ink-900">{{ formatDate(selectedSlot.start_time) }}, {{ formatTime(selectedSlot.start_time) }}</span>
           </div>
-          <div class="flex justify-between py-3 text-base font-semibold"><span class="text-ink-900">Итого</span><span class="text-brand-900">{{ selectedService.final_price }} ₽</span></div>
+          <div class="flex justify-between py-3 text-base font-semibold"><span class="text-ink-900">Итого</span><span class="font-mono text-ink-900">{{ selectedService.final_price }} ₽</span></div>
           <BaseButton variant="accent" class="mt-4 w-full" :loading="bookingLoading" @click="book">Записаться</BaseButton>
         </BaseCard>
       </section>
 
       <BaseCard v-if="booked" class="mt-8 text-center">
         <CheckCircleIcon class="mx-auto h-12 w-12 text-success" aria-hidden="true" />
-        <h2 class="mt-3 font-display text-2xl font-bold text-ink-900">Запись оформлена</h2>
+        <h2 class="mt-3 font-display text-2xl font-bold uppercase tracking-tight text-ink-900">Запись оформлена</h2>
         <p class="mt-1 text-ink-600">Ждём вас {{ formatDate(selectedSlot.start_time) }} в {{ formatTime(selectedSlot.start_time) }}</p>
         <router-link to="/profile"><BaseButton class="mt-4">Мои записи</BaseButton></router-link>
       </BaseCard>
 
       <!-- Отзывы -->
       <section class="mt-12">
-        <h2 class="font-display text-xl font-bold text-ink-900">Отзывы</h2>
+        <h2 class="font-display text-xl font-bold uppercase tracking-tight text-ink-900">Отзывы</h2>
         <EmptyState v-if="!reviewsLoading && reviews.length === 0" class="mt-4" title="Пока нет отзывов" />
         <div v-else class="mt-4 space-y-3">
           <BaseCard v-for="r in reviews" :key="r.id">
@@ -197,6 +197,7 @@ function selectService(ms) {
   selectedDate.value = null
   selectedSlot.value = null
   slots.value = []
+  booked.value = false
 }
 
 const selectedDate = ref(null)
@@ -222,6 +223,7 @@ const slotsLoading = ref(false)
 async function selectDate(iso) {
   selectedDate.value = iso
   selectedSlot.value = null
+  booked.value = false
   slotsLoading.value = true
   try {
     const { data } = await mastersApi.getSlots(route.params.id, selectedService.value.service.id, iso)
@@ -237,6 +239,11 @@ async function selectDate(iso) {
 const selectedSlot = ref(null)
 const bookingLoading = ref(false)
 const booked = ref(false)
+
+function selectSlot(slot) {
+  selectedSlot.value = slot
+  booked.value = false
+}
 
 async function book() {
   bookingLoading.value = true

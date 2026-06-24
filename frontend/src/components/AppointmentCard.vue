@@ -9,7 +9,7 @@
       </p>
     </div>
     <div class="flex flex-shrink-0 flex-wrap items-center gap-3">
-      <p class="font-semibold text-brand-900">{{ appointment.final_price }} ₽</p>
+      <p class="font-mono font-bold text-ink-900">{{ appointment.final_price }} ₽</p>
       <slot name="actions" />
     </div>
   </BaseCard>

@@ -5,10 +5,10 @@
         v-for="i in 4" :key="i"
         :x1="padding" :x2="width - padding"
         :y1="padding + (i * plotHeight) / 4" :y2="padding + (i * plotHeight) / 4"
-        stroke="#E7DDD0" stroke-width="1"
+        stroke="#E3E1DC" stroke-width="1"
       />
-      <polyline :points="points" fill="none" stroke="#78350F" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-      <circle v-for="(p, i) in coords" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#FBBF24" stroke="#78350F" stroke-width="1.5" />
+      <polyline :points="points" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <circle v-for="(p, i) in coords" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#FBBF24" stroke="#111111" stroke-width="1.5" />
     </svg>
     <div class="mt-1 flex justify-between text-xs text-ink-600">
       <span>{{ formatDate(data[0]?.date) }}</span>

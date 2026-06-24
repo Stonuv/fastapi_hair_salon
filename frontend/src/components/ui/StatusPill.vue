@@ -1,5 +1,5 @@
 <template>
-  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" :class="entry.classes">
+  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-wide" :class="entry.classes">
     {{ entry.label }}
   </span>
 </template>

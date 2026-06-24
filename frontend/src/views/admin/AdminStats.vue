@@ -18,7 +18,7 @@
       </div>
 
       <BaseCard class="mt-6">
-        <h2 class="mb-4 font-display text-lg font-bold text-ink-900">Регистрации за последние 30 дней</h2>
+        <h2 class="mb-4 font-display text-lg font-bold uppercase tracking-tight text-ink-900">Регистрации за последние 30 дней</h2>
         <RegistrationsChart v-if="stats.registrations_last_30_days.length" :data="stats.registrations_last_30_days" />
         <EmptyState v-else title="Пока нет данных" />
       </BaseCard>

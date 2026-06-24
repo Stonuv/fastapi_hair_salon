@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
-  { path: '/', name: 'masters', component: () => import('../views/MastersPage.vue') },
+  { path: '/', name: 'home', component: () => import('../views/HomePage.vue') },
+  { path: '/masters', name: 'masters', component: () => import('../views/MastersPage.vue') },
   { path: '/masters/:id', name: 'master-booking', component: () => import('../views/BookingPage.vue'), props: true },
   { path: '/login', name: 'login', component: () => import('../views/LoginPage.vue'), meta: { guestOnly: true } },
   { path: '/register', name: 'register', component: () => import('../views/RegisterPage.vue'), meta: { guestOnly: true } },
@@ -51,10 +52,10 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.roles && !to.meta.roles.includes(auth.user?.role)) {
-    return { name: 'masters' }
+    return { name: 'home' }
   }
   if (to.meta.guestOnly && auth.isLoggedIn) {
-    return { name: 'masters' }
+    return { name: 'home' }
   }
   return true
 })

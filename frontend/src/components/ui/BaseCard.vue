@@ -1,7 +1,7 @@
 <template>
   <div
-    class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-    :class="{ 'cursor-pointer transition-shadow duration-200 hover:shadow-md': clickable }"
+    class="border border-stone-200 bg-white p-6"
+    :class="{ 'cursor-pointer transition-colors duration-200 hover:border-brand-900': clickable }"
   >
     <slot />
   </div>

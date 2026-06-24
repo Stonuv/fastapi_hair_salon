@@ -2,7 +2,7 @@
   <button
     :type="type"
     :disabled="disabled || loading"
-    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap border font-mono uppercase tracking-wider transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
     :class="[variants[variant] ?? variants.primary, sizes[size] ?? sizes.md]"
   >
     <svg v-if="loading" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -23,13 +23,14 @@ defineProps({
 })
 
 const variants = {
-  primary: 'bg-brand-900 text-white hover:bg-brand-800',
-  accent: 'bg-accent-400 text-ink-900 hover:brightness-95',
-  ghost: 'bg-transparent text-brand-900 border border-brand-900/30 hover:bg-brand-900/5',
-  danger: 'bg-danger text-white hover:brightness-90',
+  primary: 'bg-brand-900 text-white border-brand-900 hover:bg-brand-800 hover:border-brand-800',
+  accent: 'bg-brand-900 text-white border-brand-900 hover:bg-brand-800 hover:border-brand-800',
+  ghost: 'bg-transparent text-brand-900 border-brand-900 hover:bg-brand-900 hover:text-white',
+  danger: 'bg-danger text-white border-danger hover:brightness-90',
 }
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2.5 text-base',
+  sm: 'px-3 py-1.5 text-[11px]',
+  md: 'px-5 py-3 text-xs',
+  lg: 'px-8 py-4 text-sm',
 }
 </script>

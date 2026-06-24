@@ -22,7 +22,7 @@
         <div>
           <div class="flex items-center gap-2">
             <p class="font-medium text-ink-900">{{ s.name }}</p>
-            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="s.is_active ? 'bg-green-100 text-green-800' : 'bg-stone-200 text-ink-600'">
+            <span class="rounded-full px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide" :class="s.is_active ? 'bg-green-100 text-green-800' : 'bg-stone-200 text-ink-600'">
               {{ s.is_active ? 'Активна' : 'Скрыта' }}
             </span>
           </div>
@@ -41,7 +41,7 @@
       <div v-if="formOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" @click="formOpen = false" />
         <BaseCard class="relative w-full max-w-md">
-          <h2 class="text-lg font-semibold text-ink-900">{{ editingId ? 'Редактировать услугу' : 'Новая услуга' }}</h2>
+          <h2 class="font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ editingId ? 'Редактировать услугу' : 'Новая услуга' }}</h2>
           <form class="mt-4 space-y-4" novalidate @submit.prevent="submitForm">
             <BaseInput v-model="form.name" label="Название" required />
             <BaseInput v-model="form.description" as="textarea" label="Описание" hint="Необязательно" />

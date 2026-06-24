@@ -4,7 +4,7 @@
       <component :is="icon" class="h-6 w-6" aria-hidden="true" />
     </div>
     <div>
-      <p class="text-sm text-ink-600">{{ label }}</p>
+      <p class="font-mono text-[11px] uppercase tracking-wide text-ink-600">{{ label }}</p>
       <p class="font-display text-2xl font-bold text-ink-900">{{ value }}</p>
     </div>
   </BaseCard>
