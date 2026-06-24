@@ -1,15 +1,13 @@
 <template>
-  <AppHeader />
-  <main>
-    <router-view />
-  </main>
+  <AppHeader v-if="!route.meta.hideHeader" />
+  <router-view />
+  <ToastContainer />
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
-import { useAuthStore } from './stores/auth'
+import ToastContainer from './components/ui/ToastContainer.vue'
 
-const auth = useAuthStore()
-onMounted(() => auth.fetchMe())
+const route = useRoute()
 </script>

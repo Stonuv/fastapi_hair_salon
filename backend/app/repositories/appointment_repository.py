@@ -44,7 +44,12 @@ class AppointmentRepository:
         sort_order: Literal["asc", "desc"] = "desc",
     ) -> tuple[list[Appointment], int]:
         """Список записей с фильтром по клиенту/мастеру/статусу/диапазону дат (1.4)."""
-        stmt = select(Appointment)
+        stmt = select(Appointment).options(
+            joinedload(Appointment.review),
+            joinedload(Appointment.client),
+            joinedload(Appointment.master).joinedload(Master.user),
+            joinedload(Appointment.service),
+        )
         if client_id is not None:
             stmt = stmt.where(Appointment.client_id == client_id)
         if master_id is not None:

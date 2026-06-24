@@ -2,8 +2,9 @@ import uuid
 from typing import Literal, Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
+from ..models.master import Master
 from ..models.review import Review
 from ._query_utils import paginated
 
@@ -38,7 +39,11 @@ class ReviewRepository:
         """Отзывы — фильтр по мастеру/услуге/минимальной оценке, с пагинацией.
         is_published=True (по умолчанию) — для публичной выдачи;
         is_published=None — для модерации админом (видно всё)."""
-        stmt = select(Review)
+        stmt = select(Review).options(
+            joinedload(Review.client),
+            joinedload(Review.master).joinedload(Master.user),
+            joinedload(Review.service),
+        )
         if is_published is not None:
             stmt = stmt.where(Review.is_published.is_(is_published))
         if master_id is not None:

@@ -2,20 +2,33 @@ from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models.enums import UserRole
+from ..models.user import User
+from ..repositories.master_repository import MasterRepository
 from ..schemas.appointment import SlotListResponse
 from ..schemas.master import (MasterBriefResponse, MasterResponse,
                               MasterServiceResponse, MasterUpdate)
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..services.appointment_service import AppointmentService
-from ..services.auth_service import get_current_admin
+from ..services.auth_service import get_current_admin, get_current_master
 from ..services.master_service import MasterService
 
 router = APIRouter(prefix="/api/masters", tags=["masters"])
+
+
+def _ensure_owner_or_admin(master_id: UUID, current_user: User, db: Session) -> None:
+    """Мастер может управлять только своим профилем/расписанием — админ может всеми."""
+    if current_user.role == UserRole.admin:
+        return
+    own_master = MasterRepository(db).get_by_user_id(current_user.id)
+    if not own_master or own_master.id != master_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Доступ только к своему профилю")
 
 
 # ── Каталог ──────────────────────────────────────────────────────
@@ -38,6 +51,19 @@ def get_masters(
     )
 
 
+@router.get("/me", response_model=MasterResponse)
+def get_my_master_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_master),
+):
+    """Профиль мастера текущего пользователя — для кабинета мастера."""
+    master = MasterRepository(db).get_by_user_id(current_user.id)
+    if not master:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Профиль мастера не найден")
+    return MasterResponse.model_validate(master)
+
+
 @router.get("/{master_id}", response_model=MasterResponse)
 def get_master(master_id: UUID, db: Session = Depends(get_db)):
     """Профиль мастера. Публичный эндпоинт."""
@@ -46,8 +72,10 @@ def get_master(master_id: UUID, db: Session = Depends(get_db)):
 
 @router.patch("/{master_id}", response_model=MasterResponse)
 def update_master(master_id: UUID, data: MasterUpdate,
-                  db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить профиль мастера. Только для администратора."""
+                  db: Session = Depends(get_db),
+                  current_user: User = Depends(get_current_master)):
+    """Обновить профиль мастера. Сам мастер или администратор."""
+    _ensure_owner_or_admin(master_id, current_user, db)
     return MasterService(db).update(master_id, data)
 
 
@@ -87,15 +115,19 @@ def get_schedule(master_id: UUID, db: Session = Depends(get_db)):
 @router.post("/{master_id}/schedule", response_model=ScheduleResponse,
              status_code=status.HTTP_201_CREATED)
 def set_schedule(master_id: UUID, data: ScheduleCreate,
-                 db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Задать расписание на день. Если уже существует — перезапишет."""
+                 db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_master)):
+    """Задать расписание на день. Если уже существует — перезапишет. Сам мастер или администратор."""
+    _ensure_owner_or_admin(master_id, current_user, db)
     return MasterService(db).set_schedule(master_id, data)
 
 
 @router.patch("/{master_id}/schedule/{day_of_week}", response_model=ScheduleResponse)
 def update_schedule(master_id: UUID, day_of_week: int, data: ScheduleUpdate,
-                    db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить расписание на конкретный день (0=пн … 6=вс)."""
+                    db: Session = Depends(get_db),
+                    current_user: User = Depends(get_current_master)):
+    """Обновить расписание на конкретный день (0=пн … 6=вс). Сам мастер или администратор."""
+    _ensure_owner_or_admin(master_id, current_user, db)
     return MasterService(db).update_schedule(master_id, day_of_week, data)
 
 

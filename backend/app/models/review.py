@@ -49,5 +49,19 @@ class Review(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     master: Mapped["Master"] = relationship(back_populates="reviews")
     service: Mapped["Service"] = relationship(back_populates="reviews")
 
+    # Денормализованные имена для админ-модерации — без них пришлось бы
+    # делать отдельный запрос на каждый client_id/master_id/service_id.
+    @property
+    def client_name(self) -> str:
+        return f"{self.client.first_name} {self.client.last_name}"
+
+    @property
+    def master_name(self) -> str:
+        return f"{self.master.first_name} {self.master.last_name}"
+
+    @property
+    def service_name(self) -> str:
+        return self.service.name
+
     def __repr__(self) -> str:
         return f"<Review(appointment={self.appointment_id}, master={self.master_id}, rating={self.rating})>"

@@ -1,103 +1,29 @@
 <template>
-  <router-link :to="`/masters/${master.id}`" class="card">
-    <div class="card__photo">
-      <img v-if="master.photo_url" :src="master.photo_url" :alt="fullName" />
-      <div v-else class="card__photo-placeholder">✂</div>
+  <router-link :to="`/masters/${master.id}`" class="group block cursor-pointer overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+    <div class="aspect-[3/4] w-full overflow-hidden bg-stone-200">
+      <img v-if="master.photo_url" :src="master.photo_url" :alt="fullName" class="h-full w-full object-cover" loading="lazy" />
+      <div v-else class="flex h-full w-full items-center justify-center">
+        <UserIcon class="h-16 w-16 text-brand-900/20" aria-hidden="true" />
+      </div>
     </div>
-    <div class="card__body">
-      <p class="card__spec">{{ master.specialization || 'Мастер' }}</p>
-      <h3 class="card__name">{{ fullName }}</h3>
-      <div class="card__divider">✂</div>
-      <p class="card__cta">Записаться →</p>
+    <div class="p-4">
+      <p class="text-xs font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
+      <h3 class="mt-1 font-display text-lg font-semibold text-ink-900">{{ fullName }}</h3>
+      <p class="mt-3 flex items-center gap-1 text-sm font-medium text-brand-900 transition-colors group-hover:text-brand-800">
+        Записаться
+        <ArrowRightIcon class="h-4 w-4" aria-hidden="true" />
+      </p>
     </div>
   </router-link>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { UserIcon, ArrowRightIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
-  master: { type: Object, required: true }
+  master: { type: Object, required: true },
 })
 
-const fullName = computed(() =>
-  `${props.master.first_name} ${props.master.last_name}`
-)
+const fullName = computed(() => `${props.master.first_name} ${props.master.last_name}`)
 </script>
-
-<style scoped>
-.card {
-  display: block;
-  text-decoration: none;
-  background: var(--c-cream);
-  border: 1px solid var(--c-latte);
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.25s, box-shadow 0.25s;
-}
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(44, 24, 16, 0.12);
-}
-.card__photo {
-  width: 100%;
-  aspect-ratio: 3/4;
-  background: var(--c-latte);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.card__photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.card__photo-placeholder {
-  font-size: 3rem;
-  opacity: 0.3;
-  color: var(--c-espresso);
-}
-.card__body {
-  padding: 1.25rem;
-}
-.card__spec {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--c-caramel);
-  margin: 0 0 0.35rem;
-}
-.card__name {
-  font-family: var(--f-display);
-  font-size: 1.35rem;
-  color: var(--c-espresso);
-  margin: 0;
-  font-weight: 500;
-}
-.card__divider {
-  margin: 0.85rem 0;
-  font-size: 0.75rem;
-  color: var(--c-latte);
-  text-align: center;
-  position: relative;
-}
-.card__divider::before,
-.card__divider::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 38%;
-  height: 1px;
-  background: var(--c-latte);
-}
-.card__divider::before { left: 0; }
-.card__divider::after  { right: 0; }
-.card__cta {
-  font-size: 0.85rem;
-  color: var(--c-matcha);
-  margin: 0;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-}
-</style>

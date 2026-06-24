@@ -1,167 +1,90 @@
 <template>
-  <div class="page">
-    <div class="card">
-      <h1 class="card__title">
-        {{ isRegister ? 'Регистрация' : 'Вход' }}
-      </h1>
-      <div class="scissors-divider">✂</div>
+  <div class="flex min-h-[calc(100vh-65px)] items-center justify-center px-4 py-12">
+    <BaseCard class="w-full max-w-md">
+      <h1 class="text-center text-2xl font-bold">Вход</h1>
+      <p class="mt-1 text-center text-sm text-ink-600">Войдите, чтобы записаться к мастеру</p>
 
-      <form class="form" @submit.prevent="submit">
-        <template v-if="isRegister">
-          <div class="form__row">
-            <input v-model="form.first_name" class="form__input"
-                   placeholder="Имя" required />
-            <input v-model="form.last_name" class="form__input"
-                   placeholder="Фамилия" required />
-          </div>
-        </template>
+      <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
+        <BaseInput
+          v-model="form.email"
+          label="Email"
+          type="email"
+          autocomplete="email"
+          required
+          :error="errors.email"
+          @blur="validateEmail"
+        />
+        <BaseInput
+          v-model="form.password"
+          label="Пароль"
+          type="password"
+          autocomplete="current-password"
+          required
+          :error="errors.password"
+          @blur="validatePassword"
+        />
 
-        <input v-model="form.email" class="form__input"
-               type="email" placeholder="Email" required />
-        <input v-model="form.password" class="form__input"
-               type="password" placeholder="Пароль" required />
-
-        <p v-if="error" class="error">{{ error }}</p>
-
-        <button class="btn" type="submit" :disabled="loading">
-          {{ loading ? '…' : (isRegister ? 'Зарегистрироваться' : 'Войти') }}
-        </button>
+        <BaseButton type="submit" class="w-full" :loading="loading">Войти</BaseButton>
       </form>
 
-      <p class="card__switch">
-        {{ isRegister ? 'Уже есть аккаунт?' : 'Нет аккаунта?' }}
-        <button class="link-btn" @click="isRegister = !isRegister">
-          {{ isRegister ? 'Войти' : 'Зарегистрироваться' }}
-        </button>
+      <p class="mt-4 text-center text-sm">
+        <router-link to="/password-reset" class="text-brand-900 hover:underline">Забыли пароль?</router-link>
       </p>
-    </div>
+      <p class="mt-2 text-center text-sm text-ink-600">
+        Нет аккаунта?
+        <router-link to="/register" class="font-medium text-brand-900 hover:underline">Зарегистрироваться</router-link>
+      </p>
+    </BaseCard>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
+import { useFormErrors } from '../composables/useFormErrors'
+import { extractErrorMessage } from '../utils/errors'
+import BaseCard from '../components/ui/BaseCard.vue'
+import BaseInput from '../components/ui/BaseInput.vue'
+import BaseButton from '../components/ui/BaseButton.vue'
 
-const router     = useRouter()
-const auth       = useAuthStore()
-const isRegister = ref(false)
-const loading    = ref(false)
-const error      = ref('')
+const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
+const toast = useToastStore()
+const { errors, setError, clearError, setFromResponse } = useFormErrors()
 
-const form = reactive({
-  email: '', password: '', first_name: '', last_name: ''
-})
+const form = reactive({ email: '', password: '' })
+const loading = ref(false)
+
+function validateEmail() {
+  if (!form.email) return setError('email', 'Укажите email')
+  if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError('email', 'Некорректный email')
+  clearError('email')
+}
+
+function validatePassword() {
+  if (!form.password) return setError('password', 'Укажите пароль')
+  clearError('password')
+}
 
 async function submit() {
+  validateEmail()
+  validatePassword()
+  if (errors.email || errors.password) return
+
   loading.value = true
-  error.value   = ''
   try {
-    if (isRegister.value) {
-      await auth.register(form)
-    } else {
-      await auth.login({ email: form.email, password: form.password })
+    await auth.login(form)
+    toast.success('Добро пожаловать!')
+    router.push(route.query.redirect || '/')
+  } catch (err) {
+    if (!setFromResponse(err)) {
+      toast.error(extractErrorMessage(err, 'Неверный email или пароль'))
     }
-    router.push('/')
-  } catch (e) {
-    error.value = e.response?.data?.detail || 'Ошибка. Проверьте данные.'
   } finally {
     loading.value = false
   }
 }
 </script>
-
-<style scoped>
-.page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 64px);
-  padding: 2rem 1.5rem;
-}
-.card {
-  width: 100%;
-  max-width: 400px;
-  background: var(--c-cream);
-  border: 1px solid var(--c-latte);
-  border-radius: 10px;
-  padding: 2.5rem 2rem;
-}
-.card__title {
-  font-family: var(--f-display);
-  font-size: 2rem;
-  font-weight: 400;
-  color: var(--c-espresso);
-  margin: 0 0 0.5rem;
-  text-align: center;
-}
-.scissors-divider {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--c-latte);
-  position: relative;
-  margin: 0 0 1.75rem;
-}
-.scissors-divider::before,
-.scissors-divider::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: calc(50% - 1.5rem);
-  height: 1px;
-  background: var(--c-latte);
-}
-.scissors-divider::before { left: 0; }
-.scissors-divider::after  { right: 0; }
-
-.form { display: flex; flex-direction: column; gap: 0.75rem; }
-.form__row { display: flex; gap: 0.75rem; }
-.form__input {
-  width: 100%;
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--c-latte);
-  border-radius: 5px;
-  background: #fff;
-  font-size: 0.95rem;
-  color: var(--c-espresso);
-  outline: none;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
-.form__input:focus { border-color: var(--c-matcha); }
-
-.btn {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background: var(--c-matcha);
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.btn:hover    { opacity: 0.85; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.error {
-  color: #b05050;
-  font-size: 0.875rem;
-  margin: 0;
-}
-.card__switch {
-  text-align: center;
-  margin: 1.25rem 0 0;
-  font-size: 0.875rem;
-  color: #8a7060;
-}
-.link-btn {
-  background: none;
-  border: none;
-  color: var(--c-matcha);
-  cursor: pointer;
-  font-size: inherit;
-  padding: 0;
-  margin-left: 0.25rem;
-}
-</style>

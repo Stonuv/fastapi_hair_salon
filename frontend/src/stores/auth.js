@@ -4,10 +4,13 @@ import { authApi } from '../api'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || null)
-  const user  = ref(null)
+  const user = ref(null)
+  const ready = ref(false)
 
   const isLoggedIn = computed(() => !!token.value)
-  const isClient   = computed(() => user.value?.role === 'client')
+  const isClient = computed(() => user.value?.role === 'client')
+  const isMaster = computed(() => user.value?.role === 'master')
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   async function register(data) {
     const res = await authApi.register(data)
@@ -20,26 +23,40 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchMe() {
-    if (!token.value) return
+    if (!token.value) {
+      ready.value = true
+      return
+    }
     try {
       const res = await authApi.me()
       user.value = res.data
     } catch {
       logout()
+    } finally {
+      ready.value = true
     }
+  }
+
+  async function updateMe(data) {
+    const res = await authApi.updateMe(data)
+    user.value = res.data
   }
 
   function logout() {
     token.value = null
-    user.value  = null
+    user.value = null
     localStorage.removeItem('token')
   }
 
   function _setSession(data) {
     token.value = data.access_token
-    user.value  = data.user
+    user.value = data.user
     localStorage.setItem('token', data.access_token)
   }
 
-  return { token, user, isLoggedIn, isClient, register, login, fetchMe, logout }
+  return {
+    token, user, ready,
+    isLoggedIn, isClient, isMaster, isAdmin,
+    register, login, fetchMe, updateMe, logout,
+  }
 })

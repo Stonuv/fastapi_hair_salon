@@ -2,3 +2,5 @@ for_my_eyes_only.txt
 backend/*.env
 __pycache__/
 *.pyc
+node_modules/
+dist/

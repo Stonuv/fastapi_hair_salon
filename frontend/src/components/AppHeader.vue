@@ -1,78 +1,67 @@
 <template>
-  <header class="header">
-    <div class="header__inner">
-      <router-link to="/" class="header__logo">✂ Сайтама</router-link>
+  <header class="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <router-link to="/" class="font-display text-xl font-bold text-brand-900">Сайтама</router-link>
 
-      <nav class="header__nav">
-        <router-link to="/" class="header__link">Мастера</router-link>
+      <nav class="hidden items-center gap-6 sm:flex">
+        <router-link
+          to="/"
+          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
+          active-class="text-brand-900"
+        >Мастера</router-link>
+        <router-link
+          v-if="auth.isAdmin"
+          to="/admin"
+          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
+          active-class="text-brand-900"
+        >Админ-панель</router-link>
+        <router-link
+          v-if="auth.isMaster"
+          to="/dashboard"
+          class="text-sm font-medium text-ink-600 transition-colors duration-200 hover:text-brand-900"
+          active-class="text-brand-900"
+        >Кабинет мастера</router-link>
+      </nav>
 
+      <div class="flex items-center gap-3">
         <template v-if="auth.isLoggedIn">
           <router-link
-            v-if="auth.user?.role === 'admin'"
-            to="/admin"
-            class="header__link"
-          >Админ</router-link>
-
-          <router-link
-            v-if="auth.user?.role === 'master'"
-            to="/dashboard"
-            class="header__link"
-          >Кабинет</router-link>
-
-          <router-link to="/profile" class="header__link">
-            {{ auth.user?.first_name }}
+            to="/profile"
+            class="flex items-center gap-2 text-sm font-medium text-ink-900 transition-colors duration-200 hover:text-brand-900"
+          >
+            <UserCircleIcon class="h-6 w-6 text-brand-900" aria-hidden="true" />
+            <span class="hidden sm:inline">{{ auth.user?.first_name }}</span>
           </router-link>
-
-          <button class="header__btn header__btn--ghost" @click="auth.logout">
-            Выйти
-          </button>
+          <BaseButton variant="ghost" size="sm" @click="handleLogout">Выйти</BaseButton>
         </template>
-
         <template v-else>
-          <router-link to="/login" class="header__btn">Войти</router-link>
+          <router-link to="/login" class="text-sm font-medium text-ink-600 hover:text-brand-900">Войти</router-link>
+          <router-link to="/register">
+            <BaseButton variant="primary" size="sm">Регистрация</BaseButton>
+          </router-link>
         </template>
-      </nav>
+      </div>
     </div>
+
+    <nav class="flex items-center gap-4 overflow-x-auto border-t border-stone-200 px-4 py-2 sm:hidden">
+      <router-link to="/" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Мастера</router-link>
+      <router-link v-if="auth.isAdmin" to="/admin" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Админ</router-link>
+      <router-link v-if="auth.isMaster" to="/dashboard" class="whitespace-nowrap text-sm font-medium text-ink-600" active-class="text-brand-900">Кабинет</router-link>
+    </nav>
   </header>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+import { UserCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
-const auth = useAuthStore()
-</script>
+import BaseButton from './ui/BaseButton.vue'
 
-<style scoped>
-.header {
-  position: sticky; top: 0; z-index: 100;
-  background: var(--c-espresso);
-  border-bottom: 1px solid var(--c-latte);
+const auth = useAuthStore()
+const router = useRouter()
+
+function handleLogout() {
+  auth.logout()
+  router.push('/login')
 }
-.header__inner {
-  max-width: 1100px; margin: 0 auto;
-  padding: 0 1.5rem; height: 64px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.header__logo {
-  font-family: var(--f-display); font-size: 1.4rem;
-  color: var(--c-cream); text-decoration: none; letter-spacing: 0.04em;
-}
-.header__nav { display: flex; align-items: center; gap: 1.5rem; }
-.header__link {
-  color: var(--c-latte); text-decoration: none;
-  font-size: 0.9rem; letter-spacing: 0.05em;
-  text-transform: uppercase; transition: color 0.2s;
-}
-.header__link:hover,
-.header__link.router-link-active { color: var(--c-cream); }
-.header__btn {
-  padding: 0.4rem 1rem;
-  background: var(--c-matcha); color: var(--c-cream);
-  border: none; border-radius: 4px; font-size: 0.85rem;
-  cursor: pointer; text-decoration: none; transition: opacity 0.2s;
-}
-.header__btn:hover { opacity: 0.85; }
-.header__btn--ghost {
-  background: transparent;
-  border: 1px solid var(--c-latte); color: var(--c-latte);
-}
-</style>
+</script>

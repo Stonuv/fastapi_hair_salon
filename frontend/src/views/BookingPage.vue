@@ -1,79 +1,81 @@
 <template>
-  <div class="page">
-    <div v-if="loading" class="state">Загружаем профиль мастера…</div>
+  <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div v-if="loading" class="space-y-4">
+      <Skeleton height="h-44" />
+      <Skeleton height="h-32" />
+    </div>
 
     <template v-else-if="master">
-      <!-- Профиль -->
-      <section class="profile">
-        <div class="profile__photo">
-          <img v-if="master.photo_url" :src="master.photo_url" :alt="fullName" />
-          <div v-else class="profile__photo-placeholder">✂</div>
-        </div>
-        <div class="profile__info">
-          <p class="profile__eyebrow">{{ master.specialization || 'Мастер' }}</p>
-          <h1 class="profile__name">{{ fullName }}</h1>
-          <div class="scissors-divider">✂</div>
-
-          <!-- Услуги мастера — краткий список -->
-          <div class="profile__services" v-if="masterServices.length">
-            <span v-for="ms in masterServices" :key="ms.service.id" class="service-tag">
-              {{ ms.service.name }} · {{ ms.final_price }} ₽
-            </span>
+      <BaseCard class="flex flex-col gap-6 sm:flex-row">
+        <div class="mx-auto h-40 w-32 flex-shrink-0 overflow-hidden rounded-lg bg-stone-200 sm:mx-0">
+          <img v-if="master.photo_url" :src="master.photo_url" :alt="fullName" class="h-full w-full object-cover" />
+          <div v-else class="flex h-full w-full items-center justify-center">
+            <UserIcon class="h-12 w-12 text-brand-900/20" aria-hidden="true" />
           </div>
-
-          <p class="profile__hint">Выберите услугу, дату и удобное время</p>
         </div>
-      </section>
-
-      <!-- Шаг 1: Услуга -->
-      <section class="step">
-        <h2 class="step__title"><span class="step__num">01</span> Услуга</h2>
-        <div v-if="masterServices.length === 0" class="state">
-          У мастера пока нет услуг
+        <div class="text-center sm:text-left">
+          <p class="text-xs font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
+          <h1 class="mt-1 font-display text-3xl font-bold text-ink-900">{{ fullName }}</h1>
+          <p v-if="reviewsTotal" class="mt-1 flex items-center justify-center gap-1 text-sm text-ink-600 sm:justify-start">
+            <StarIcon class="h-4 w-4 text-accent-400" aria-hidden="true" />
+            {{ avgRating }} · {{ reviewsTotal }} {{ reviewsTotal === 1 ? 'отзыв' : 'отзывов' }}
+          </p>
+          <p class="mt-3 text-sm text-ink-600">Выберите услугу, дату и удобное время</p>
         </div>
-        <div v-else class="services">
+      </BaseCard>
+
+      <!-- Шаг 1: услуга -->
+      <section class="mt-8">
+        <StepTitle n="1" title="Услуга" />
+        <EmptyState v-if="masterServices.length === 0" title="У мастера пока нет услуг" />
+        <div v-else class="space-y-2">
           <button
-            v-for="ms in masterServices" :key="ms.service.id"
-            class="service-btn"
-            :class="{ 'service-btn--active': selectedService?.service.id === ms.service.id }"
+            v-for="ms in masterServices"
+            :key="ms.service.id"
+            class="flex w-full cursor-pointer items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors duration-200"
+            :class="selectedService?.service.id === ms.service.id
+              ? 'border-brand-900 bg-accent-100/60'
+              : 'border-stone-200 bg-white hover:border-brand-900/50'"
             @click="selectService(ms)"
           >
-            <span class="service-btn__name">{{ ms.service.name }}</span>
-            <span class="service-btn__meta">
-              {{ ms.service.duration_min }} мин · {{ ms.final_price }} ₽
-            </span>
+            <span class="font-medium text-ink-900">{{ ms.service.name }}</span>
+            <span class="whitespace-nowrap text-sm text-brand-700">{{ ms.service.duration_min }} мин · {{ ms.final_price }} ₽</span>
           </button>
         </div>
       </section>
 
-      <!-- Шаг 2: Дата -->
-      <section class="step" v-if="selectedService">
-        <h2 class="step__title"><span class="step__num">02</span> Дата</h2>
-        <div class="dates">
+      <!-- Шаг 2: дата -->
+      <section v-if="selectedService" class="mt-8">
+        <StepTitle n="2" title="Дата" />
+        <div class="flex flex-wrap gap-2">
           <button
-            v-for="d in availableDates" :key="d.iso"
-            class="date-btn"
-            :class="{ 'date-btn--active': selectedDate === d.iso }"
+            v-for="d in availableDates"
+            :key="d.iso"
+            class="flex min-w-[64px] cursor-pointer flex-col items-center rounded-lg border px-3 py-2 transition-colors duration-200"
+            :class="selectedDate === d.iso ? 'border-brand-900 bg-accent-100/60' : 'border-stone-200 bg-white hover:border-brand-900/50'"
             @click="selectDate(d.iso)"
           >
-            <span class="date-btn__day">{{ d.day }}</span>
-            <span class="date-btn__label">{{ d.label }}</span>
+            <span class="text-xs uppercase tracking-wide text-brand-700">{{ d.day }}</span>
+            <span class="mt-0.5 text-sm text-ink-900">{{ d.label }}</span>
           </button>
         </div>
       </section>
 
-      <!-- Шаг 3: Время -->
-      <section class="step" v-if="selectedDate">
-        <h2 class="step__title"><span class="step__num">03</span> Время</h2>
-        <div v-if="slotsLoading" class="state">Загружаем слоты…</div>
-        <div v-else-if="slots.length === 0" class="state">
-          В этот день нет свободного времени. Выберите другую дату.
+      <!-- Шаг 3: время -->
+      <section v-if="selectedDate" class="mt-8">
+        <StepTitle n="3" title="Время" />
+        <div v-if="slotsLoading" class="flex flex-wrap gap-2">
+          <Skeleton v-for="i in 6" :key="i" width="w-20" height="h-10" />
         </div>
-        <div v-else class="slots">
+        <EmptyState v-else-if="slots.length === 0" title="В этот день нет свободного времени" description="Выберите другую дату" />
+        <div v-else class="flex flex-wrap gap-2">
           <button
-            v-for="slot in slots" :key="slot.start_time"
-            class="slot-btn"
-            :class="{ 'slot-btn--active': selectedSlot?.start_time === slot.start_time }"
+            v-for="slot in slots"
+            :key="slot.start_time"
+            class="cursor-pointer rounded-lg border px-4 py-2 text-sm transition-colors duration-200"
+            :class="selectedSlot?.start_time === slot.start_time
+              ? 'border-brand-900 bg-brand-900 text-white'
+              : 'border-stone-200 bg-white text-ink-900 hover:border-brand-900/50'"
             @click="selectedSlot = slot"
           >
             {{ formatTime(slot.start_time) }}
@@ -81,46 +83,49 @@
         </div>
       </section>
 
-      <!-- Шаг 4: Подтверждение -->
-      <section class="step" v-if="selectedSlot">
-        <h2 class="step__title"><span class="step__num">04</span> Подтверждение</h2>
+      <!-- Шаг 4: подтверждение -->
+      <section v-if="selectedSlot && !booked" class="mt-8">
+        <StepTitle n="4" title="Подтверждение" />
 
-        <div v-if="!auth.isLoggedIn" class="auth-prompt">
-          <p>Чтобы записаться, войдите в аккаунт</p>
-          <router-link to="/login" class="btn">Войти</router-link>
-        </div>
+        <BaseCard v-if="!auth.isLoggedIn" class="text-center">
+          <p class="text-ink-600">Чтобы записаться, войдите в аккаунт</p>
+          <router-link :to="{ path: '/login', query: { redirect: route.fullPath } }">
+            <BaseButton class="mt-4">Войти</BaseButton>
+          </router-link>
+        </BaseCard>
 
-        <div v-else class="summary">
-          <div class="summary__row">
-            <span>Мастер</span><span>{{ fullName }}</span>
+        <BaseCard v-else class="divide-y divide-stone-200">
+          <div class="flex justify-between py-3 text-sm"><span class="text-ink-600">Мастер</span><span class="text-ink-900">{{ fullName }}</span></div>
+          <div class="flex justify-between py-3 text-sm"><span class="text-ink-600">Услуга</span><span class="text-ink-900">{{ selectedService.service.name }}</span></div>
+          <div class="flex justify-between py-3 text-sm">
+            <span class="text-ink-600">Дата и время</span>
+            <span class="text-ink-900">{{ formatDate(selectedSlot.start_time) }}, {{ formatTime(selectedSlot.start_time) }}</span>
           </div>
-          <div class="summary__row">
-            <span>Услуга</span><span>{{ selectedService.service.name }}</span>
-          </div>
-          <div class="summary__row">
-            <span>Дата и время</span>
-            <span>{{ formatDate(selectedSlot.start_time) }}, {{ formatTime(selectedSlot.start_time) }}</span>
-          </div>
-          <div class="summary__row summary__row--total">
-            <span>Итого</span><span>{{ selectedService.final_price }} ₽</span>
-          </div>
-          <p v-if="bookingError" class="error">{{ bookingError }}</p>
-          <button class="btn btn--full" :disabled="bookingLoading" @click="book">
-            {{ bookingLoading ? 'Записываем…' : 'Записаться' }}
-          </button>
-        </div>
+          <div class="flex justify-between py-3 text-base font-semibold"><span class="text-ink-900">Итого</span><span class="text-brand-900">{{ selectedService.final_price }} ₽</span></div>
+          <BaseButton variant="accent" class="mt-4 w-full" :loading="bookingLoading" @click="book">Записаться</BaseButton>
+        </BaseCard>
       </section>
 
-      <!-- Успех -->
-      <div v-if="booked" class="success">
-        <p class="success__icon">✓</p>
-        <h2 class="success__title">Запись оформлена</h2>
-        <p class="success__sub">
-          Ждём вас {{ formatDate(selectedSlot.start_time) }}
-          в {{ formatTime(selectedSlot.start_time) }}
-        </p>
-        <router-link to="/profile" class="btn">Мои записи</router-link>
-      </div>
+      <BaseCard v-if="booked" class="mt-8 text-center">
+        <CheckCircleIcon class="mx-auto h-12 w-12 text-success" aria-hidden="true" />
+        <h2 class="mt-3 font-display text-2xl font-bold text-ink-900">Запись оформлена</h2>
+        <p class="mt-1 text-ink-600">Ждём вас {{ formatDate(selectedSlot.start_time) }} в {{ formatTime(selectedSlot.start_time) }}</p>
+        <router-link to="/profile"><BaseButton class="mt-4">Мои записи</BaseButton></router-link>
+      </BaseCard>
+
+      <!-- Отзывы -->
+      <section class="mt-12">
+        <h2 class="font-display text-xl font-bold text-ink-900">Отзывы</h2>
+        <EmptyState v-if="!reviewsLoading && reviews.length === 0" class="mt-4" title="Пока нет отзывов" />
+        <div v-else class="mt-4 space-y-3">
+          <BaseCard v-for="r in reviews" :key="r.id">
+            <div class="flex items-center gap-1">
+              <StarIcon v-for="i in 5" :key="i" class="h-4 w-4" :class="i <= r.rating ? 'text-accent-400' : 'text-stone-200'" aria-hidden="true" />
+            </div>
+            <p v-if="r.comment" class="mt-2 text-sm text-ink-600">{{ r.comment }}</p>
+          </BaseCard>
+        </div>
+      </section>
     </template>
   </div>
 </template>
@@ -128,15 +133,45 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { mastersApi, appointmentsApi } from '../api'
+import { UserIcon, StarIcon, CheckCircleIcon } from '@heroicons/vue/24/solid'
+import { mastersApi, appointmentsApi, reviewsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
+import { extractErrorMessage } from '../utils/errors'
+import BaseCard from '../components/ui/BaseCard.vue'
+import BaseButton from '../components/ui/BaseButton.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import StepTitle from '../components/ui/StepTitle.vue'
 
 const route = useRoute()
-const auth  = useAuthStore()
+const auth = useAuthStore()
+const toast = useToastStore()
 
-const master         = ref(null)
+const master = ref(null)
 const masterServices = ref([])
-const loading        = ref(true)
+const loading = ref(true)
+
+const reviews = ref([])
+const reviewsTotal = ref(0)
+const reviewsLoading = ref(true)
+const avgRating = computed(() => {
+  if (!reviews.value.length) return 0
+  return (reviews.value.reduce((sum, r) => sum + r.rating, 0) / reviews.value.length).toFixed(1)
+})
+
+async function loadReviews() {
+  reviewsLoading.value = true
+  try {
+    const { data } = await reviewsApi.listForMaster(route.params.id, { page: 1, page_size: 20 })
+    reviews.value = data.items
+    reviewsTotal.value = data.total
+  } catch {
+    // отзывы необязательны для отображения страницы
+  } finally {
+    reviewsLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -144,45 +179,44 @@ onMounted(async () => {
       mastersApi.getById(route.params.id),
       mastersApi.getServices(route.params.id),
     ])
-    master.value         = mRes.data
+    master.value = mRes.data
     masterServices.value = sRes.data
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось загрузить профиль мастера'))
   } finally {
     loading.value = false
   }
+  loadReviews()
 })
 
-const fullName = computed(() =>
-  master.value
-    ? `${master.value.user.first_name} ${master.value.user.last_name}`
-    : ''
-)
+const fullName = computed(() => (master.value ? `${master.value.user.first_name} ${master.value.user.last_name}` : ''))
 
 const selectedService = ref(null)
 function selectService(ms) {
   selectedService.value = ms
-  selectedDate.value    = null
-  selectedSlot.value    = null
-  slots.value           = []
+  selectedDate.value = null
+  selectedSlot.value = null
+  slots.value = []
 }
 
-const selectedDate    = ref(null)
-const availableDates  = computed(() => {
-  const days   = []
-  const labels = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб']
-  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек']
+const selectedDate = ref(null)
+const availableDates = computed(() => {
+  const days = []
+  const labels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+  const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
   for (let i = 0; i < 14; i++) {
     const d = new Date()
     d.setDate(d.getDate() + i)
     days.push({
-      iso:   d.toISOString().slice(0, 10),
-      day:   labels[d.getDay()],
+      iso: d.toISOString().slice(0, 10),
+      day: labels[d.getDay()],
       label: `${d.getDate()} ${months[d.getMonth()]}`,
     })
   }
   return days
 })
 
-const slots        = ref([])
+const slots = ref([])
 const slotsLoading = ref(false)
 
 async function selectDate(iso) {
@@ -190,35 +224,32 @@ async function selectDate(iso) {
   selectedSlot.value = null
   slotsLoading.value = true
   try {
-    const res = await mastersApi.getSlots(route.params.id, {
-      service_id:  selectedService.value.service.id,
-      target_date: iso,
-    })
-    slots.value = res.data.slots
-  } catch {
+    const { data } = await mastersApi.getSlots(route.params.id, selectedService.value.service.id, iso)
+    slots.value = data.slots
+  } catch (err) {
     slots.value = []
+    toast.error(extractErrorMessage(err, 'Не удалось загрузить свободное время'))
   } finally {
     slotsLoading.value = false
   }
 }
 
-const selectedSlot   = ref(null)
+const selectedSlot = ref(null)
 const bookingLoading = ref(false)
-const bookingError   = ref('')
-const booked         = ref(false)
+const booked = ref(false)
 
 async function book() {
   bookingLoading.value = true
-  bookingError.value   = ''
   try {
     await appointmentsApi.create({
-      master_id:  route.params.id,
+      master_id: route.params.id,
       service_id: selectedService.value.service.id,
       start_time: selectedSlot.value.start_time,
     })
     booked.value = true
-  } catch (e) {
-    bookingError.value = e.response?.data?.detail || 'Произошла ошибка. Попробуйте ещё раз.'
+    toast.success('Запись успешно создана')
+  } catch (err) {
+    toast.error(extractErrorMessage(err))
   } finally {
     bookingLoading.value = false
   }
@@ -231,137 +262,3 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'long' })
 }
 </script>
-
-<style scoped>
-.page { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
-
-.profile {
-  display: flex; gap: 2rem; align-items: flex-start; margin-bottom: 3rem;
-}
-.profile__photo {
-  flex-shrink: 0; width: 140px; height: 180px; border-radius: 6px;
-  overflow: hidden; background: var(--c-latte);
-  display: flex; align-items: center; justify-content: center;
-}
-.profile__photo img { width: 100%; height: 100%; object-fit: cover; }
-.profile__photo-placeholder { font-size: 2.5rem; opacity: 0.3; color: var(--c-espresso); }
-.profile__info { flex: 1; padding-top: 0.5rem; }
-.profile__eyebrow {
-  font-size: 0.75rem; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--c-caramel); margin: 0 0 0.4rem;
-}
-.profile__name {
-  font-family: var(--f-display); font-size: 2.2rem;
-  font-weight: 400; color: var(--c-espresso); margin: 0;
-}
-.profile__hint { color: #8a7060; font-size: 0.95rem; margin: 0; }
-.profile__services { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
-.service-tag {
-  font-size: 0.75rem; padding: 0.25rem 0.6rem;
-  background: #ede7de; border-radius: 20px; color: var(--c-espresso);
-}
-
-.scissors-divider {
-  text-align: center; font-size: 0.9rem; color: var(--c-latte);
-  position: relative; margin: 1rem 0;
-}
-.scissors-divider::before, .scissors-divider::after {
-  content: ''; position: absolute; top: 50%;
-  width: calc(50% - 1.5rem); height: 1px; background: var(--c-latte);
-}
-.scissors-divider::before { left: 0; }
-.scissors-divider::after  { right: 0; }
-
-.step { margin-bottom: 2.5rem; }
-.step__title {
-  display: flex; align-items: center; gap: 0.75rem;
-  font-family: var(--f-display); font-size: 1.3rem;
-  font-weight: 400; color: var(--c-espresso); margin: 0 0 1.25rem;
-}
-.step__num {
-  font-size: 0.7rem; letter-spacing: 0.1em;
-  color: var(--c-caramel); font-family: var(--f-body); font-weight: 500;
-}
-
-.services { display: flex; flex-direction: column; gap: 0.6rem; }
-.service-btn {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 0.9rem 1.1rem; background: var(--c-cream);
-  border: 1px solid var(--c-latte); border-radius: 6px;
-  cursor: pointer; transition: border-color 0.2s; text-align: left;
-}
-.service-btn:hover         { border-color: var(--c-matcha); }
-.service-btn--active       { border-color: var(--c-matcha); background: #f0f5f1; }
-.service-btn__name         { font-size: 0.95rem; color: var(--c-espresso); }
-.service-btn__meta         { font-size: 0.85rem; color: var(--c-caramel); white-space: nowrap; margin-left: 1rem; }
-
-.dates { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.date-btn {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 0.6rem 0.9rem; background: var(--c-cream);
-  border: 1px solid var(--c-latte); border-radius: 6px;
-  cursor: pointer; min-width: 60px; transition: border-color 0.2s;
-}
-.date-btn:hover      { border-color: var(--c-matcha); }
-.date-btn--active    { border-color: var(--c-matcha); background: #f0f5f1; }
-.date-btn__day       { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-caramel); }
-.date-btn__label     { font-size: 0.85rem; color: var(--c-espresso); margin-top: 0.2rem; }
-
-.slots { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.slot-btn {
-  padding: 0.5rem 1rem; background: var(--c-cream);
-  border: 1px solid var(--c-latte); border-radius: 4px;
-  cursor: pointer; font-size: 0.9rem; color: var(--c-espresso);
-  transition: border-color 0.2s;
-}
-.slot-btn:hover    { border-color: var(--c-matcha); }
-.slot-btn--active  { background: var(--c-matcha); border-color: var(--c-matcha); color: #fff; }
-
-.summary {
-  background: var(--c-cream); border: 1px solid var(--c-latte);
-  border-radius: 8px; padding: 1.5rem;
-}
-.summary__row {
-  display: flex; justify-content: space-between;
-  padding: 0.6rem 0; border-bottom: 1px solid var(--c-latte);
-  font-size: 0.95rem; color: var(--c-espresso);
-}
-.summary__row span:first-child { color: #8a7060; }
-.summary__row--total {
-  border-bottom: none; font-weight: 600;
-  font-size: 1.05rem; padding-top: 0.9rem;
-}
-.summary__row--total span:last-child { color: var(--c-caramel); }
-
-.auth-prompt {
-  text-align: center; padding: 2rem;
-  background: var(--c-cream); border: 1px solid var(--c-latte); border-radius: 8px;
-}
-.auth-prompt p { color: #8a7060; margin: 0 0 1rem; }
-
-.btn {
-  display: inline-block; margin-top: 1.25rem;
-  padding: 0.75rem 2rem; background: var(--c-matcha); color: #fff;
-  border: none; border-radius: 5px; font-size: 0.95rem;
-  cursor: pointer; text-decoration: none; transition: opacity 0.2s;
-}
-.btn:hover    { opacity: 0.85; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn--full    { width: 100%; text-align: center; }
-
-.success {
-  text-align: center; padding: 4rem 2rem;
-  background: var(--c-cream); border: 1px solid var(--c-latte);
-  border-radius: 8px; margin-top: 2rem;
-}
-.success__icon  { font-size: 2.5rem; color: var(--c-matcha); margin: 0 0 0.75rem; }
-.success__title { font-family: var(--f-display); font-size: 1.8rem; font-weight: 400; color: var(--c-espresso); margin: 0 0 0.5rem; }
-.success__sub   { color: #8a7060; margin: 0 0 1.5rem; }
-.error          { color: #b05050; font-size: 0.9rem; margin: 0.75rem 0 0; }
-.state          { text-align: center; padding: 3rem 0; color: #8a7060; }
-
-@media (max-width: 600px) {
-  .profile { flex-direction: column; }
-  .profile__photo { width: 100%; height: 220px; }
-}
-</style>

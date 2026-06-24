@@ -35,13 +35,18 @@ class AppointmentStatusUpdate(BaseModel):
 class AppointmentBriefResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id:          UUID
-    master_id:   UUID
-    service_id:  UUID
-    start_time:  datetime
-    end_time:    datetime
-    final_price: float
-    status:      AppointmentStatus
+    id:           UUID
+    client_id:    UUID
+    client_name:  str
+    master_id:    UUID
+    master_name:  str
+    service_id:   UUID
+    service_name: str
+    start_time:   datetime
+    end_time:     datetime
+    final_price:  float
+    status:       AppointmentStatus
+    review_id:    Annotated[UUID | None, Field(default=None, description="Заполнено, если отзыв уже оставлен")]
 
 
 # ── Полный ответ (для детальной страницы) ────────────────────────

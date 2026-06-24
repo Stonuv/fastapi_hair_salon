@@ -31,8 +31,11 @@ class ReviewResponse(BaseModel):
     id:             UUID
     appointment_id: UUID
     client_id:      UUID
+    client_name:    str
     master_id:      UUID
+    master_name:    str
     service_id:     UUID
+    service_name:   str
     rating:         int
     comment:        str | None
     is_published:   bool
