@@ -18,8 +18,8 @@ class SiteSettingsRepository:
         self.db.refresh(settings)
         return settings
 
-    def update(self, settings: SiteSettings, hero_photo_url: str | None) -> SiteSettings:
-        settings.hero_photo_url = hero_photo_url
+    def update(self, settings: SiteSettings, content: dict) -> SiteSettings:
+        settings.content = content
         self.db.commit()
         self.db.refresh(settings)
         return settings

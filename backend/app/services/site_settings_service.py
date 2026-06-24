@@ -1,18 +1,18 @@
 from sqlalchemy.orm import Session
 
 from ..repositories.site_settings_repository import SiteSettingsRepository
-from ..schemas.site_settings import SiteSettingsResponse, SiteSettingsUpdate
+from ..schemas.site_settings import SiteContent
 
 
 class SiteSettingsService:
     def __init__(self, db: Session):
         self.repo = SiteSettingsRepository(db)
 
-    def get(self) -> SiteSettingsResponse:
+    def get(self) -> SiteContent:
         settings = self.repo.get() or self.repo.create()
-        return SiteSettingsResponse.model_validate(settings)
+        return SiteContent.model_validate(settings.content)
 
-    def update(self, data: SiteSettingsUpdate) -> SiteSettingsResponse:
+    def update(self, data: SiteContent) -> SiteContent:
         settings = self.repo.get() or self.repo.create()
-        settings = self.repo.update(settings, data.hero_photo_url)
-        return SiteSettingsResponse.model_validate(settings)
+        settings = self.repo.update(settings, data.model_dump(mode="json"))
+        return SiteContent.model_validate(settings.content)

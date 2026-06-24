@@ -4,16 +4,16 @@
     <section class="bg-stone-50">
       <div class="mx-auto grid max-w-6xl sm:grid-cols-2">
         <div class="flex flex-col justify-center gap-6 px-4 py-16 sm:px-6 sm:py-24">
-          <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">С 2019 года — современное барберство</div>
-          <h1 class="font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-ink-900 sm:text-6xl lg:text-7xl">
-            Чёткий<br>срез.<br>Тихий<br>зал.
+          <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.hero.eyebrow }}</div>
+          <h1 class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-ink-900 sm:text-6xl lg:text-7xl">
+            {{ content.hero.title }}
           </h1>
           <p class="max-w-md text-base leading-relaxed text-ink-600">
-            Без навязанных услуг и спешки. Точная стрижка и чистый финиш — запись с точностью до минуты.
+            {{ content.hero.subtitle }}
           </p>
           <div class="flex flex-wrap gap-3">
-            <router-link :to="{ name: 'masters' }"><BaseButton size="lg">Записаться</BaseButton></router-link>
-            <a href="#services"><BaseButton variant="ghost" size="lg">Услуги и цены</BaseButton></a>
+            <router-link :to="{ name: 'masters' }"><BaseButton size="lg">{{ content.hero.primary_button }}</BaseButton></router-link>
+            <a href="#services"><BaseButton variant="ghost" size="lg">{{ content.hero.secondary_button }}</BaseButton></a>
           </div>
           <div class="flex flex-wrap gap-8 border-t border-stone-200 pt-6">
             <div>
@@ -31,7 +31,7 @@
           </div>
         </div>
         <div class="relative min-h-[280px] overflow-hidden bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)] sm:min-h-full">
-          <img v-if="heroPhoto" :src="heroPhoto" alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
           <span v-else class="absolute bottom-5 left-5 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
             [ мастер за креслом ]
           </span>
@@ -50,13 +50,13 @@
     <!-- features -->
     <section class="bg-stone-50 px-4 py-20 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">Почему «Сайтама»</div>
+        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.features.eyebrow }}</div>
         <h2 class="mt-3 max-w-xl font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl">
-          Барбершоп без лишнего.
+          {{ content.features.title }}
         </h2>
         <div class="mt-12 grid gap-10 sm:grid-cols-3">
-          <div v-for="f in features" :key="f.title" class="border-t border-ink-900 pt-5">
-            <div class="font-mono text-xs text-ink-600">{{ f.n }}</div>
+          <div v-for="(f, i) in content.features.items" :key="f.title" class="border-t border-ink-900 pt-5">
+            <div class="font-mono text-xs text-ink-600">{{ String(i + 1).padStart(2, '0') }}</div>
             <h3 class="mt-4 font-display text-xl font-bold text-ink-900">{{ f.title }}</h3>
             <p class="mt-2 text-sm leading-relaxed text-ink-600">{{ f.text }}</p>
           </div>
@@ -69,10 +69,10 @@
       <div class="mx-auto max-w-6xl">
         <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div class="font-mono text-xs uppercase tracking-[0.16em] text-white/50">Услуги и цены</div>
-            <h2 class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-stone-50 sm:text-5xl">Меню.</h2>
+            <div class="font-mono text-xs uppercase tracking-[0.16em] text-white/50">{{ content.services.eyebrow }}</div>
+            <h2 class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-stone-50 sm:text-5xl">{{ content.services.title }}</h2>
           </div>
-          <div class="font-mono text-xs leading-relaxed text-white/50">Цены в рублях<br>Оплата картой и наличными</div>
+          <div class="whitespace-pre-line font-mono text-xs leading-relaxed text-white/50">{{ content.services.note }}</div>
         </div>
 
         <div v-if="servicesLoading" class="grid gap-x-16 sm:grid-cols-2">
@@ -94,9 +94,9 @@
     <!-- masters -->
     <section class="bg-stone-50 px-4 py-20 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">Наши мастера</div>
+        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.masters.eyebrow }}</div>
         <h2 class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl">
-          Мастера, которым доверяют.
+          {{ content.masters.title }}
         </h2>
 
         <div v-if="mastersLoading" class="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-4">
@@ -111,15 +111,15 @@
 
     <!-- CTA -->
     <section class="bg-ink-900 px-4 py-24 text-center sm:px-6">
-      <div class="font-mono text-xs uppercase tracking-[0.2em] text-white/50">Готовы, когда будете вы</div>
+      <div class="font-mono text-xs uppercase tracking-[0.2em] text-white/50">{{ content.cta.eyebrow }}</div>
       <h2 class="mx-auto mt-5 max-w-2xl font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-stone-50 sm:text-6xl">
-        Займите место.
+        {{ content.cta.title }}
       </h2>
       <p class="mx-auto mt-5 max-w-md text-base text-white/60">
-        Выберите мастера, дату и время. Подтверждение приходит сразу после записи.
+        {{ content.cta.subtitle }}
       </p>
       <router-link :to="{ name: 'masters' }">
-        <BaseButton size="lg" class="mt-8 !border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">Записаться ↗</BaseButton>
+        <BaseButton size="lg" class="mt-8 !border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">{{ content.cta.button_label }} ↗</BaseButton>
       </router-link>
     </section>
   </div>
@@ -127,8 +127,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { mastersApi, servicesApi, settingsApi } from '../api'
+import { storeToRefs } from 'pinia'
+import { mastersApi, servicesApi } from '../api'
 import { useToastStore } from '../stores/toast'
+import { useSiteContentStore } from '../stores/siteContent'
 import { extractErrorMessage } from '../utils/errors'
 import BaseButton from '../components/ui/BaseButton.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
@@ -136,12 +138,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import MasterCard from '../components/MasterCard.vue'
 
 const toast = useToastStore()
-
-const features = [
-  { n: '01', title: 'Точная стрижка', text: 'Каждый мастер начинает с консультации, а не с догадок. Вы уходите ровно с тем образом, который просили.' },
-  { n: '02', title: 'Без спешки', text: 'Между записями достаточно времени на каждого клиента. Никакого двойного бронирования и поторапливания.' },
-  { n: '03', title: 'Чистый финиш', text: 'Каждая стрижка заканчивается аккуратным оформлением линии шеи — это стандарт, а не платная опция.' },
-]
+const { content } = storeToRefs(useSiteContentStore())
 
 const services = ref([])
 const servicesLoading = ref(true)
@@ -149,8 +146,6 @@ const servicesTotal = ref('—')
 const masters = ref([])
 const mastersLoading = ref(true)
 const mastersTotal = ref('—')
-
-const heroPhoto = ref(null)
 
 const marqueeText = computed(() =>
   services.value.length
@@ -163,6 +158,7 @@ const avgDurationLabel = computed(() => {
   const avg = services.value.reduce((sum, s) => sum + s.duration_min, 0) / services.value.length
   return `${Math.round(avg)} мин`
 })
+
 async function loadServices() {
   servicesLoading.value = true
   try {
@@ -189,18 +185,8 @@ async function loadMasters() {
   }
 }
 
-async function loadHeroPhoto() {
-  try {
-    const { data } = await settingsApi.get()
-    heroPhoto.value = data.hero_photo_url || null
-  } catch {
-    // фото на главной необязательно — просто останется заглушка
-  }
-}
-
 onMounted(() => {
   loadServices()
   loadMasters()
-  loadHeroPhoto()
 })
 </script>

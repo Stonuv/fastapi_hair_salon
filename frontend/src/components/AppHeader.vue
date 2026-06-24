@@ -2,8 +2,8 @@
   <header class="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/95 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
       <router-link to="/" class="flex items-baseline gap-2.5">
-        <span class="font-display text-xl font-black uppercase tracking-tight text-ink-900">Сайтама</span>
-        <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600">Барбершоп</span>
+        <span class="font-display text-xl font-black uppercase tracking-tight text-ink-900">{{ content.header.brand_name }}</span>
+        <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600">{{ content.header.brand_tagline }}</span>
       </router-link>
 
       <nav class="hidden items-center gap-8 sm:flex">
@@ -56,12 +56,15 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
+import { useSiteContentStore } from '../stores/siteContent'
 import BaseButton from './ui/BaseButton.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
+const { content } = storeToRefs(useSiteContentStore())
 
 function handleLogout() {
   auth.logout()

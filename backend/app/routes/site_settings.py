@@ -2,21 +2,21 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..schemas.site_settings import SiteSettingsResponse, SiteSettingsUpdate
+from ..schemas.site_settings import SiteContent
 from ..services.auth_service import get_current_admin
 from ..services.site_settings_service import SiteSettingsService
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
-@router.get("", response_model=SiteSettingsResponse)
+@router.get("", response_model=SiteContent)
 def get_settings(db: Session = Depends(get_db)):
-    """Глобальные настройки сайта (фото на главной и т.п.). Публичный эндпоинт."""
+    """Редактируемый контент сайта (шапка, главная, футер и т.п.). Публичный эндпоинт."""
     return SiteSettingsService(db).get()
 
 
-@router.patch("", response_model=SiteSettingsResponse)
-def update_settings(data: SiteSettingsUpdate,
+@router.patch("", response_model=SiteContent)
+def update_settings(data: SiteContent,
                     db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить настройки сайта. Только для администратора."""
+    """Обновить контент сайта. Только для администратора."""
     return SiteSettingsService(db).update(data)

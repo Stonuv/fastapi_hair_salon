@@ -2,7 +2,7 @@
   <div class="flex min-h-screen bg-stone-50">
     <aside class="hidden w-64 flex-col bg-brand-900 text-white lg:flex">
       <div class="px-6 py-5">
-        <router-link to="/" class="font-display text-lg font-black uppercase tracking-tight">Сайтама</router-link>
+        <router-link to="/" class="font-display text-lg font-black uppercase tracking-tight">{{ content.header.brand_name }}</router-link>
       </div>
       <nav class="flex-1 space-y-1 px-3">
         <slot name="nav" />
@@ -23,7 +23,7 @@
         <div class="absolute inset-0 bg-ink-900/40" @click="mobileOpen = false" />
         <aside class="absolute inset-y-0 left-0 flex w-64 flex-col bg-brand-900 text-white">
           <div class="flex items-center justify-between px-6 py-5">
-            <span class="font-display text-lg font-black uppercase tracking-tight">Сайтама</span>
+            <span class="font-display text-lg font-black uppercase tracking-tight">{{ content.header.brand_name }}</span>
             <button class="cursor-pointer" aria-label="Закрыть меню" @click="mobileOpen = false">
               <XMarkIcon class="h-6 w-6" aria-hidden="true" />
             </button>
@@ -58,14 +58,17 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowLeftOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
+import { useSiteContentStore } from '../stores/siteContent'
 
 defineProps({ title: String })
 
 const mobileOpen = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
+const { content } = storeToRefs(useSiteContentStore())
 
 function handleLogout() {
   auth.logout()
