@@ -24,6 +24,12 @@ class UserCreate(UserBase):
     password: Annotated[str, Field(min_length=8, description="Пароль (мин. 8 символов)")]
 
 
+class AdminUserCreate(UserCreate):
+    """Создание пользователя администратором — в отличие от саморегистрации,
+    роль задаётся сразу, а не выставляется отдельным запросом."""
+    role: Annotated[UserRole, Field(default=UserRole.client, description="Роль: client / master / admin")]
+
+
 # ── Обновление (все поля опциональны) ────────────────────────────
 
 
@@ -31,6 +37,17 @@ class UserUpdate(BaseModel):
     first_name: Annotated[NameStr | None, Field(default=None)]
     last_name:  Annotated[NameStr | None, Field(default=None)]
     phone:      Annotated[PhoneStr | None, Field(default=None)]
+
+
+class AdminUserUpdate(BaseModel):
+    """Редактирование пользователя администратором — в отличие от
+    самостоятельного обновления профиля (UserUpdate), позволяет также
+    менять email и принудительно задать новый пароль."""
+    email:        Annotated[EmailStr | None, Field(default=None)]
+    first_name:   Annotated[NameStr | None,  Field(default=None)]
+    last_name:    Annotated[NameStr | None,  Field(default=None)]
+    phone:        Annotated[PhoneStr | None, Field(default=None)]
+    new_password: Annotated[str | None, Field(default=None, min_length=8, description="Оставьте пустым, чтобы не менять")]
 
 
 # ── API Response ─────────────────────────────────────────────────

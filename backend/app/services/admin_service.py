@@ -13,7 +13,8 @@ from ..repositories.user_repository import UserRepository
 from ..schemas.admin_stats import AdminStatsResponse, DailyCount
 from ..schemas.master import MasterResponse
 from ..schemas.pagination import PageResponse
-from ..schemas.user import UserResponse
+from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse, UserUpdate
+from .auth_service import hash_password
 
 
 class AdminService:
@@ -39,6 +40,42 @@ class AdminService:
             items=[UserResponse.model_validate(u) for u in users],
             total=total, page=page, page_size=page_size,
         )
+
+    def create_user(self, data: AdminUserCreate) -> UserResponse:
+        if self.user_repo.email_exists(data.email):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Пользователь с таким email уже существует")
+        if data.phone and self.user_repo.phone_exists(data.phone):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Пользователь с таким номером телефона уже существует")
+        user = self.user_repo.create(data, hash_password(data.password), role=data.role)
+        return UserResponse.model_validate(user)
+
+    def update_user(self, user_id: UUID, data: AdminUserUpdate) -> UserResponse:
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Пользователь не найден")
+
+        if data.email is not None and data.email != user.email:
+            if self.user_repo.email_exists(data.email):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Пользователь с таким email уже существует")
+            user = self.user_repo.set_email(user, data.email)
+
+        if data.phone is not None and data.phone != user.phone:
+            if self.user_repo.phone_exists(data.phone):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Пользователь с таким номером телефона уже существует")
+
+        name_fields = data.model_dump(exclude_unset=True, exclude={"email", "new_password"})
+        if name_fields:
+            user = self.user_repo.update(user, UserUpdate(**name_fields))
+
+        if data.new_password:
+            self.user_repo.set_password(user, hash_password(data.new_password))
+
+        return UserResponse.model_validate(user)
 
     def change_role(self, user_id: UUID, role: UserRole) -> UserResponse:
         user = self.user_repo.get_by_id(user_id)

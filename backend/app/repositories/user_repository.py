@@ -61,10 +61,12 @@ class UserRepository:
 
     # ── Создание ─────────────────────────────────────────────────
 
-    def create(self, data: UserCreate, password_hash: str) -> User:
+    def create(self, data: UserCreate, password_hash: str, role: UserRole = UserRole.client) -> User:
         """
         Принимает схему UserCreate и уже готовый хеш пароля.
         Хешировать пароль — задача сервиса, не репозитория.
+        Саморегистрация всегда создаёт клиента (role не передаётся —
+        используется дефолт); администратор может задать роль явно.
         """
         user = User(
             email=data.email,
@@ -72,7 +74,7 @@ class UserRepository:
             first_name=data.first_name,
             last_name=data.last_name,
             phone=data.phone,
-            role=UserRole.client,  # новый пользователь всегда клиент
+            role=role,
         )
         self.db.add(user)
         self.db.commit()
@@ -99,6 +101,12 @@ class UserRepository:
 
     def set_role(self, user: User, role: UserRole) -> User:
         user.role = role
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def set_email(self, user: User, email: str) -> User:
+        user.email = email
         self.db.commit()
         self.db.refresh(user)
         return user

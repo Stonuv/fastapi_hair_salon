@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ── Утилиты для паролей ──────────────────────────────────────────
 
 
-def _hash_password(password: str) -> str:
+def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
@@ -60,7 +60,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Пользователь с таким номером телефона уже существует",
             )
-        password_hash = _hash_password(data.password)
+        password_hash = hash_password(data.password)
         user = self.user_repo.create(data, password_hash)
         token = _create_access_token(user.id)
         return TokenResponse(
@@ -129,7 +129,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Пользователь не найден",
             )
-        self.user_repo.set_password(user, _hash_password(new_password))
+        self.user_repo.set_password(user, hash_password(new_password))
         self.reset_token_repo.mark_used(token)
 
 

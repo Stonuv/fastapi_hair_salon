@@ -12,7 +12,7 @@ from ..schemas.admin_stats import AdminStatsResponse
 from ..schemas.master import MasterResponse, MasterUpdate
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.service import ServiceResponse, ServiceUpdate
-from ..schemas.user import UserResponse
+from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
 from ..services.admin_service import AdminService
 from ..services.auth_service import get_current_admin
 
@@ -49,6 +49,20 @@ def get_all_users(
         page=page_params.page, page_size=page_params.page_size,
         role=role, search=search, sort_by=sort_by, sort_order=sort_order,
     )
+
+
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(data: AdminUserCreate,
+                db: Session = Depends(get_db), _=Depends(get_current_admin)):
+    """Создать пользователя. Роль задаётся сразу."""
+    return AdminService(db).create_user(data)
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+def update_user(user_id: UUID, data: AdminUserUpdate,
+                db: Session = Depends(get_db), _=Depends(get_current_admin)):
+    """Обновить данные пользователя (имя, email, телефон, пароль)."""
+    return AdminService(db).update_user(user_id, data)
 
 
 @router.patch("/users/{user_id}/role", response_model=UserResponse)
