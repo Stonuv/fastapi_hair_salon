@@ -127,7 +127,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { mastersApi, servicesApi } from '../api'
+import { mastersApi, servicesApi, settingsApi } from '../api'
 import { useToastStore } from '../stores/toast'
 import { extractErrorMessage } from '../utils/errors'
 import BaseButton from '../components/ui/BaseButton.vue'
@@ -150,7 +150,7 @@ const masters = ref([])
 const mastersLoading = ref(true)
 const mastersTotal = ref('—')
 
-const heroPhoto = computed(() => masters.value.find((m) => m.photo_url)?.photo_url ?? null)
+const heroPhoto = ref(null)
 
 const marqueeText = computed(() =>
   services.value.length
@@ -189,8 +189,18 @@ async function loadMasters() {
   }
 }
 
+async function loadHeroPhoto() {
+  try {
+    const { data } = await settingsApi.get()
+    heroPhoto.value = data.hero_photo_url || null
+  } catch {
+    // фото на главной необязательно — просто останется заглушка
+  }
+}
+
 onMounted(() => {
   loadServices()
   loadMasters()
+  loadHeroPhoto()
 })
 </script>

@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer
 from .config import settings
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
-                     reviews_router)
+                     reviews_router, site_settings_router)
 
 # uvicorn настраивает только свои собственные логгеры (uvicorn.*) —
 # без этого вызова логгеры приложения (например, auth_service при
@@ -39,6 +39,7 @@ app.include_router(masters_router)
 app.include_router(appointments_router)
 app.include_router(admin_router)
 app.include_router(reviews_router)
+app.include_router(site_settings_router)
 
 
 @app.get("/")

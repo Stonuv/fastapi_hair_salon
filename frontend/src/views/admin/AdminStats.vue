@@ -1,5 +1,19 @@
 <template>
   <div>
+    <BaseCard class="mb-6">
+      <h2 class="mb-4 font-display text-lg font-bold uppercase tracking-tight text-ink-900">Настройки сайта</h2>
+      <form class="flex flex-wrap items-end gap-3" @submit.prevent="saveHeroPhoto">
+        <BaseInput
+          v-model="heroPhotoUrl"
+          label="Фото в шапке главной страницы (URL)"
+          placeholder="https://…"
+          hint="Показывается на главной странице, если указано. Иначе — заглушка."
+          class="min-w-[320px] flex-1"
+        />
+        <BaseButton type="submit" :loading="savingHeroPhoto">Сохранить</BaseButton>
+      </form>
+    </BaseCard>
+
     <div v-if="loading" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Skeleton v-for="i in 4" :key="i" height="h-28" />
     </div>
@@ -31,10 +45,12 @@ import { onMounted, ref } from 'vue'
 import {
   UsersIcon, UserIcon, UserGroupIcon, ScissorsIcon, CalendarDaysIcon, BanknotesIcon,
 } from '@heroicons/vue/24/outline'
-import { adminApi } from '../../api'
+import { adminApi, settingsApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import BaseCard from '../../components/ui/BaseCard.vue'
+import BaseInput from '../../components/ui/BaseInput.vue'
+import BaseButton from '../../components/ui/BaseButton.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import KpiCard from '../../components/KpiCard.vue'
@@ -44,6 +60,21 @@ const toast = useToastStore()
 const stats = ref(null)
 const loading = ref(true)
 
+const heroPhotoUrl = ref('')
+const savingHeroPhoto = ref(false)
+
+async function saveHeroPhoto() {
+  savingHeroPhoto.value = true
+  try {
+    await settingsApi.update({ hero_photo_url: heroPhotoUrl.value || null })
+    toast.success('Фото на главной обновлено')
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось сохранить настройки'))
+  } finally {
+    savingHeroPhoto.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     const { data } = await adminApi.getStats()
@@ -52,6 +83,13 @@ onMounted(async () => {
     toast.error(extractErrorMessage(err, 'Не удалось загрузить статистику'))
   } finally {
     loading.value = false
+  }
+
+  try {
+    const { data } = await settingsApi.get()
+    heroPhotoUrl.value = data.hero_photo_url || ''
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось загрузить настройки сайта'))
   }
 })
 </script>
