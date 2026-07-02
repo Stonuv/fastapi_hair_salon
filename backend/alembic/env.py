@@ -10,11 +10,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.config import settings
 from app.database import Base
 
-# Импортируем все модели — без этого Alembic не увидит таблицы
-from app.models import (  # noqa: F401
-    User, Master, MasterService, Service,
-    Schedule, Appointment, Notification,
-)
+# Импортируем пакет моделей целиком — app.models.__init__ обязан
+# импортировать каждую модель (см. комментарий там); перечислять их
+# здесь повторно значит вести второй, вечно отстающий список.
+import app.models  # noqa: F401
 
 config = context.config
 

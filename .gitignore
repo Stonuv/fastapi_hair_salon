@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 node_modules/
 dist/
+# Рабочие заметки и дизайн-артефакты — не часть кодовой базы
+claude_design_examples/
+Saitama Barbershop.dc.html

@@ -4,9 +4,8 @@ from .appointment import (AppointmentBriefResponse, AppointmentCreate,
                           SlotListResponse, SlotResponse)
 from .auth import (LoginRequest, PasswordResetConfirm, PasswordResetRequest,
                    TokenResponse)
-from .master import (MasterBriefResponse, MasterResponse, MasterServiceResponse,
-                     MasterUpdate)
-from .notification import NotificationListResponse, NotificationResponse
+from .master import (MasterBriefResponse, MasterPublicResponse, MasterResponse,
+                     MasterServiceResponse, MasterUpdate)
 from .pagination import PageParams, PageResponse
 from .review import ReviewCreate, ReviewModerate, ReviewResponse
 from .schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
@@ -17,12 +16,12 @@ __all__ = [
     "UserBase", "UserCreate", "UserUpdate", "UserResponse",
     "LoginRequest", "TokenResponse", "PasswordResetRequest", "PasswordResetConfirm",
     "ServiceCreate", "ServiceUpdate", "ServiceResponse",
-    "MasterUpdate", "MasterResponse", "MasterBriefResponse", "MasterServiceResponse",
+    "MasterUpdate", "MasterResponse", "MasterPublicResponse",
+    "MasterBriefResponse", "MasterServiceResponse",
     "ScheduleCreate", "ScheduleUpdate", "ScheduleResponse",
     "AppointmentCreate", "AppointmentStatusUpdate",
     "AppointmentResponse", "AppointmentBriefResponse",
     "SlotResponse", "SlotListResponse",
-    "NotificationResponse", "NotificationListResponse",
     "ReviewCreate", "ReviewModerate", "ReviewResponse",
     "PageParams", "PageResponse",
     "AdminStatsResponse", "DailyCount",

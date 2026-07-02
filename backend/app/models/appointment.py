@@ -14,7 +14,6 @@ from .mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from .master import Master
-    from .notification import Notification
     from .review import Review
     from .service import Service
     from .user import User
@@ -58,9 +57,6 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     client: Mapped["User"] = relationship(back_populates="appointments", foreign_keys=[client_id])
     master: Mapped["Master"] = relationship(back_populates="appointments", foreign_keys=[master_id])
     service: Mapped["Service"] = relationship(back_populates="appointments")
-    notifications: Mapped[list["Notification"]] = relationship(
-        back_populates="appointment", cascade="all, delete-orphan"
-    )
     review: Mapped["Review | None"] = relationship(
         back_populates="appointment", uselist=False, cascade="all, delete-orphan"
     )

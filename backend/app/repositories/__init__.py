@@ -1,7 +1,6 @@
 from .appointment_repository import AppointmentRepository
 from .login_attempt_repository import LoginAttemptRepository
 from .master_repository import MasterRepository
-from .notification_repository import NotificationRepository
 from .password_reset_token_repository import PasswordResetTokenRepository
 from .review_repository import ReviewRepository
 from .schedule_repository import ScheduleRepository
@@ -15,7 +14,6 @@ __all__ = [
     "ServiceRepository",
     "ScheduleRepository",
     "AppointmentRepository",
-    "NotificationRepository",
     "ReviewRepository",
     "PasswordResetTokenRepository",
     "LoginAttemptRepository",

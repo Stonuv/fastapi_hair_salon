@@ -2,7 +2,6 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
 
 from .config import settings
 from .routes import (auth_router, services_router,
@@ -14,15 +13,11 @@ from .routes import (auth_router, services_router,
 # восстановлении пароля) молча проглатываются root-логгером.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-security = HTTPBearer()
-
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    # Явно регистрируем HTTPBearer — появится отдельное поле в Authorize
-    swagger_ui_init_oauth={},
 )
 
 app.add_middleware(

@@ -35,6 +35,5 @@ class PageResponse(BaseModel, Generic[T]):
     @computed_field
     @property
     def total_pages(self) -> int:
-        if self.page_size <= 0:
-            return 0
+        # page_size валидируется как ge=1 (PageParams) — деление безопасно
         return -(-self.total // self.page_size)
