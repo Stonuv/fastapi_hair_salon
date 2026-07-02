@@ -1,0 +1,44 @@
+# Продовая сборка всего стека: PostgreSQL + FastAPI + nginx со статикой SPA.
+#
+#   SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))") \
+#   docker compose up --build
+#
+# Приложение — http://localhost:8080, Swagger — http://localhost:8080/api/docs.
+# Для публичного деплоя добавьте перед nginx TLS-терминатор (например, Caddy
+# или certbot на хосте) — HTTPS в compose сознательно не настраивается.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: barbershop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barbershop}
+      POSTGRES_DB: barbershop
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barbershop -d barbershop"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://barbershop:${POSTGRES_PASSWORD:-barbershop}@db:5432/barbershop
+      # При DEBUG=false приложение откажется стартовать без своего SECRET_KEY
+      SECRET_KEY: ${SECRET_KEY:?Задайте SECRET_KEY (python -c "import secrets; print(secrets.token_urlsafe(48))")}
+      DEBUG: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

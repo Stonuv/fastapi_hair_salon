@@ -74,34 +74,40 @@ frontend/
 
 ## Быстрый старт
 
-### Требования
+### Вариант 1: Docker (весь стек одной командой)
+
+```bash
+SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))") docker compose up --build
+```
+
+Приложение — http://localhost:8080, Swagger — http://localhost:8080/api/docs.
+Миграции накатываются автоматически при старте бэкенда. Для публичного
+деплоя добавьте TLS-терминатор (Caddy / certbot) перед nginx.
+
+### Вариант 2: локально
+
+#### Требования
 - Python 3.14
 - Node.js 18+
 - PostgreSQL 13+ (нужны права на `CREATE EXTENSION` для `btree_gist`)
 
-### Backend
+#### Backend
 
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # и заполните под своё окружение
 ```
 
-Создайте `backend/.env`:
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/hair_salon
-SECRET_KEY=<случайная строка>
-```
-
-Все переменные и дефолты — в `backend/app/config.py`.
+Все переменные и дефолты — в `backend/.env.example` и `backend/app/config.py`.
 
 ```bash
 alembic upgrade head   # создаёт схему, расширение btree_gist и EXCLUDE-ограничение
 python run.py          # http://localhost:8000 · Swagger: /api/docs
 ```
 
-### Frontend
+#### Frontend
 
 ```bash
 cd frontend
@@ -111,8 +117,31 @@ npm run dev   # http://localhost:5173, /api проксируется на :8000
 
 ---
 
+## Таймзоны
+
+Салон «живёт» в UTC: рабочее расписание мастеров хранится и трактуется как
+UTC-время, `start_time` записи обязан приходить с таймзоной и нормализуется в
+UTC, отчёты режут сутки по UTC, а фронтенд показывает время записей и слотов
+как «настенные часы» салона (`timeZone: 'UTC'`), а не в таймзоне браузера.
+
+## Осознанные компромиссы безопасности
+
+- **JWT без отзыва**: access-токен живёт 24 часа, механизма серверной
+  инвалидации (logout, смена пароля, бан) нет — для учебного проекта принят
+  простой stateless-вариант. При необходимости добавляется `token_version`
+  на пользователе или denylist в Redis.
+- **Токен в localStorage** вместо httpOnly-cookie — классический XSS-риск,
+  принятый ради простоты SPA; XSS-поверхность минимизирована (Vue экранирует
+  вывод, пользовательский HTML нигде не рендерится).
+- Перебор паролей ограничен: временная блокировка входа после 5 неудач за
+  15 минут (журнал `login_attempts`), запросы сброса пароля — 3/час.
+
 ## Известные ограничения
 
-- OAuth и реальная отправка email не реализованы (в задаче не требовались)
-- Деплой и CI/CD не настроены
-- Тестовое покрытие отсутствует
+- OAuth и реальная отправка email не реализованы (в задаче не требовались);
+  ссылка сброса пароля пишется в лог сервера
+- CI/CD и HTTPS не настроены (docker-compose собирает прод-стек, TLS — на
+  внешнем терминаторе)
+- Адаптивность (320/768px) доведена не везде
+- Дефолтные тексты сайта продублированы в `stores/siteContent.js` и
+  `schemas/site_settings.py` — при изменении синхронизировать вручную

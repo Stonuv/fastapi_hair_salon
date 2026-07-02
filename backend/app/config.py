@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     # ── Приложение ───────────────────────────────────────────────
     app_name: str  = "Барбершоп «Сайтама»"
     debug:    bool = True
+    # Дефолт — localhost: наружу на все интерфейсы (0.0.0.0) приложение
+    # выставляется явно (например, в docker-compose), а не в dev-режиме.
+    host: str = "127.0.0.1"
+    port: int = 8000
 
     # ── База данных ──────────────────────────────────────────────
     # Пример: postgresql://user:password@localhost:5432/barbershop
