@@ -17,7 +17,9 @@ def _fits_bcrypt(v: str) -> str:
 
 
 NameStr        = Annotated[str, Field(min_length=1, max_length=100)]
-PhoneStr       = Annotated[str, Field(max_length=20)]
+# Телефон: цифры, необязательный +, скобки/пробелы/дефисы; 5–20 символов
+PhoneStr       = Annotated[str, Field(max_length=20,
+                                      pattern=r"^\+?[0-9()\- ]{5,20}$")]
 PasswordStr    = Annotated[str, Field(min_length=8, max_length=_BCRYPT_MAX_BYTES,
                                       description="Пароль (8–72 символа)"),
                            AfterValidator(_fits_bcrypt)]

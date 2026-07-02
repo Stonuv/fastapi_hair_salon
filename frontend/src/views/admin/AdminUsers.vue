@@ -32,7 +32,13 @@
     <div v-else class="space-y-3">
       <BaseCard v-for="u in users" :key="u.id" class="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p class="font-medium text-ink-900">{{ u.first_name }} {{ u.last_name }}</p>
+          <p class="font-medium text-ink-900">
+            {{ u.first_name }} {{ u.last_name }}
+            <span
+              v-if="u.is_blocked"
+              class="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+            >Заблокирован</span>
+          </p>
           <p class="text-sm text-ink-600">{{ u.email }}{{ u.phone ? ` · ${u.phone}` : '' }}</p>
           <p class="mt-1 text-xs text-ink-600/70">Регистрация: {{ formatDate(u.created_at) }}</p>
         </div>
@@ -46,6 +52,9 @@
             Создать профиль мастера
           </BaseButton>
           <BaseButton variant="ghost" size="sm" @click="openEdit(u)">Редактировать</BaseButton>
+          <BaseButton variant="ghost" size="sm" @click="toggleBlocked(u)">
+            {{ u.is_blocked ? 'Разблокировать' : 'Заблокировать' }}
+          </BaseButton>
           <BaseButton variant="danger" size="sm" @click="confirmDelete(u)">Удалить</BaseButton>
         </div>
       </BaseCard>
@@ -163,6 +172,16 @@ async function changeRole(user, newRole) {
     await adminApi.changeUserRole(user.id, newRole)
     user.role = newRole
     toast.success('Роль обновлена')
+  } catch (err) {
+    toast.error(extractErrorMessage(err))
+  }
+}
+
+async function toggleBlocked(user) {
+  try {
+    const { data } = await adminApi.setUserBlocked(user.id, !user.is_blocked)
+    user.is_blocked = data.is_blocked
+    toast.success(data.is_blocked ? 'Пользователь заблокирован' : 'Пользователь разблокирован')
   } catch (err) {
     toast.error(extractErrorMessage(err))
   }

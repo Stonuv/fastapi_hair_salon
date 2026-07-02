@@ -125,7 +125,9 @@ class AuthService:
         # bcrypt выполняется и для несуществующего email (сравнение с dummy-хешем) —
         # время ответа не раскрывает, зарегистрирован ли адрес.
         hashed = user.password_hash if user else _DUMMY_HASH
-        success = _verify_password(password, hashed) and user is not None
+        password_ok = _verify_password(password, hashed) and user is not None
+        # Верный пароль заблокированного аккаунта — это тоже неуспешный вход
+        success = password_ok and not user.is_blocked
 
         # Требование 5.1 — логируем каждую попытку входа, успешную и неуспешную.
         self.login_attempt_repo.create(
@@ -139,10 +141,17 @@ class AuthService:
         # и аудит-лог, и блокировка перебора выше.
         self.db.commit()
 
-        if not success or user is None:
+        if not password_ok or user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверный email или пароль",
+            )
+
+        # Блокировка (ТЗ 4.2): пароль верный, но вход запрещён
+        if user.is_blocked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Аккаунт заблокирован. Обратитесь к администратору.",
             )
 
         token = _create_access_token(user.id)
@@ -241,6 +250,13 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Пользователь не найден",
+        )
+    # Ранее выданный токен заблокированного пользователя недействителен —
+    # JWT сам по себе не отзываем, поэтому режем на каждой проверке.
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Аккаунт заблокирован. Обратитесь к администратору.",
         )
     return user
 

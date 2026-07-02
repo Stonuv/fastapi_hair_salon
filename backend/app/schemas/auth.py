@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -18,7 +18,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: Annotated[str, Field(description="JWT access-токен")]
-    token_type:   Annotated[str, Field(default="bearer")]
+    token_type:   Literal["bearer"] = "bearer"
     user:         Annotated[UserResponse, Field(description="Данные авторизованного пользователя")]
 
 

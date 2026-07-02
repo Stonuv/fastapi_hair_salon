@@ -111,6 +111,12 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def set_blocked(self, user: User, is_blocked: bool) -> User:
+        user.is_blocked = is_blocked
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
     def soft_delete(self, user: User) -> None:
         user.deleted_at = datetime.now(timezone.utc)
         self.db.flush()

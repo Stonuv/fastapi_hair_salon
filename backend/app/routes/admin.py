@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.enums import UserRole
+from ..models.user import User
 from ..repositories.master_repository import MasterRepository
 from ..schemas.admin_stats import AdminStatsResponse
 from ..schemas.master import MasterPhotoUpdate, MasterResponse, MasterUpdate
@@ -28,6 +29,10 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 class ChangeRoleRequest(BaseModel):
     role: UserRole
+
+
+class BlockRequest(BaseModel):
+    is_blocked: bool
 
 
 def _resolve_report_period(date_from: date_ | None,
@@ -123,6 +128,15 @@ def change_user_role(user_id: UUID, data: ChangeRoleRequest,
                      db: Session = Depends(get_db), _=Depends(get_current_admin)):
     """Сменить роль пользователя."""
     return AdminService(db).change_role(user_id, data.role)
+
+
+@router.patch("/users/{user_id}/block", response_model=UserResponse)
+def set_user_blocked(user_id: UUID, data: BlockRequest,
+                     db: Session = Depends(get_db),
+                     current_admin: User = Depends(get_current_admin)):
+    """Заблокировать / разблокировать пользователя (ТЗ 4.2): аккаунт и история
+    сохраняются, но вход и действия по токену запрещены."""
+    return AdminService(db).set_blocked(user_id, data.is_blocked, current_admin.id)
 
 
 @router.post("/users/{user_id}/master", response_model=MasterResponse,

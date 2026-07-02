@@ -126,6 +126,20 @@ class AdminService:
         master = self.master_repo.get_by_id(master.id)
         return MasterResponse.model_validate(master)
 
+    def set_blocked(self, user_id: UUID, is_blocked: bool,
+                    requesting_admin_id: UUID) -> UserResponse:
+        """Блокировка/разблокировка (ТЗ 4.2): аккаунт и история сохраняются,
+        вход и действия по токену запрещены (см. auth_service)."""
+        if user_id == requesting_admin_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Нельзя заблокировать собственный аккаунт")
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Пользователь не найден")
+        user = self.user_repo.set_blocked(user, is_blocked)
+        return UserResponse.model_validate(user)
+
     def delete_user(self, user_id: UUID) -> None:
         """Мягкое удаление — пользователь скрывается, но история записей сохраняется."""
         user = self.user_repo.get_by_id(user_id)

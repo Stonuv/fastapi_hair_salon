@@ -7,6 +7,8 @@ export const adminApi = {
   createUser: (data) => client.post('/admin/users', data),
   updateUser: (userId, data) => client.patch(`/admin/users/${userId}`, data),
   changeUserRole: (userId, role) => client.patch(`/admin/users/${userId}/role`, { role }),
+  setUserBlocked: (userId, isBlocked) =>
+    client.patch(`/admin/users/${userId}/block`, { is_blocked: isBlocked }),
   createMasterProfile: (userId) => client.post(`/admin/users/${userId}/master`),
   deleteUser: (userId) => client.delete(`/admin/users/${userId}`),
 

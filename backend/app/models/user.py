@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Boolean
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -36,6 +37,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     role: Mapped[UserRole] = mapped_column(
         SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.client
     )
+    # Блокировка (ТЗ 4.2 MIN) — отличается от мягкого удаления: аккаунт и
+    # история сохраняются и видны, но вход и действия по токену запрещены.
+    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Профиль мастера (только если role = 'master')
     master_profile: Mapped["Master | None"] = relationship(
