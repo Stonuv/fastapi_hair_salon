@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..repositories.user_repository import UserRepository
 from ..schemas.auth import (LoginRequest, PasswordResetConfirm,
                             PasswordResetRequest, TokenResponse)
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
@@ -35,8 +34,7 @@ def update_me(
     current_user=Depends(get_current_user),
 ):
     """Обновить своё имя, фамилию или телефон."""
-    user = UserRepository(db).update(current_user, data)
-    return UserResponse.model_validate(user)
+    return AuthService(db).update_profile(current_user, data)
 
 
 # ── Восстановление пароля ─────────────────────────────────────────

@@ -97,7 +97,7 @@ def get_appointment(
     current_user: User = Depends(get_current_user),
 ):
     """Детали записи. Доступно клиенту-владельцу, мастеру и администратору."""
-    return AppointmentService(db).get_by_id(appointment_id, current_user.id)
+    return AppointmentService(db).get_by_id(appointment_id, current_user)
 
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentResponse)

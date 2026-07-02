@@ -9,6 +9,7 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -19,7 +20,8 @@ from ..repositories.login_attempt_repository import LoginAttemptRepository
 from ..repositories.password_reset_token_repository import PasswordResetTokenRepository
 from ..repositories.user_repository import UserRepository
 from ..schemas.auth import TokenResponse
-from ..schemas.user import UserCreate, UserResponse
+from ..schemas.user import UserCreate, UserResponse, UserUpdate
+from ._errors import constraint_name
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,10 @@ def hash_password(password: str) -> str:
 
 
 def _verify_password(password: str, hashed: str) -> bool:
+    # bcrypt 5.x бросает ValueError на пароль длиннее 72 байт — такой пароль
+    # заведомо неверен (валидные не проходят регистрацию), а не повод для 500.
+    if len(password.encode("utf-8")) > 72:
+        return False
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
@@ -45,6 +51,7 @@ bearer_scheme = HTTPBearer()
 
 class AuthService:
     def __init__(self, db: Session):
+        self.db = db
         self.user_repo = UserRepository(db)
         self.login_attempt_repo = LoginAttemptRepository(db)
         self.reset_token_repo = PasswordResetTokenRepository(db)
@@ -52,21 +59,49 @@ class AuthService:
     def register(self, data: UserCreate) -> TokenResponse:
         if self.user_repo.email_exists(data.email):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="Пользователь с таким email уже существует",
             )
         if data.phone and self.user_repo.phone_exists(data.phone):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="Пользователь с таким номером телефона уже существует",
             )
         password_hash = hash_password(data.password)
-        user = self.user_repo.create(data, password_hash)
+        try:
+            user = self.user_repo.create(data, password_hash)
+        except IntegrityError as exc:
+            # Проигравший гонку с параллельной регистрацией — частичные
+            # unique-индексы users надёжнее пред-проверок выше.
+            self.db.rollback()
+            detail = (
+                "Пользователь с таким номером телефона уже существует"
+                if constraint_name(exc) == "uq_users_phone_active"
+                else "Пользователь с таким email уже существует"
+            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
         token = _create_access_token(user.id)
         return TokenResponse(
             access_token=token,
             user=UserResponse.model_validate(user),
         )
+
+    def update_profile(self, user: User, data: UserUpdate) -> UserResponse:
+        if (data.phone is not None and data.phone != user.phone
+                and self.user_repo.phone_exists(data.phone)):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с таким номером телефона уже существует",
+            )
+        try:
+            user = self.user_repo.update(user, data)
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с таким номером телефона уже существует",
+            )
+        return UserResponse.model_validate(user)
 
     def login(self, email: str, password: str, ip_address: str | None = None) -> TokenResponse:
         user = self.user_repo.get_by_email(email)

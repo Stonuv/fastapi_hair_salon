@@ -3,6 +3,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models.enums import UserRole
@@ -14,11 +15,13 @@ from ..schemas.admin_stats import AdminStatsResponse, DailyCount
 from ..schemas.master import MasterResponse
 from ..schemas.pagination import PageResponse
 from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse, UserUpdate
+from ._errors import constraint_name
 from .auth_service import hash_password
 
 
 class AdminService:
     def __init__(self, db: Session):
+        self.db           = db
         self.user_repo    = UserRepository(db)
         self.master_repo  = MasterRepository(db)
         self.service_repo = ServiceRepository(db)
@@ -43,12 +46,21 @@ class AdminService:
 
     def create_user(self, data: AdminUserCreate) -> UserResponse:
         if self.user_repo.email_exists(data.email):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Пользователь с таким email уже существует")
         if data.phone and self.user_repo.phone_exists(data.phone):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Пользователь с таким номером телефона уже существует")
-        user = self.user_repo.create(data, hash_password(data.password), role=data.role)
+        try:
+            user = self.user_repo.create(data, hash_password(data.password), role=data.role)
+        except IntegrityError as exc:
+            self.db.rollback()
+            detail = (
+                "Пользователь с таким номером телефона уже существует"
+                if constraint_name(exc) == "uq_users_phone_active"
+                else "Пользователь с таким email уже существует"
+            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
         return UserResponse.model_validate(user)
 
     def update_user(self, user_id: UUID, data: AdminUserUpdate) -> UserResponse:
@@ -59,18 +71,28 @@ class AdminService:
 
         if data.email is not None and data.email != user.email:
             if self.user_repo.email_exists(data.email):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                     detail="Пользователь с таким email уже существует")
-            user = self.user_repo.set_email(user, data.email)
+            try:
+                user = self.user_repo.set_email(user, data.email)
+            except IntegrityError:
+                self.db.rollback()
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Пользователь с таким email уже существует")
 
         if data.phone is not None and data.phone != user.phone:
             if self.user_repo.phone_exists(data.phone):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                     detail="Пользователь с таким номером телефона уже существует")
 
         name_fields = data.model_dump(exclude_unset=True, exclude={"email", "new_password"})
         if name_fields:
-            user = self.user_repo.update(user, UserUpdate(**name_fields))
+            try:
+                user = self.user_repo.update(user, UserUpdate(**name_fields))
+            except IntegrityError:
+                self.db.rollback()
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Пользователь с таким номером телефона уже существует")
 
         if data.new_password:
             self.user_repo.set_password(user, hash_password(data.new_password))

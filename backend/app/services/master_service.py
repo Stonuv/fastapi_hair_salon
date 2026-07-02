@@ -157,6 +157,18 @@ class MasterService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Расписание на день {day_of_week} не найдено",
             )
+
+        # Pydantic проверяет пару start/end только когда переданы оба поля —
+        # при частичном обновлении сверяем с текущими значениями, иначе
+        # некорректная пара дойдёт до CHECK-констрейнта БД и даст 500.
+        new_start = data.start_time if data.start_time is not None else schedule.start_time
+        new_end   = data.end_time   if data.end_time   is not None else schedule.end_time
+        if new_end <= new_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="end_time должен быть позже start_time",
+            )
+
         schedule = self.schedule_repo.update(schedule, data)
         return ScheduleResponse.model_validate(schedule)
 

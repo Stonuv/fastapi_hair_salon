@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models.enums import AppointmentStatus, UserRole
@@ -27,6 +28,7 @@ ALLOWED_TRANSITIONS: dict[AppointmentStatus, set[AppointmentStatus]] = {
 
 class AppointmentService:
     def __init__(self, db: Session):
+        self.db = db
         self.appointment_repo = AppointmentRepository(db)
         self.master_repo      = MasterRepository(db)
         self.service_repo     = ServiceRepository(db)
@@ -56,6 +58,11 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Мастер не оказывает данную услугу")
 
+        # Записаться можно только на будущее время
+        if data.start_time <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Нельзя записаться на прошедшее время")
+
         # 3. Вычисляем end_time и финальную цену
         end_time = data.start_time + timedelta(minutes=service.duration_min)
         final_price = (
@@ -75,10 +82,17 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Выбранное время уже занято")
 
-        # 6. Сохраняем
-        appointment = self.appointment_repo.create(
-            client_id, data, end_time, round(final_price, 2)
-        )
+        # 6. Сохраняем. Проверка пересечения выше — только pre-flight для
+        # понятной ошибки; от гонки двух одновременных бронирований защищает
+        # EXCLUDE-констрейнт no_double_booking, и его нарушение — это 409, не 500.
+        try:
+            appointment = self.appointment_repo.create(
+                client_id, data, end_time, round(final_price, 2)
+            )
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Выбранное время уже занято")
         return AppointmentResponse.model_validate(
             self.appointment_repo.get_by_id(appointment.id)
         )
@@ -86,19 +100,20 @@ class AppointmentService:
     # ── Получение записей ────────────────────────────────────────
 
     def get_by_id(self, appointment_id: UUID,
-                  requesting_user_id: UUID) -> AppointmentResponse:
+                  requesting_user: User) -> AppointmentResponse:
         appointment = self.appointment_repo.get_by_id(appointment_id)
         if not appointment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Запись не найдена")
 
-        # Клиент видит только свои записи
-        master = self.master_repo.get_by_user_id(requesting_user_id)
-        is_owner  = appointment.client_id == requesting_user_id
-        is_master = master and master.id == appointment.master_id
-        if not is_owner and not is_master:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail="Нет доступа к этой записи")
+        # Доступ: владелец записи, её мастер или администратор
+        if requesting_user.role != UserRole.admin:
+            master = self.master_repo.get_by_user_id(requesting_user.id)
+            is_owner  = appointment.client_id == requesting_user.id
+            is_master = master and master.id == appointment.master_id
+            if not is_owner and not is_master:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Нет доступа к этой записи")
 
         return AppointmentResponse.model_validate(appointment)
 
@@ -256,7 +271,8 @@ class AppointmentService:
             if a.status != AppointmentStatus.cancelled
         ]
 
-        # Генерируем слоты
+        # Генерируем слоты; уже прошедшие (на сегодняшнюю дату) не предлагаем
+        now      = datetime.now(timezone.utc)
         duration = timedelta(minutes=service.duration_min)
         slots    = []
         current  = day_start
@@ -268,7 +284,7 @@ class AppointmentService:
                 current < b_end and slot_end > b_start
                 for b_start, b_end in booked_ranges
             )
-            if is_free:
+            if is_free and current > now:
                 slots.append(SlotResponse(start_time=current, end_time=slot_end))
             current += duration
 

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field
 
+from .fields import PasswordStr
 from .user import UserResponse
 
 # ── Запрос на вход ───────────────────────────────────────────────
@@ -30,4 +31,4 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     token:        Annotated[str, Field(description="Токен из ссылки восстановления")]
-    new_password: Annotated[str, Field(min_length=8, description="Новый пароль (мин. 8 символов)")]
+    new_password: Annotated[PasswordStr, Field(description="Новый пароль (8–72 символа)")]

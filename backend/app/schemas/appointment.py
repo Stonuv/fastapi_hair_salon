@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from ..models.enums import AppointmentStatus
 from .master import MasterBriefResponse
@@ -19,7 +19,15 @@ class AppointmentCreate(BaseModel):
     """
     master_id:  Annotated[UUID, Field(description="UUID мастера")]
     service_id: Annotated[UUID, Field(description="UUID услуги")]
-    start_time: Annotated[datetime, Field(description="Желаемое время начала")]
+    start_time: Annotated[AwareDatetime, Field(
+        description="Желаемое время начала (обязательно с таймзоной; нормализуется в UTC)")]
+
+    @field_validator("start_time")
+    @classmethod
+    def _normalize_to_utc(cls, v: datetime) -> datetime:
+        # Вся логика расписания/слотов работает в UTC — приводим на входе,
+        # чтобы день недели и рабочее окно не зависели от офсета клиента.
+        return v.astimezone(timezone.utc)
 
 
 # ── Смена статуса (от мастера / админа) ──────────────────────────

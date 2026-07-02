@@ -27,7 +27,11 @@ class ScheduleUpdate(BaseModel):
 
     @model_validator(mode="after")
     def end_after_start(self) -> "ScheduleUpdate":
-        if self.start_time and self.end_time and self.end_time <= self.start_time:
+        # Сравнение по `is not None`: time(0, 0) — falsy, truthiness молча
+        # пропускала бы валидацию для полуночи. Когда передано лишь одно из
+        # полей, пару с существующим значением проверяет MasterService.
+        if (self.start_time is not None and self.end_time is not None
+                and self.end_time <= self.start_time):
             raise ValueError("end_time должен быть позже start_time")
         return self
 

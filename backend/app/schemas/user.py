@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from ..models.enums import UserRole
-from .fields import NameStr, PhoneStr
+from .fields import NameStr, PasswordStr, PhoneStr
 
 # ── Базовые поля ─────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: Annotated[str, Field(min_length=8, description="Пароль (мин. 8 символов)")]
+    password: Annotated[PasswordStr, Field(description="Пароль (8–72 символа)")]
 
 
 class AdminUserCreate(UserCreate):
@@ -47,7 +47,7 @@ class AdminUserUpdate(BaseModel):
     first_name:   Annotated[NameStr | None,  Field(default=None)]
     last_name:    Annotated[NameStr | None,  Field(default=None)]
     phone:        Annotated[PhoneStr | None, Field(default=None)]
-    new_password: Annotated[str | None, Field(default=None, min_length=8, description="Оставьте пустым, чтобы не менять")]
+    new_password: Annotated[PasswordStr | None, Field(default=None, description="Оставьте пустым, чтобы не менять")]
 
 
 # ── API Response ─────────────────────────────────────────────────
