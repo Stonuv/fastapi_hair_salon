@@ -57,7 +57,10 @@ router.beforeEach(async (to) => {
     return { name: 'home' }
   }
   if (to.meta.guestOnly && auth.isLoggedIn) {
-    return { name: 'home' }
+    // «Токен протух → редирект на /login?redirect=...», но пользователь уже
+    // вошёл в другой вкладке — возвращаем его туда, куда он шёл.
+    const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : null
+    return redirect || { name: 'home' }
   }
   return true
 })

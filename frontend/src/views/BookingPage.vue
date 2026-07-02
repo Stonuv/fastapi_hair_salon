@@ -155,10 +155,11 @@ const loading = ref(true)
 const reviews = ref([])
 const reviewsTotal = ref(0)
 const reviewsLoading = ref(true)
-const avgRating = computed(() => {
-  if (!reviews.value.length) return 0
-  return (reviews.value.reduce((sum, r) => sum + r.rating, 0) / reviews.value.length).toFixed(1)
-})
+// Средний рейтинг приходит с бэкенда (по всем опубликованным отзывам) —
+// среднее по одной загруженной странице выдавало бы неверное число.
+const avgRating = computed(() =>
+  master.value?.rating != null ? master.value.rating.toFixed(1) : '—'
+)
 
 async function loadReviews() {
   reviewsLoading.value = true

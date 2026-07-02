@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..repositories.master_repository import MasterRepository
+from ..repositories.review_repository import ReviewRepository
 from ..repositories.schedule_repository import ScheduleRepository
 from ..repositories.service_repository import ServiceRepository
 from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
@@ -30,6 +31,7 @@ class MasterService:
         self.master_repo   = MasterRepository(db)
         self.service_repo  = ServiceRepository(db)
         self.schedule_repo = ScheduleRepository(db)
+        self.review_repo   = ReviewRepository(db)
 
     # ── Каталог мастеров ─────────────────────────────────────────
 
@@ -74,7 +76,11 @@ class MasterService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Мастер {master_id} не найден",
             )
-        return MasterPublicResponse.model_validate(master)
+        rating, reviews_count = self.review_repo.rating_summary(master_id)
+        response = MasterPublicResponse.model_validate(master)
+        response.rating = rating
+        response.reviews_count = reviews_count
+        return response
 
     def update(self, master_id: UUID, data: MasterUpdate) -> MasterResponse:
         master = self.master_repo.get_by_id(master_id)

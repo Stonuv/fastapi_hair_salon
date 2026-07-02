@@ -1,5 +1,4 @@
 import axios from 'axios'
-import router from '../router'
 
 const client = axios.create({
   baseURL: '/api',
@@ -12,12 +11,20 @@ client.interceptors.request.use((config) => {
   return config
 })
 
+// Обработчик 401 внедряется из main.js (setUnauthorizedHandler): прямой
+// импорт router отсюда создавал цикл client → router → stores → client,
+// а чистить надо не только localStorage, но и Pinia-стор (auth.logout()).
+let onUnauthorized = null
+
+export function setUnauthorizedHandler(handler) {
+  onUnauthorized = handler
+}
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && router.currentRoute.value.path !== '/login') {
-      localStorage.removeItem('token')
-      router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+    if (error.response?.status === 401 && onUnauthorized) {
+      onUnauthorized()
     }
     return Promise.reject(error)
   }

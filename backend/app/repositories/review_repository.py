@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..models.master import Master
@@ -57,6 +57,16 @@ class ReviewRepository:
         stmt = stmt.order_by(order)
 
         return paginated(self.db, stmt, page=page, page_size=page_size)
+
+    def rating_summary(self, master_id: uuid.UUID) -> tuple[float | None, int]:
+        """(средний рейтинг, всего опубликованных отзывов) мастера — среднее
+        считается по всем отзывам в SQL, а не по одной странице выдачи."""
+        stmt = select(func.avg(Review.rating), func.count()).where(
+            Review.master_id == master_id,
+            Review.is_published.is_(True),
+        )
+        avg, count = self.db.execute(stmt).one()
+        return (round(float(avg), 1) if avg is not None else None), count
 
     # ── Создание / изменение ──────────────────────────────────────
 

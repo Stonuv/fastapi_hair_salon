@@ -56,7 +56,9 @@ class MasterResponse(BaseModel):
 
 
 class MasterPublicResponse(BaseModel):
-    """Публичный профиль мастера — без email/телефона/роли пользователя."""
+    """Публичный профиль мастера — без email/телефона/роли пользователя.
+    Рейтинг агрегируется по всем опубликованным отзывам на бэкенде —
+    фронтенд не должен считать его по одной странице выдачи."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,6 +67,9 @@ class MasterPublicResponse(BaseModel):
     specialization: str | None
     photo_url:      str | None
     coefficient:    float
+    rating:         Annotated[float | None, Field(
+        default=None, description="Средний рейтинг по опубликованным отзывам")]
+    reviews_count:  Annotated[int, Field(default=0)]
 
 
 # ── Обновление профиля мастера ───────────────────────────────────

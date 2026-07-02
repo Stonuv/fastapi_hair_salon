@@ -30,8 +30,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await authApi.me()
       user.value = res.data
-    } catch {
-      logout()
+    } catch (err) {
+      // Разлогиниваем только если токен действительно отвергнут (401).
+      // Сетевая ошибка или 500 не повод стирать валидную сессию.
+      if (err.response?.status === 401) logout()
     } finally {
       ready.value = true
     }
