@@ -1,5 +1,7 @@
 import uuid
+from datetime import datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models.login_attempt import LoginAttempt
@@ -20,3 +22,13 @@ class LoginAttemptRepository:
         self.db.add(attempt)
         self.db.commit()
         return attempt
+
+    def count_recent_failed(self, email: str, since: datetime) -> int:
+        """Неудачные попытки входа по email за окно — для временной блокировки.
+        Покрыто индексом ix_login_attempts_email_created."""
+        stmt = select(func.count()).select_from(LoginAttempt).where(
+            LoginAttempt.email_attempted == email,
+            LoginAttempt.success.is_(False),
+            LoginAttempt.created_at >= since,
+        )
+        return self.db.execute(stmt).scalar_one()

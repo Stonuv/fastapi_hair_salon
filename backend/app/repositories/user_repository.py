@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..models.enums import UserRole
 from ..models.user import User
 from ..schemas.user import UserCreate, UserUpdate
-from ._query_utils import paginated
+from ._query_utils import LIKE_ESCAPE_CHAR, escape_like, paginated
 
 
 class UserRepository:
@@ -46,11 +46,11 @@ class UserRepository:
         if role is not None:
             stmt = stmt.where(User.role == role)
         if search:
-            pattern = f"%{search}%"
+            pattern = f"%{escape_like(search)}%"
             stmt = stmt.where(or_(
-                User.email.ilike(pattern),
-                User.first_name.ilike(pattern),
-                User.last_name.ilike(pattern),
+                User.email.ilike(pattern, escape=LIKE_ESCAPE_CHAR),
+                User.first_name.ilike(pattern, escape=LIKE_ESCAPE_CHAR),
+                User.last_name.ilike(pattern, escape=LIKE_ESCAPE_CHAR),
             ))
 
         sort_column = User.created_at if sort_by == "created_at" else User.email

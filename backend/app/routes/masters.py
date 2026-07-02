@@ -10,8 +10,8 @@ from ..models.enums import UserRole
 from ..models.user import User
 from ..repositories.master_repository import MasterRepository
 from ..schemas.appointment import SlotListResponse
-from ..schemas.master import (MasterBriefResponse, MasterResponse,
-                              MasterServiceResponse, MasterUpdate)
+from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
+                              MasterResponse, MasterServiceResponse, MasterUpdate)
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..services.appointment_service import AppointmentService
@@ -64,10 +64,11 @@ def get_my_master_profile(
     return MasterResponse.model_validate(master)
 
 
-@router.get("/{master_id}", response_model=MasterResponse)
+@router.get("/{master_id}", response_model=MasterPublicResponse)
 def get_master(master_id: UUID, db: Session = Depends(get_db)):
-    """Профиль мастера. Публичный эндпоинт."""
-    return MasterService(db).get_by_id(master_id)
+    """Профиль мастера. Публичный эндпоинт — без контактов пользователя,
+    деактивированные мастера не отдаются."""
+    return MasterService(db).get_public_by_id(master_id)
 
 
 @router.patch("/{master_id}", response_model=MasterResponse)

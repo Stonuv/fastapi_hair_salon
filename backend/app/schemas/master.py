@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from .service import ServiceResponse
-from .user import UserResponse
+from .user import UserPublicResponse, UserResponse
 
 # ── Услуга мастера (с возможным price_override) ──────────────────
 
@@ -41,7 +41,8 @@ class MasterBriefResponse(BaseModel):
 
 
 class MasterResponse(BaseModel):
-    """Полный профиль мастера с услугами."""
+    """Полный профиль мастера — для самого мастера и администратора
+    (содержит контакты пользователя, наружу не отдаётся)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +52,18 @@ class MasterResponse(BaseModel):
     photo_url:      str | None
     coefficient:    float
     is_active:      bool
+
+
+class MasterPublicResponse(BaseModel):
+    """Публичный профиль мастера — без email/телефона/роли пользователя."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id:             UUID
+    user:           UserPublicResponse
+    specialization: str | None
+    photo_url:      str | None
+    coefficient:    float
 
 
 # ── Обновление профиля мастера ───────────────────────────────────

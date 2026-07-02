@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from ..repositories.master_repository import MasterRepository
 from ..repositories.schedule_repository import ScheduleRepository
 from ..repositories.service_repository import ServiceRepository
-from ..schemas.master import (MasterBriefResponse, MasterResponse,
-                              MasterServiceResponse, MasterUpdate)
+from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
+                              MasterResponse, MasterServiceResponse, MasterUpdate)
 from ..schemas.pagination import PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..schemas.service import ServiceResponse
@@ -53,6 +53,17 @@ class MasterService:
                 detail=f"Мастер {master_id} не найден",
             )
         return MasterResponse.model_validate(master)
+
+    def get_public_by_id(self, master_id: UUID) -> MasterPublicResponse:
+        """Публичный профиль: деактивированный мастер наружу не отдаётся,
+        контакты пользователя в схему не входят."""
+        master = self.master_repo.get_by_id(master_id)
+        if not master or not master.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Мастер {master_id} не найден",
+            )
+        return MasterPublicResponse.model_validate(master)
 
     def update(self, master_id: UUID, data: MasterUpdate) -> MasterResponse:
         master = self.master_repo.get_by_id(master_id)

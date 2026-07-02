@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models.password_reset_token import PasswordResetToken
@@ -31,6 +31,14 @@ class PasswordResetTokenRepository:
         self.db.commit()
         self.db.refresh(token)
         return token
+
+    def count_created_since(self, user_id: uuid.UUID, since: datetime) -> int:
+        """Сколько токенов сброса выдано пользователю за окно — для rate limit."""
+        stmt = select(func.count()).select_from(PasswordResetToken).where(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.created_at >= since,
+        )
+        return self.db.execute(stmt).scalar_one()
 
     def invalidate_all_for_user(self, user_id: uuid.UUID) -> None:
         """Гасит все неиспользованные токены пользователя при новом запросе сброса."""

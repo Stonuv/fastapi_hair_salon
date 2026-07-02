@@ -1,4 +1,7 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_SECRET_KEY = "change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -11,9 +14,16 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/barbershop"
 
     # ── JWT ──────────────────────────────────────────────────────
-    secret_key:                  str = "change-me-in-production"
+    secret_key:                  str = _DEFAULT_SECRET_KEY
     algorithm:                   str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 часа
+
+    # ── Защита от перебора паролей ────────────────────────────────
+    # После N неудачных попыток входа по email вход блокируется на M минут
+    # (журнал login_attempts). Запросы сброса пароля лимитируются аналогично.
+    login_max_failed_attempts: int = 5
+    login_lockout_minutes:     int = 15
+    password_reset_max_requests_per_hour: int = 3
 
     # ── Восстановление пароля ─────────────────────────────────────
     # Реальной отправки email нет (нет SMTP-провайдера) — ссылка на
@@ -29,6 +39,17 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(env_file=".env")
+
+    @model_validator(mode="after")
+    def _no_default_secret_outside_debug(self) -> "Settings":
+        # Fail-fast: вне debug-режима приложение не должно молча стартовать
+        # с дефолтным секретом — все выданные JWT были бы подделываемы.
+        if not self.debug and self.secret_key == _DEFAULT_SECRET_KEY:
+            raise RuntimeError(
+                "SECRET_KEY не задан: при DEBUG=false задайте собственный "
+                "SECRET_KEY через переменную окружения или backend/.env"
+            )
+        return self
 
 
 settings = Settings()

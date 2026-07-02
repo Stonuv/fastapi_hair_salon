@@ -45,8 +45,13 @@ def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
+# Хеш заведомо несуществующего пароля: когда пользователь не найден, bcrypt
+# всё равно выполняется — иначе быстрый ответ выдаёт, что email не зарегистрирован.
+_DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt()).decode()
+
 # ── HTTPBearer схема — в Swagger появится поле "Value: <token>" ──
 bearer_scheme = HTTPBearer()
+_bearer_scheme_optional = HTTPBearer(auto_error=False)
 
 
 class AuthService:
@@ -104,8 +109,23 @@ class AuthService:
         return UserResponse.model_validate(user)
 
     def login(self, email: str, password: str, ip_address: str | None = None) -> TokenResponse:
+        # Временная блокировка после N неудачных попыток (защита от перебора;
+        # сам журнал login_attempts — требование 5.1).
+        window_start = datetime.now(timezone.utc) - timedelta(
+            minutes=settings.login_lockout_minutes
+        )
+        recent_failed = self.login_attempt_repo.count_recent_failed(email, window_start)
+        if recent_failed >= settings.login_max_failed_attempts:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Слишком много неудачных попыток входа. Попробуйте позже.",
+            )
+
         user = self.user_repo.get_by_email(email)
-        success = user is not None and _verify_password(password, user.password_hash)
+        # bcrypt выполняется и для несуществующего email (сравнение с dummy-хешем) —
+        # время ответа не раскрывает, зарегистрирован ли адрес.
+        hashed = user.password_hash if user else _DUMMY_HASH
+        success = _verify_password(password, hashed) and user is not None
 
         # Требование 5.1 — логируем каждую попытку входа, успешную и неуспешную.
         self.login_attempt_repo.create(
@@ -136,6 +156,14 @@ class AuthService:
         """
         user = self.user_repo.get_by_email(email)
         if not user:
+            return
+
+        # Rate limit: не даём бесконечно генерировать токены (и засорять лог).
+        # Молча выходим — снаружи ответ обязан быть неотличим от успешного.
+        hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        if (self.reset_token_repo.count_created_since(user.id, hour_ago)
+                >= settings.password_reset_max_requests_per_hour):
+            logger.warning("Password reset rate limit hit for %s", user.email)
             return
 
         self.reset_token_repo.invalidate_all_for_user(user.id)
@@ -211,6 +239,20 @@ def get_current_user(
             detail="Пользователь не найден",
         )
     return user
+
+
+def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme_optional),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Пользователь, если запрос авторизован, иначе None — для публичных
+    эндпоинтов, которые показывают админу больше (например, скрытые услуги)."""
+    if not credentials:
+        return None
+    user_id = _decode_token(credentials.credentials)
+    if not user_id:
+        return None
+    return UserRepository(db).get_by_id(user_id)
 
 
 def require_role(*roles: UserRole):

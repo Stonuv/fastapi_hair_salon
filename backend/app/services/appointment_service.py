@@ -235,14 +235,20 @@ class AppointmentService:
           3. Убираем слоты которые пересекаются с существующими записями
         """
         master = self.master_repo.get_by_id(master_id)
-        if not master:
+        if not master or not master.is_active:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Мастер не найден")
+                                detail="Мастер не найден или неактивен")
 
         service = self.service_repo.get_by_id(service_id)
-        if not service:
+        if not service or not service.is_active:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Услуга не найдена")
+                                detail="Услуга не найдена или неактивна")
+
+        # Слоты имеют смысл только для услуги, которую мастер оказывает —
+        # те же проверки, что и при создании записи.
+        if not self.master_repo.get_master_service(master_id, service_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Мастер не оказывает данную услугу")
 
         # day_of_week: weekday() возвращает 0=пн … 6=вс — совпадает с нашей схемой
         day_of_week = target_date.weekday()

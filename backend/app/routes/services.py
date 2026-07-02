@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models.enums import UserRole
+from ..models.user import User
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
-from ..services.auth_service import get_current_admin
+from ..services.auth_service import get_current_admin, get_current_user_optional
 from ..services.service_service import ServiceService
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -21,11 +23,15 @@ def get_services(
     search: Annotated[str | None, Query(description="Поиск по названию")] = None,
     min_price: Annotated[float | None, Query(ge=0, description="Минимальная цена")] = None,
     max_price: Annotated[float | None, Query(ge=0, description="Максимальная цена")] = None,
-    is_active: Annotated[bool | None, Query(description="Только активные/неактивные")] = None,
+    is_active: Annotated[bool | None, Query(description="Только активные/неактивные (фильтр доступен администратору)")] = None,
     sort_by: Annotated[Literal["name", "price", "duration_min"], Query()] = "name",
     sort_order: Annotated[Literal["asc", "desc"], Query()] = "asc",
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    """Каталог услуг — поиск + фильтр по цене/активности + сортировка + пагинация (1.4). Публичный эндпоинт."""
+    """Каталог услуг — поиск + фильтр по цене + сортировка + пагинация (1.4).
+    Публичный эндпоинт: снятые с публикации услуги видит только администратор."""
+    if current_user is None or current_user.role != UserRole.admin:
+        is_active = True
     return ServiceService(db).list_paginated(
         page=page_params.page, page_size=page_params.page_size,
         search=search, min_price=min_price, max_price=max_price, is_active=is_active,

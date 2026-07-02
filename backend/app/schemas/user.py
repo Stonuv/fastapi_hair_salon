@@ -63,3 +63,13 @@ class UserResponse(BaseModel):
     phone:      str | None
     role:       Annotated[UserRole, Field(description="Роль: client / master / admin")]
     created_at: datetime
+
+
+class UserPublicResponse(BaseModel):
+    """Публичная проекция пользователя — только имя, без email/телефона.
+    Используется на анонимных эндпоинтах (профиль мастера), чтобы не
+    раскрывать персональные данные сотрудников."""
+    model_config = ConfigDict(from_attributes=True)
+
+    first_name: str
+    last_name:  str

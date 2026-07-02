@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..models.master import Master, MasterService
 from ..models.user import User
 from ..schemas.master import MasterUpdate
-from ._query_utils import paginated
+from ._query_utils import LIKE_ESCAPE_CHAR, escape_like, paginated
 
 
 class MasterRepository:
@@ -50,7 +50,9 @@ class MasterRepository:
             .where(Master.deleted_at.is_(None), Master.is_active.is_(True))
         )
         if specialization:
-            stmt = stmt.where(Master.specialization.ilike(f"%{specialization}%"))
+            stmt = stmt.where(Master.specialization.ilike(
+                f"%{escape_like(specialization)}%", escape=LIKE_ESCAPE_CHAR
+            ))
         if service_id is not None:
             stmt = stmt.join(Master.services).where(MasterService.service_id == service_id)
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..models.service import Service
 from ..schemas.service import ServiceCreate, ServiceUpdate
-from ._query_utils import paginated
+from ._query_utils import LIKE_ESCAPE_CHAR, escape_like, paginated
 
 
 class ServiceRepository:
@@ -37,7 +37,9 @@ class ServiceRepository:
         """Каталог услуг — поиск по названию + фильтр по цене/активности (1.4)."""
         stmt = select(Service).where(Service.deleted_at.is_(None))
         if search:
-            stmt = stmt.where(Service.name.ilike(f"%{search}%"))
+            stmt = stmt.where(Service.name.ilike(
+                f"%{escape_like(search)}%", escape=LIKE_ESCAPE_CHAR
+            ))
         if min_price is not None:
             stmt = stmt.where(Service.price >= min_price)
         if max_price is not None:
