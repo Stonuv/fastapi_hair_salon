@@ -299,7 +299,15 @@ class AppointmentService:
     def _validate_within_schedule(self, master_id: UUID,
                                   start_time: datetime,
                                   end_time: datetime) -> None:
-        """Проверяет что запись попадает в рабочие часы мастера."""
+        """Проверяет что запись попадает в рабочие часы мастера.
+
+        Конвенция таймзон: Schedule.start_time/end_time — «настенные часы»
+        салона в UTC. start_time приходит сюда уже нормализованным в UTC
+        (валидатор AppointmentCreate), поэтому и день недели, и рабочее окно
+        считаются в UTC — так же, как в get_available_slots. Раньше окно
+        собиралось с tzinfo клиента, и одна и та же запись валидировалась
+        против разных интервалов в двух местах.
+        """
         day_of_week = start_time.weekday()
         schedule = self.schedule_repo.get_by_master_and_day(master_id, day_of_week)
 
@@ -310,10 +318,10 @@ class AppointmentService:
             )
 
         work_start = datetime.combine(start_time.date(), schedule.start_time).replace(
-            tzinfo=start_time.tzinfo
+            tzinfo=timezone.utc
         )
         work_end = datetime.combine(start_time.date(), schedule.end_time).replace(
-            tzinfo=start_time.tzinfo
+            tzinfo=timezone.utc
         )
 
         if start_time < work_start or end_time > work_end:

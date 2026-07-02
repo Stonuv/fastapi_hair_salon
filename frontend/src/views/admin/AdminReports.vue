@@ -234,13 +234,15 @@ import KpiCard from '../../components/KpiCard.vue'
 
 const toast = useToastStore()
 
+// Отчёты режут сутки по UTC (см. report_repository на бэкенде) —
+// дефолтный период строим по UTC-календарю, не смешивая его с локальным.
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 function firstOfMonthISO() {
-  const d = new Date()
-  d.setDate(1)
-  return d.toISOString().slice(0, 10)
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    .toISOString().slice(0, 10)
 }
 
 const dateFrom = ref(firstOfMonthISO())
@@ -284,7 +286,9 @@ function formatMoney(value) {
 
 function formatDate(iso) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  // Бэкенд отдаёт голую дату ("2026-07-01" = полночь UTC) — без timeZone
+  // браузер западнее UTC показал бы предыдущий день.
+  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 
 // ── Line chart ────────────────────────────────────────────────────

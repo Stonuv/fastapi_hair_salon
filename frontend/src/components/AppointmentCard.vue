@@ -25,10 +25,12 @@ defineProps({
   secondaryLabel: { type: String, default: '' },
 })
 
+// timeZone: 'UTC' — время записи показываем как «настенные часы» салона
+// (расписание хранится в UTC), а не в таймзоне браузера.
 function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'long' })
+  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 }
 function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
 }
 </script>

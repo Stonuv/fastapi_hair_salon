@@ -51,6 +51,8 @@ const points = computed(() => coords.value.map((p) => `${p.x},${p.y}`).join(' ')
 
 function formatDate(iso) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  // Голая дата с бэкенда = полночь UTC — фиксируем timeZone, чтобы подпись
+  // не съезжала на день в браузерах западнее UTC.
+  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 </script>

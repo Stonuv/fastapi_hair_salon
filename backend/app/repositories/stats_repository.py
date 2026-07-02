@@ -49,7 +49,8 @@ class StatsRepository:
         return count, revenue
 
     def daily_registrations(self, since: datetime) -> list[tuple[datetime, int]]:
-        day = func.date(User.created_at)
+        # Сутки — по UTC независимо от таймзоны сессии БД (см. report_repository)
+        day = func.date(func.timezone("UTC", User.created_at))
         stmt = (
             select(day.label("day"), func.count())
             .where(User.created_at >= since, User.deleted_at.is_(None))

@@ -205,13 +205,16 @@ const availableDates = computed(() => {
   const days = []
   const labels = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+  // Конвенция: расписание салона живёт в UTC («настенные часы» салона),
+  // поэтому и список дат, и подписи к ним строятся по UTC-календарю —
+  // иначе iso (UTC) и подпись (локальная) расходились бы на день.
   for (let i = 0; i < 14; i++) {
     const d = new Date()
-    d.setDate(d.getDate() + i)
+    d.setUTCDate(d.getUTCDate() + i)
     days.push({
       iso: d.toISOString().slice(0, 10),
-      day: labels[d.getDay()],
-      label: `${d.getDate()} ${months[d.getMonth()]}`,
+      day: labels[d.getUTCDay()],
+      label: `${d.getUTCDate()} ${months[d.getUTCMonth()]}`,
     })
   }
   return days
@@ -262,10 +265,13 @@ async function book() {
   }
 }
 
+// timeZone: 'UTC' — слоты и записи показываем как «настенные часы» салона,
+// а не в таймзоне браузера (иначе расписание 09:00–20:00 в Москве
+// отображалось бы как 12:00–23:00).
 function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
 }
 function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'long' })
+  return new Date(iso).toLocaleDateString('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 }
 </script>

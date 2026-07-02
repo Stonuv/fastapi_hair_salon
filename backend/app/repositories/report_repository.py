@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -17,9 +17,11 @@ class ReportRepository:
         self.db = db
 
     def _done_in_range(self, date_from: date, date_to: date):
+        # Границы суток — явно в UTC: naive datetime сравнивался бы
+        # с timestamptz по таймзоне сессии PostgreSQL.
         return [
-            Appointment.start_time >= datetime.combine(date_from, time.min),
-            Appointment.start_time <= datetime.combine(date_to, time.max),
+            Appointment.start_time >= datetime.combine(date_from, time.min, tzinfo=timezone.utc),
+            Appointment.start_time <= datetime.combine(date_to, time.max, tzinfo=timezone.utc),
             Appointment.status == AppointmentStatus.done,
         ]
 
@@ -35,8 +37,8 @@ class ReportRepository:
 
     def get_repeat_clients_pct(self, date_from: date, date_to: date) -> float:
         """% of clients who visited in the period AND had a prior visit before it."""
-        period_start = datetime.combine(date_from, time.min)
-        period_end = datetime.combine(date_to, time.max)
+        period_start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+        period_end = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
 
         period_clients = (
             select(Appointment.client_id)
@@ -64,7 +66,9 @@ class ReportRepository:
         return round(repeat / total * 100, 1)
 
     def get_revenue_by_day(self, date_from: date, date_to: date) -> list[tuple]:
-        day = func.date(Appointment.start_time)
+        # func.date(timestamptz) режет сутки по таймзоне сессии БД —
+        # фиксируем UTC, чтобы группировка совпадала с границами _done_in_range.
+        day = func.date(func.timezone("UTC", Appointment.start_time))
         stmt = (
             select(day.label("date"), func.coalesce(func.sum(Appointment.final_price), 0).label("revenue"))
             .where(*self._done_in_range(date_from, date_to))
