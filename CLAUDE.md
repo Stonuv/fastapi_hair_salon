@@ -15,8 +15,9 @@ pip install -r requirements.txt
 python run.py                            # uvicorn on :8000, reload=settings.debug, docs at /api/docs
 alembic revision --autogenerate -m "..." # new migration (models/__init__.py imports must stay exhaustive or autogen misses tables)
 alembic upgrade head
+python -m pytest tests/                  # unit tests (no DB needed: fakes for repositories, pure schema/function tests)
 ```
-There is no configured lint/format/test command (no pytest, black, ruff, or eslint config present in either package) — don't assume one exists.
+There is no configured lint/format command (no black, ruff, or eslint config present in either package) — don't assume one exists. Tests live in `backend/tests/` and deliberately avoid PostgreSQL: services are constructed via `__new__` with fake repositories; the DB-level EXCLUDE constraint is not covered by them.
 
 ### Frontend (run from `frontend/`)
 ```bash
@@ -26,7 +27,10 @@ npm run build
 ```
 
 ### Type checking
-`pyrightconfig.json` points `venvPath`/`venv` at `./backend/.venv`, but the actual virtualenv directory is `backend/venv` — pyright will silently fail to find the interpreter until this is reconciled.
+`pyrightconfig.json` points at `backend/venv` (the real virtualenv), `typeCheckingMode: basic`.
+
+### Deploy
+`docker-compose.yml` at the repo root builds the full stack (PostgreSQL 16 + backend with auto-migrations + nginx serving the SPA and proxying `/api`); requires `SECRET_KEY` in the environment because the compose file sets `DEBUG=false` and `Settings` fail-fasts on the default secret outside debug.
 
 ## Architecture
 
