@@ -69,14 +69,19 @@ class AppointmentRepository:
     def get_by_master_in_range(self, master_id: uuid.UUID,
                                date_from: datetime,
                                date_to: datetime) -> list[Appointment]:
-        """Все записи мастера в диапазоне — для расчёта свободных слотов (без пагинации,
-        нужен полный набор, а не одна страница)."""
+        """Неотменённые записи мастера, пересекающие диапазон — для расчёта
+        свободных слотов (без пагинации, нужен полный набор).
+
+        Условие — пересечение интервалов, а не start_time внутри диапазона:
+        запись, начавшаяся до date_from (например, созданная до изменения
+        расписания), но заходящая в рабочее окно, тоже занимает слоты."""
         stmt = (
             select(Appointment)
             .where(
                 Appointment.master_id == master_id,
-                Appointment.start_time >= date_from,
-                Appointment.start_time <= date_to,
+                Appointment.status != AppointmentStatus.cancelled,
+                Appointment.start_time < date_to,
+                Appointment.end_time > date_from,
             )
             .order_by(Appointment.start_time)
         )

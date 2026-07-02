@@ -18,6 +18,12 @@ from ..schemas.pagination import PageResponse
 # Допустимые переходы статуса записи (1.5 — машина состояний).
 # pending -> confirmed -> done — основной путь, cancelled достижим из pending/confirmed.
 # done и cancelled — терминальные состояния, переходов из них нет.
+#
+# Осознанная политика (зафиксировано по итогам аудита, ISSUES.md 4.5):
+# - клиент может отменить запись в любой момент до её завершения, в том числе
+#   прямо перед началом — штрафов/дедлайна отмены в ТЗ нет;
+# - мастер может пометить запись done до её фактического начала (например,
+#   клиент пришёл раньше) — привязки к start_time сознательно нет.
 ALLOWED_TRANSITIONS: dict[AppointmentStatus, set[AppointmentStatus]] = {
     AppointmentStatus.pending:   {AppointmentStatus.confirmed, AppointmentStatus.cancelled},
     AppointmentStatus.confirmed: {AppointmentStatus.done, AppointmentStatus.cancelled},
@@ -268,16 +274,20 @@ class AppointmentService:
         day_end = datetime.combine(target_date, schedule.end_time).replace(
             tzinfo=timezone.utc
         )
-        booked = self.appointment_repo.get_by_master_in_range(
-            master_id, day_start, day_end
-        )
+        # Репозиторий уже отфильтровал отменённые и вернул записи,
+        # пересекающие рабочее окно (в т.ч. начавшиеся до него).
         booked_ranges = [
             (a.start_time, a.end_time)
-            for a in booked
-            if a.status != AppointmentStatus.cancelled
+            for a in self.appointment_repo.get_by_master_in_range(
+                master_id, day_start, day_end
+            )
         ]
 
-        # Генерируем слоты; уже прошедшие (на сегодняшнюю дату) не предлагаем
+        # Генерируем слоты. Сетка не фиксированная: наткнувшись на занятый
+        # интервал, следующий слот начинаем сразу после его конца — иначе
+        # запись, не выровненная по шагу duration (другая услуга с другой
+        # длительностью), «съедала» бы два слота, а реальные окна между
+        # записями не предлагались. Прошедшие слоты (на сегодня) не отдаём.
         now      = datetime.now(timezone.utc)
         duration = timedelta(minutes=service.duration_min)
         slots    = []
@@ -285,12 +295,15 @@ class AppointmentService:
 
         while current + duration <= day_end:
             slot_end = current + duration
-            # Слот свободен если не пересекается ни с одной записью
-            is_free = not any(
-                current < b_end and slot_end > b_start
-                for b_start, b_end in booked_ranges
+            conflict_end = max(
+                (b_end for b_start, b_end in booked_ranges
+                 if current < b_end and slot_end > b_start),
+                default=None,
             )
-            if is_free and current > now:
+            if conflict_end is not None:
+                current = conflict_end
+                continue
+            if current > now:
                 slots.append(SlotResponse(start_time=current, end_time=slot_end))
             current += duration
 
