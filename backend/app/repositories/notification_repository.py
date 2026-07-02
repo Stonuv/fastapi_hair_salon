@@ -49,21 +49,21 @@ class NotificationRepository:
             scheduled_at=scheduled_at,
         )
         self.db.add(notification)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(notification)
         return notification
 
     def bulk_create(self, notifications: list[Notification]) -> None:
         """Создаёт несколько уведомлений за один коммит."""
         self.db.add_all(notifications)
-        self.db.commit()
+        self.db.flush()
 
     # ── Обновление статуса ────────────────────────────────────────
 
     def mark_sent(self, notification: Notification) -> Notification:
         notification.status = NotificationStatus.sent
         notification.sent_at = datetime.now(timezone.utc)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(notification)
         return notification
 
@@ -71,6 +71,6 @@ class NotificationRepository:
                     error: str) -> Notification:
         notification.status = NotificationStatus.failed
         notification.error_message = error
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(notification)
         return notification

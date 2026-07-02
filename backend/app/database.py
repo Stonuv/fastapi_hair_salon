@@ -1,3 +1,5 @@
+from typing import Iterator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from .config import settings
@@ -24,10 +26,16 @@ class Base(DeclarativeBase):
 
 
 # ── FastAPI dependency ───────────────────────────────────────────
-def get_db() -> Session:
+def get_db() -> Iterator[Session]:
     """
-    Dependency для FastAPI-роутов.
-    Открывает сессию на запрос и гарантированно закрывает её после.
+    Dependency для FastAPI-роутов: сессия на запрос (unit-of-work).
+
+    Транзакцией управляет этот генератор: успешный запрос коммитится один
+    раз в конце, любое исключение (включая HTTPException) откатывает всё.
+    Репозитории делают только flush() — многошаговые операции сервисов
+    (смена роли + деактивация мастера, удаление пользователя + профиля и
+    т.п.) атомарны. Исключение — журнал попыток входа: AuthService.login
+    коммитит его явно, чтобы запись пережила 401/429.
 
     Использование в роуте:
         def my_route(db: Session = Depends(get_db)):
@@ -36,5 +44,9 @@ def get_db() -> Session:
     db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

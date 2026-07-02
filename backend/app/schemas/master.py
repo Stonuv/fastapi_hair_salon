@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .fields import MoneyOut
 from .service import ServiceResponse
 from .user import UserPublicResponse, UserResponse
 
@@ -15,10 +16,10 @@ class MasterServiceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     service:        ServiceResponse
-    price_override: Annotated[float | None, Field(
+    price_override: Annotated[MoneyOut | None, Field(
         default=None, description="Индивидуальная цена мастера; None = базовая × коэффициент"
     )]
-    final_price:    Annotated[float, Field(description="Итоговая цена для этого мастера")]
+    final_price:    Annotated[MoneyOut, Field(description="Итоговая цена для этого мастера")]
 
 
 # ── Краткий профиль (для списков) ────────────────────────────────

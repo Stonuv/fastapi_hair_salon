@@ -77,7 +77,7 @@ class UserRepository:
             role=role,
         )
         self.db.add(user)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(user)
         return user
 
@@ -91,29 +91,29 @@ class UserRepository:
         """
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(user, field, value)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(user)
         return user
 
     def set_password(self, user: User, password_hash: str) -> None:
         user.password_hash = password_hash
-        self.db.commit()
+        self.db.flush()
 
     def set_role(self, user: User, role: UserRole) -> User:
         user.role = role
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(user)
         return user
 
     def set_email(self, user: User, email: str) -> User:
         user.email = email
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(user)
         return user
 
     def soft_delete(self, user: User) -> None:
         user.deleted_at = datetime.now(timezone.utc)
-        self.db.commit()
+        self.db.flush()
 
     # ── Вспомогательное ──────────────────────────────────────────
 

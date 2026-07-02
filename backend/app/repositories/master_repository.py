@@ -80,7 +80,7 @@ class MasterRepository:
         """Создаёт профиль мастера для существующего пользователя."""
         master = Master(user_id=user_id)
         self.db.add(master)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(master)
         return master
 
@@ -89,19 +89,19 @@ class MasterRepository:
     def update(self, master: Master, data: MasterUpdate) -> Master:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(master, field, value)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(master)
         return master
 
     def deactivate(self, master: Master) -> None:
         """Скрывает мастера из каталога без мягкого удаления (например, при смене роли)."""
         master.is_active = False
-        self.db.commit()
+        self.db.flush()
 
     def soft_delete(self, master: Master) -> None:
         master.deleted_at = datetime.now(timezone.utc)
         master.is_active = False
-        self.db.commit()
+        self.db.flush()
 
     # ── Услуги мастера ───────────────────────────────────────────
 
@@ -113,7 +113,7 @@ class MasterRepository:
             price_override=price_override,
         )
         self.db.add(ms)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(ms)
         return ms
 
@@ -122,7 +122,7 @@ class MasterRepository:
         if not ms:
             return False
         self.db.delete(ms)
-        self.db.commit()
+        self.db.flush()
         return True
 
     def get_master_service(self, master_id: uuid.UUID,

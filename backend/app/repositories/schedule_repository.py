@@ -42,7 +42,7 @@ class ScheduleRepository:
     def create(self, master_id: uuid.UUID, data: ScheduleCreate) -> Schedule:
         schedule = Schedule(master_id=master_id, **data.model_dump())
         self.db.add(schedule)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(schedule)
         return schedule
 
@@ -51,6 +51,6 @@ class ScheduleRepository:
     def update(self, schedule: Schedule, data: ScheduleUpdate) -> Schedule:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(schedule, field, value)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(schedule)
         return schedule

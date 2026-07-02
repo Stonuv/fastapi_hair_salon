@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from ..models.enums import AppointmentStatus
+from .fields import MoneyOut
 from .master import MasterBriefResponse
 from .service import ServiceResponse
 from .user import UserResponse
@@ -52,7 +53,7 @@ class AppointmentBriefResponse(BaseModel):
     service_name: str
     start_time:   datetime
     end_time:     datetime
-    final_price:  float
+    final_price:  MoneyOut
     status:       AppointmentStatus
     review_id:    Annotated[UUID | None, Field(default=None, description="Заполнено, если отзыв уже оставлен")]
 
@@ -69,7 +70,7 @@ class AppointmentResponse(BaseModel):
     service:     ServiceResponse
     start_time:  datetime
     end_time:    datetime
-    final_price: float
+    final_price: MoneyOut
     status:      AppointmentStatus
     created_at:  datetime
 

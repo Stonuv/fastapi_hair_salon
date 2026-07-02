@@ -1,3 +1,4 @@
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -12,6 +13,16 @@ from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
 from ..schemas.pagination import PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..schemas.service import ServiceResponse
+
+
+def _final_price(price_override: Decimal | None, base_price: Decimal,
+                 coefficient: Decimal) -> Decimal:
+    """Итоговая цена услуги мастера: override, если задан, иначе базовая ×
+    коэффициент. Вся арифметика в Decimal — та же формула, что в
+    AppointmentService.create()."""
+    if price_override is not None:
+        return price_override
+    return (base_price * coefficient).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class MasterService:
@@ -87,21 +98,16 @@ class MasterService:
             )
         result = []
         for ms in master.services:
-            # Итоговая цена: price_override если задан, иначе price * coefficient
-            final_price = (
-                float(ms.price_override)
-                if ms.price_override is not None
-                else float(ms.service.price) * float(master.coefficient)
-            )
             result.append(MasterServiceResponse(
                 service        = ServiceResponse.model_validate(ms.service),
-                price_override = float(ms.price_override) if ms.price_override else None,
-                final_price    = round(final_price, 2),
+                price_override = ms.price_override,
+                final_price    = _final_price(ms.price_override, ms.service.price,
+                                              master.coefficient),
             ))
         return result
 
     def add_service(self, master_id: UUID, service_id: UUID,
-                    price_override: float | None = None) -> MasterServiceResponse:
+                    price_override: Decimal | None = None) -> MasterServiceResponse:
         master  = self.master_repo.get_by_id(master_id)
         service = self.service_repo.get_by_id(service_id)
 
@@ -118,15 +124,11 @@ class MasterService:
                                 detail="Услуга уже добавлена этому мастеру")
 
         ms = self.master_repo.add_service(master_id, service_id, price_override)
-        final_price = (
-            float(price_override)
-            if price_override is not None
-            else float(service.price) * float(master.coefficient)
-        )
         return MasterServiceResponse(
             service        = ServiceResponse.model_validate(service),
-            price_override = price_override,
-            final_price    = round(final_price, 2),
+            price_override = ms.price_override,
+            final_price    = _final_price(ms.price_override, service.price,
+                                          master.coefficient),
         )
 
     def remove_service(self, master_id: UUID, service_id: UUID) -> None:

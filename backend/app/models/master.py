@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from .mixins import SoftDeleteMixin, UUIDPrimaryKeyMixin
+from .mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from .appointment import Appointment
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from .user import User
 
 
-class Master(Base, UUIDPrimaryKeyMixin, SoftDeleteMixin):
+class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "masters"
     __table_args__ = (
         CheckConstraint("coefficient > 0", name="ck_masters_coefficient_positive"),

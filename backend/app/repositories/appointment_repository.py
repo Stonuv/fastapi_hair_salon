@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal, Optional
 
 from sqlalchemy import select
@@ -111,7 +112,7 @@ class AppointmentRepository:
     # ── Создание ─────────────────────────────────────────────────
 
     def create(self, client_id: uuid.UUID, data: AppointmentCreate,
-               end_time: datetime, final_price: float) -> Appointment:
+               end_time: datetime, final_price: Decimal) -> Appointment:
         """
         end_time и final_price вычисляются в сервисе и передаются сюда готовыми.
         Репозиторий только сохраняет — без логики.
@@ -126,7 +127,7 @@ class AppointmentRepository:
             status=AppointmentStatus.pending,
         )
         self.db.add(appointment)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(appointment)
         return appointment
 
@@ -135,6 +136,6 @@ class AppointmentRepository:
     def update_status(self, appointment: Appointment,
                       status: AppointmentStatus) -> Appointment:
         appointment.status = status
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(appointment)
         return appointment

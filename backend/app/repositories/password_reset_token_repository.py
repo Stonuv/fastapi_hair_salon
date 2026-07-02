@@ -28,7 +28,7 @@ class PasswordResetTokenRepository:
             user_id=user_id, token_hash=token_hash, expires_at=expires_at
         )
         self.db.add(token)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(token)
         return token
 
@@ -49,8 +49,8 @@ class PasswordResetTokenRepository:
         )
         for token in self.db.execute(stmt).scalars().all():
             token.used_at = now
-        self.db.commit()
+        self.db.flush()
 
     def mark_used(self, token: PasswordResetToken) -> None:
         token.used_at = datetime.now(timezone.utc)
-        self.db.commit()
+        self.db.flush()

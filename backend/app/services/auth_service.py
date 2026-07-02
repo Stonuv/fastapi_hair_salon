@@ -134,6 +134,10 @@ class AuthService:
             ip_address=ip_address,
             success=success,
         )
+        # Коммитим сразу: get_db откатывает транзакцию при HTTPException,
+        # а запись о неудачной попытке обязана сохраниться — на ней держится
+        # и аудит-лог, и блокировка перебора выше.
+        self.db.commit()
 
         if not success or user is None:
             raise HTTPException(

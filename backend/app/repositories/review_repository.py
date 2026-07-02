@@ -72,16 +72,16 @@ class ReviewRepository:
             comment=comment,
         )
         self.db.add(review)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(review)
         return review
 
     def set_published(self, review: Review, is_published: bool) -> Review:
         review.is_published = is_published
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(review)
         return review
 
     def delete(self, review: Review) -> None:
         self.db.delete(review)
-        self.db.commit()
+        self.db.flush()

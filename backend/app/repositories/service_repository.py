@@ -59,7 +59,7 @@ class ServiceRepository:
     def create(self, data: ServiceCreate) -> Service:
         service = Service(**data.model_dump())
         self.db.add(service)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(service)
         return service
 
@@ -68,11 +68,11 @@ class ServiceRepository:
     def update(self, service: Service, data: ServiceUpdate) -> Service:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(service, field, value)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(service)
         return service
 
     def soft_delete(self, service: Service) -> None:
         service.deleted_at = datetime.now(timezone.utc)
         service.is_active = False
-        self.db.commit()
+        self.db.flush()

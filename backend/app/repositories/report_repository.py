@@ -25,7 +25,7 @@ class ReportRepository:
             Appointment.status == AppointmentStatus.done,
         ]
 
-    def get_summary(self, date_from: date, date_to: date) -> tuple[int, Decimal, float]:
+    def get_summary(self, date_from: date, date_to: date) -> tuple[int, Decimal, Decimal]:
         """(total_appointments, total_revenue, avg_check) for done appointments."""
         stmt = select(
             func.count(),
@@ -33,7 +33,7 @@ class ReportRepository:
             func.coalesce(func.avg(Appointment.final_price), 0),
         ).where(*self._done_in_range(date_from, date_to))
         count, revenue, avg = self.db.execute(stmt).one()
-        return int(count), Decimal(str(revenue)), float(avg)
+        return int(count), Decimal(revenue), Decimal(avg)
 
     def get_repeat_clients_pct(self, date_from: date, date_to: date) -> float:
         """% of clients who visited in the period AND had a prior visit before it."""

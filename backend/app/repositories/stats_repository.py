@@ -38,11 +38,15 @@ class StatsRepository:
         return self.db.execute(stmt).scalar_one()
 
     def appointments_and_revenue_since(self, since: datetime) -> tuple[int, Decimal]:
-        """Количество и суммарная выручка завершённых записей с указанной даты."""
+        """Количество и суммарная выручка завершённых визитов с указанной даты.
+
+        Фильтр по start_time (дата визита), а не created_at: запись, сделанная
+        в мае на июнь, относится к июню — дашборд показывает «выручку за месяц»,
+        а не «выручку от записей, созданных в этом месяце»."""
         stmt = select(
             func.count(), func.coalesce(func.sum(Appointment.final_price), 0)
         ).where(
-            Appointment.created_at >= since,
+            Appointment.start_time >= since,
             Appointment.status == AppointmentStatus.done,
         )
         count, revenue = self.db.execute(stmt).one()

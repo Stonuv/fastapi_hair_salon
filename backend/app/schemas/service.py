@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .fields import PositiveMoney
+from .fields import MoneyOut, PositiveMoney
 
 # ── Базовые поля ─────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ class ServiceCreate(ServiceBase):
 class ServiceUpdate(BaseModel):
     name:         Annotated[str | None, Field(default=None, min_length=2, max_length=200)]
     description:  Annotated[str | None, Field(default=None)]
-    price:        Annotated[float | None, Field(default=None, gt=0)]
+    price:        Annotated[PositiveMoney | None, Field(default=None)]
     duration_min: Annotated[int | None, Field(default=None, gt=0)]
     is_active:    Annotated[bool | None, Field(default=None)]
 
@@ -39,6 +39,6 @@ class ServiceResponse(BaseModel):
     id:           UUID
     name:         str
     description:  str | None
-    price:        float
+    price:        MoneyOut
     duration_min: int
     is_active:    bool

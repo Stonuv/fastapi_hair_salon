@@ -7,13 +7,13 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from .mixins import UUIDPrimaryKeyMixin
+from .mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from .master import Master
 
 
-class Schedule(Base, UUIDPrimaryKeyMixin):
+class Schedule(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Рабочее расписание мастера по дням недели.
     day_of_week: 0 = пн … 6 = вс.
     """

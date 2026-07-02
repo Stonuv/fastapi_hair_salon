@@ -165,7 +165,7 @@ class AdminService:
             total_masters=self.stats_repo.count_active_masters(),
             total_services=self.stats_repo.count_active_services(),
             appointments_this_month=appointments_count,
-            revenue_this_month=float(revenue),
+            revenue_this_month=revenue,
             registrations_last_30_days=[
                 DailyCount(date=day, count=count) for day, count in registrations
             ],

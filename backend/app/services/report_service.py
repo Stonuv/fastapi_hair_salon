@@ -28,8 +28,10 @@ class ReportService:
         count, revenue, avg = self._repo.get_summary(date_from, date_to)
         repeat_pct = self._repo.get_repeat_clients_pct(date_from, date_to)
 
+        # Денежные значения из SQL приходят как Decimal и остаются Decimal
+        # до самой сериализации (float терял бы точность).
         revenue_by_day = [
-            DailyRevenue(date=row.date, revenue=float(row.revenue))
+            DailyRevenue(date=row.date, revenue=row.revenue)
             for row in self._repo.get_revenue_by_day(date_from, date_to)
         ]
         by_service = [
@@ -40,8 +42,8 @@ class ReportService:
             MasterReportRow(
                 master_name=row.master_name,
                 appointments=row.appointments,
-                revenue=float(row.revenue),
-                avg_check=float(row.avg_check),
+                revenue=row.revenue,
+                avg_check=row.avg_check,
                 avg_rating=round(float(row.avg_rating), 2) if row.avg_rating is not None else None,
             )
             for row in self._repo.get_masters_breakdown(date_from, date_to)
@@ -49,9 +51,9 @@ class ReportService:
         return ReportResponse(
             date_from=date_from,
             date_to=date_to,
-            total_revenue=float(revenue),
+            total_revenue=revenue,
             total_appointments=count,
-            avg_check=float(avg),
+            avg_check=avg,
             repeat_clients_pct=repeat_pct,
             revenue_by_day=revenue_by_day,
             appointments_by_service=by_service,

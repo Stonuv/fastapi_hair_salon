@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -69,12 +70,15 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Нельзя записаться на прошедшее время")
 
-        # 3. Вычисляем end_time и финальную цену
+        # 3. Вычисляем end_time и финальную цену.
+        # Деньги считаются в Decimal (Numeric в БД) — float теряет точность.
         end_time = data.start_time + timedelta(minutes=service.duration_min)
         final_price = (
-            float(ms.price_override)
+            ms.price_override
             if ms.price_override is not None
-            else float(service.price) * float(master.coefficient)
+            else (service.price * master.coefficient).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
         )
 
         # 4. Попадает ли слот в рабочее расписание?
@@ -93,7 +97,7 @@ class AppointmentService:
         # EXCLUDE-констрейнт no_double_booking, и его нарушение — это 409, не 500.
         try:
             appointment = self.appointment_repo.create(
-                client_id, data, end_time, round(final_price, 2)
+                client_id, data, end_time, final_price
             )
         except IntegrityError:
             self.db.rollback()

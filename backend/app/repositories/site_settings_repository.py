@@ -14,12 +14,12 @@ class SiteSettingsRepository:
     def create(self) -> SiteSettings:
         settings = SiteSettings()
         self.db.add(settings)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(settings)
         return settings
 
     def update(self, settings: SiteSettings, content: dict) -> SiteSettings:
         settings.content = content
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(settings)
         return settings

@@ -20,7 +20,7 @@ class LoginAttemptRepository:
             success=success,
         )
         self.db.add(attempt)
-        self.db.commit()
+        self.db.flush()
         return attempt
 
     def count_recent_failed(self, email: str, since: datetime) -> int:
