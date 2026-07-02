@@ -30,6 +30,7 @@ const routes = [
       { path: 'masters', name: 'admin-masters', component: () => import('../views/admin/AdminMasters.vue') },
       { path: 'reviews', name: 'admin-reviews', component: () => import('../views/admin/AdminReviews.vue') },
       { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/AdminSettings.vue') },
+      { path: 'reports', name: 'admin-reports', component: () => import('../views/admin/AdminReports.vue') },
     ],
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundPage.vue') },

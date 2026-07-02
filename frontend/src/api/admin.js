@@ -14,4 +14,7 @@ export const adminApi = {
 
   updateMasterPhoto: (masterId, photoUrl) =>
     client.patch(`/admin/masters/${masterId}/photo`, null, { params: { photo_url: photoUrl } }),
+
+  getReport: (params) => client.get('/admin/reports', { params }),
+  exportReport: (params) => client.get('/admin/reports/export', { params, responseType: 'blob' }),
 }

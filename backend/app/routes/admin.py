@@ -1,7 +1,10 @@
+from datetime import date as date_
+from io import BytesIO
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,10 +14,12 @@ from ..repositories.master_repository import MasterRepository
 from ..schemas.admin_stats import AdminStatsResponse
 from ..schemas.master import MasterResponse, MasterUpdate
 from ..schemas.pagination import PageParams, PageResponse
+from ..schemas.report import ReportResponse
 from ..schemas.service import ServiceResponse, ServiceUpdate
 from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
 from ..services.admin_service import AdminService
 from ..services.auth_service import get_current_admin
+from ..services.report_service import ReportService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -29,6 +34,50 @@ class ChangeRoleRequest(BaseModel):
 def get_stats(db: Session = Depends(get_db), _=Depends(get_current_admin)):
     """Счётчики и график регистраций для главной страницы админ-панели (4.4)."""
     return AdminService(db).get_stats()
+
+
+# ── Отчёты ───────────────────────────────────────────────────────
+
+@router.get("/reports", response_model=ReportResponse)
+def get_report(
+    date_from: Annotated[date_, Query(description="Начало периода (YYYY-MM-DD)")] = None,
+    date_to: Annotated[date_, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """Аналитический отчёт за произвольный период."""
+    from datetime import date
+    today = date.today()
+    effective_from = date_from or today.replace(day=1)
+    effective_to = date_to or today
+    if effective_from > effective_to:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="date_from не может быть позже date_to")
+    return ReportService(db).get_report(effective_from, effective_to)
+
+
+@router.get("/reports/export")
+def export_report(
+    date_from: Annotated[date_, Query(description="Начало периода (YYYY-MM-DD)")] = None,
+    date_to: Annotated[date_, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_admin),
+):
+    """Скачать отчёт в формате Excel (.xlsx)."""
+    from datetime import date
+    today = date.today()
+    effective_from = date_from or today.replace(day=1)
+    effective_to = date_to or today
+    if effective_from > effective_to:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="date_from не может быть позже date_to")
+    data = ReportService(db).export_excel(effective_from, effective_to)
+    filename = f"report_{effective_from}_{effective_to}.xlsx"
+    return StreamingResponse(
+        BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Пользователи ─────────────────────────────────────────────────
