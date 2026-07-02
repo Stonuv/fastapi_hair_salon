@@ -13,7 +13,7 @@ export const adminApi = {
   deleteService: (serviceId) => client.delete(`/admin/services/${serviceId}`),
 
   updateMasterPhoto: (masterId, photoUrl) =>
-    client.patch(`/admin/masters/${masterId}/photo`, null, { params: { photo_url: photoUrl } }),
+    client.patch(`/admin/masters/${masterId}/photo`, { photo_url: photoUrl || null }),
 
   getReport: (params) => client.get('/admin/reports', { params }),
   exportReport: (params) => client.get('/admin/reports/export', { params, responseType: 'blob' }),

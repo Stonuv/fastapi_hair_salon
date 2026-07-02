@@ -1,4 +1,5 @@
 from datetime import date as date_
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Annotated, Literal
 from uuid import UUID
@@ -12,7 +13,7 @@ from ..database import get_db
 from ..models.enums import UserRole
 from ..repositories.master_repository import MasterRepository
 from ..schemas.admin_stats import AdminStatsResponse
-from ..schemas.master import MasterResponse, MasterUpdate
+from ..schemas.master import MasterPhotoUpdate, MasterResponse, MasterUpdate
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.report import ReportResponse
 from ..schemas.service import ServiceResponse, ServiceUpdate
@@ -20,12 +21,27 @@ from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
 from ..services.admin_service import AdminService
 from ..services.auth_service import get_current_admin
 from ..services.report_service import ReportService
+from ..services.service_service import ServiceService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 class ChangeRoleRequest(BaseModel):
     role: UserRole
+
+
+def _resolve_report_period(date_from: date_ | None,
+                           date_to: date_ | None) -> tuple[date_, date_]:
+    """Дефолтный период отчёта — с начала текущего месяца по сегодня.
+    Сутки в отчётах режутся по UTC (см. report_repository), поэтому и
+    «сегодня» берётся по UTC."""
+    today = datetime.now(timezone.utc).date()
+    effective_from = date_from or today.replace(day=1)
+    effective_to = date_to or today
+    if effective_from > effective_to:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="date_from не может быть позже date_to")
+    return effective_from, effective_to
 
 
 # ── Статистика / дашборд ──────────────────────────────────────────
@@ -40,37 +56,25 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_admin)):
 
 @router.get("/reports", response_model=ReportResponse)
 def get_report(
-    date_from: Annotated[date_, Query(description="Начало периода (YYYY-MM-DD)")] = None,
-    date_to: Annotated[date_, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    date_from: Annotated[date_ | None, Query(description="Начало периода (YYYY-MM-DD)")] = None,
+    date_to: Annotated[date_ | None, Query(description="Конец периода (YYYY-MM-DD)")] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_admin),
 ):
     """Аналитический отчёт за произвольный период."""
-    from datetime import date
-    today = date.today()
-    effective_from = date_from or today.replace(day=1)
-    effective_to = date_to or today
-    if effective_from > effective_to:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="date_from не может быть позже date_to")
+    effective_from, effective_to = _resolve_report_period(date_from, date_to)
     return ReportService(db).get_report(effective_from, effective_to)
 
 
 @router.get("/reports/export")
 def export_report(
-    date_from: Annotated[date_, Query(description="Начало периода (YYYY-MM-DD)")] = None,
-    date_to: Annotated[date_, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    date_from: Annotated[date_ | None, Query(description="Начало периода (YYYY-MM-DD)")] = None,
+    date_to: Annotated[date_ | None, Query(description="Конец периода (YYYY-MM-DD)")] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_admin),
 ):
     """Скачать отчёт в формате Excel (.xlsx)."""
-    from datetime import date
-    today = date.today()
-    effective_from = date_from or today.replace(day=1)
-    effective_to = date_to or today
-    if effective_from > effective_to:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="date_from не может быть позже date_to")
+    effective_from, effective_to = _resolve_report_period(date_from, date_to)
     data = ReportService(db).export_excel(effective_from, effective_to)
     filename = f"report_{effective_from}_{effective_to}.xlsx"
     return StreamingResponse(
@@ -142,7 +146,6 @@ def delete_user(user_id: UUID,
 def update_service(service_id: UUID, data: ServiceUpdate,
                    db: Session = Depends(get_db), _=Depends(get_current_admin)):
     """Обновить услугу."""
-    from ..services.service_service import ServiceService
     return ServiceService(db).update(service_id, data)
 
 
@@ -155,12 +158,13 @@ def delete_service(service_id: UUID,
 
 # ── Мастера ──────────────────────────────────────────────────────
 
-@router.patch("/masters/{master_id}/photo")
-def update_master_photo(master_id: UUID, photo_url: str,
+@router.patch("/masters/{master_id}/photo", response_model=MasterResponse)
+def update_master_photo(master_id: UUID, data: MasterPhotoUpdate,
                         db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить фото мастера."""
-    master = MasterRepository(db).get_by_id(master_id)
+    """Обновить (или очистить — photo_url=null) фото мастера."""
+    repo = MasterRepository(db)
+    master = repo.get_by_id(master_id)
     if not master:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Мастер не найден")
-    master = MasterRepository(db).update(master, MasterUpdate(photo_url=photo_url))
-    return {"photo_url": master.photo_url}
+    master = repo.update(master, MasterUpdate(photo_url=data.photo_url))
+    return MasterResponse.model_validate(master)

@@ -3,7 +3,8 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..models.enums import AppointmentStatus
+from ..models.enums import AppointmentStatus, UserRole
+from ..models.user import User
 from ..repositories.appointment_repository import AppointmentRepository
 from ..repositories.review_repository import ReviewRepository
 from ..schemas.pagination import PageResponse
@@ -80,11 +81,13 @@ class ReviewService:
         review = self.review_repo.set_published(review, is_published)
         return ReviewResponse.model_validate(review)
 
-    def delete_own(self, review_id: UUID, client_id: UUID) -> None:
+    def delete(self, review_id: UUID, requesting_user: User) -> None:
+        """Клиент удаляет свой отзыв; администратор — любой (модерация спама)."""
         review = self.review_repo.get_by_id(review_id)
         if not review:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Отзыв не найден")
-        if review.client_id != client_id:
+        if (requesting_user.role != UserRole.admin
+                and review.client_id != requesting_user.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Можно удалить только свой отзыв")
         self.review_repo.delete(review)

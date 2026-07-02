@@ -8,8 +8,9 @@ export const mastersApi = {
 
   getServices: (id) => client.get(`/masters/${id}/services`),
   addService: (id, serviceId, priceOverride) =>
-    client.post(`/masters/${id}/services`, null, {
-      params: { service_id: serviceId, price_override: priceOverride ?? undefined },
+    client.post(`/masters/${id}/services`, {
+      service_id: serviceId,
+      price_override: priceOverride ?? null,
     }),
   removeService: (id, serviceId) => client.delete(`/masters/${id}/services/${serviceId}`),
 

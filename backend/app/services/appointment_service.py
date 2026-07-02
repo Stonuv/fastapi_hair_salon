@@ -267,7 +267,7 @@ class AppointmentService:
         if not schedule or not schedule.is_working:
             return SlotListResponse(
                 master_id=master_id,
-                date=target_date.isoformat(),
+                date=target_date,
                 slots=[],
             )
 
@@ -313,7 +313,7 @@ class AppointmentService:
 
         return SlotListResponse(
             master_id=master_id,
-            date=target_date.isoformat(),
+            date=target_date,
             slots=slots,
         )
 

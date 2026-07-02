@@ -73,5 +73,5 @@ def delete_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_client),
 ):
-    """Удалить свой отзыв."""
-    ReviewService(db).delete_own(review_id, current_user.id)
+    """Удалить свой отзыв. Администратор может удалить любой отзыв."""
+    ReviewService(db).delete(review_id, current_user)

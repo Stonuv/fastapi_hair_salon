@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .fields import MoneyOut
+from .fields import MoneyOut, PositiveMoney
 from .service import ServiceResponse
 from .user import UserPublicResponse, UserResponse
 
@@ -75,3 +75,19 @@ class MasterUpdate(BaseModel):
     photo_url:      Annotated[str | None, Field(default=None, max_length=500)]
     coefficient:    Annotated[float | None, Field(default=None, gt=0)]
     is_active:      Annotated[bool | None, Field(default=None)]
+
+
+class MasterServiceCreate(BaseModel):
+    """Тело POST /api/masters/{id}/services — данные в body, а не в query."""
+    service_id:     Annotated[UUID, Field(description="UUID услуги")]
+    price_override: Annotated[PositiveMoney | None, Field(
+        default=None, description="Индивидуальная цена; пусто = базовая × коэффициент"
+    )]
+
+
+class MasterPhotoUpdate(BaseModel):
+    """Тело PATCH /api/admin/masters/{id}/photo. None очищает фото."""
+    photo_url: Annotated[str | None, Field(
+        default=None, max_length=500, pattern=r"^https?://.+",
+        description="URL фотографии (http/https) или null, чтобы убрать фото",
+    )]

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -11,7 +11,8 @@ from ..models.user import User
 from ..repositories.master_repository import MasterRepository
 from ..schemas.appointment import SlotListResponse
 from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
-                              MasterResponse, MasterServiceResponse, MasterUpdate)
+                              MasterResponse, MasterServiceCreate,
+                              MasterServiceResponse, MasterUpdate)
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..services.appointment_service import AppointmentService
@@ -90,11 +91,10 @@ def get_master_services(master_id: UUID, db: Session = Depends(get_db)):
 
 @router.post("/{master_id}/services", response_model=MasterServiceResponse,
              status_code=status.HTTP_201_CREATED)
-def add_master_service(master_id: UUID, service_id: UUID,
-                       price_override: float | None = None,
+def add_master_service(master_id: UUID, data: MasterServiceCreate,
                        db: Session = Depends(get_db), _=Depends(get_current_admin)):
     """Добавить услугу мастеру. Только для администратора."""
-    return MasterService(db).add_service(master_id, service_id, price_override)
+    return MasterService(db).add_service(master_id, data.service_id, data.price_override)
 
 
 @router.delete("/{master_id}/services/{service_id}",
@@ -113,18 +113,20 @@ def get_schedule(master_id: UUID, db: Session = Depends(get_db)):
     return MasterService(db).get_schedule(master_id)
 
 
-@router.post("/{master_id}/schedule", response_model=ScheduleResponse,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/{master_id}/schedule", response_model=ScheduleResponse)
 def set_schedule(master_id: UUID, data: ScheduleCreate,
                  db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_master)):
-    """Задать расписание на день. Если уже существует — перезапишет. Сам мастер или администратор."""
+    """Задать расписание на день (upsert: существующий день перезаписывается,
+    поэтому 200, а не 201). Сам мастер или администратор."""
     _ensure_owner_or_admin(master_id, current_user, db)
     return MasterService(db).set_schedule(master_id, data)
 
 
 @router.patch("/{master_id}/schedule/{day_of_week}", response_model=ScheduleResponse)
-def update_schedule(master_id: UUID, day_of_week: int, data: ScheduleUpdate,
+def update_schedule(master_id: UUID,
+                    day_of_week: Annotated[int, Path(ge=0, le=6, description="0=пн … 6=вс")],
+                    data: ScheduleUpdate,
                     db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_master)):
     """Обновить расписание на конкретный день (0=пн … 6=вс). Сам мастер или администратор."""

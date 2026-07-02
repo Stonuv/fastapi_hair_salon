@@ -1,3 +1,4 @@
+from datetime import date as date_
 from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
@@ -86,5 +87,5 @@ class SlotResponse(BaseModel):
 
 class SlotListResponse(BaseModel):
     master_id: UUID
-    date:      Annotated[str, Field(description="Дата в формате YYYY-MM-DD")]
+    date:      Annotated[date_, Field(description="Дата, на которую рассчитаны слоты")]
     slots:     list[SlotResponse]
