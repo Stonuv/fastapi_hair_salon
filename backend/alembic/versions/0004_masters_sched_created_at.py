@@ -1,6 +1,6 @@
 """created_at for masters and schedules
 
-Revision ID: 0004_masters_schedules_created_at
+Revision ID: 0004_masters_sched_created_at
 Revises: 0003_site_settings_content
 Create Date: 2026-07-02 00:00:00.000000
 
@@ -11,7 +11,7 @@ server_default, как и во всех остальных таблицах.
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0004_masters_schedules_created_at"
+revision = "0004_masters_sched_created_at"
 down_revision = "0003_site_settings_content"
 branch_labels = None
 depends_on = None

@@ -1,7 +1,7 @@
 """Drop unused notifications subsystem and get_appointment_price()
 
 Revision ID: 0005_drop_notifications
-Revises: 0004_masters_schedules_created_at
+Revises: 0004_masters_sched_created_at
 Create Date: 2026-07-02 00:00:00.000000
 
 Подсистема уведомлений (таблица, три enum-типа) была спроектирована «на
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0005_drop_notifications"
-down_revision = "0004_masters_schedules_created_at"
+down_revision = "0004_masters_sched_created_at"
 branch_labels = None
 depends_on = None
 
