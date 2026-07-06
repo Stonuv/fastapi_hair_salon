@@ -2,7 +2,8 @@
   <div>
     <Skeleton v-if="loading" height="h-96" />
 
-    <form v-else class="space-y-6" @submit.prevent="save">
+    <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+      <form class="space-y-6" @submit.prevent="save">
       <BaseCard>
         <StepTitle n="1" title="Шапка сайта" />
         <div class="grid gap-4 sm:grid-cols-2">
@@ -87,10 +88,20 @@
         </div>
       </BaseCard>
 
-      <div class="flex justify-end">
-        <BaseButton type="submit" :loading="saving">Сохранить все изменения</BaseButton>
+        <div class="flex justify-end">
+          <BaseButton type="submit" :loading="saving">Сохранить все изменения</BaseButton>
+        </div>
+      </form>
+
+      <div class="hidden lg:sticky lg:top-6 lg:block">
+        <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-600">Предпросмотр главной страницы</p>
+        <div class="max-h-[calc(100vh-8rem)] overflow-y-auto overflow-x-hidden rounded-lg border border-stone-200 bg-white">
+          <div style="width: 1280px; zoom: 0.33;">
+            <HomePreview :content="form" :interactive="false" />
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
 </template>
 
@@ -105,6 +116,7 @@ import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import StepTitle from '../../components/ui/StepTitle.vue'
+import HomePreview from '../../components/HomePreview.vue'
 
 const toast = useToastStore()
 const siteContentStore = useSiteContentStore()
