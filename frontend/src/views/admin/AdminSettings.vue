@@ -2,7 +2,7 @@
   <div>
     <Skeleton v-if="loading" height="h-96" />
 
-    <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+    <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_660px] lg:items-start">
       <form class="space-y-6" @submit.prevent="save">
       <BaseCard>
         <StepTitle n="1" title="Шапка сайта" />
@@ -96,7 +96,7 @@
       <div class="hidden lg:sticky lg:top-6 lg:block">
         <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-600">Предпросмотр главной страницы</p>
         <div class="max-h-[calc(100vh-8rem)] overflow-y-auto overflow-x-hidden rounded-lg border border-stone-200 bg-white">
-          <div style="width: 1280px; zoom: 0.33;">
+          <div style="width: 1280px; zoom: 0.5;">
             <HomePreview :content="form" :interactive="false" />
           </div>
         </div>
