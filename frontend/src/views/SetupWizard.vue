@@ -216,7 +216,7 @@ async function finish() {
       site_content: siteContent.value,
       setup_token: setupToken.value || null,
     })
-    auth.setSession(res.data)
+    auth.user = res.data.user
     setup.markCompleted()
     toast.success('Настройка завершена — добро пожаловать!')
     router.push({ name: 'admin-stats' })

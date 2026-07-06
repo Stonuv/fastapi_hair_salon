@@ -1,25 +1,42 @@
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..schemas.auth import (LoginRequest, PasswordResetConfirm,
                             PasswordResetRequest, TokenResponse)
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
-from ..services.auth_service import AuthService, get_current_user
+from ..services.auth_service import (AuthService, clear_auth_cookie,
+                                     get_current_user, set_auth_cookie)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse,
              status_code=status.HTTP_201_CREATED)
-def register(data: UserCreate, db: Session = Depends(get_db)):
-    return AuthService(db).register(data)
+def register(data: UserCreate, response: Response, db: Session = Depends(get_db)):
+    token_response = AuthService(db).register(data)
+    set_auth_cookie(response, token_response.access_token)
+    return token_response
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(data: LoginRequest, request: Request, response: Response,
+          db: Session = Depends(get_db)):
     ip_address = request.client.host if request.client else None
-    return AuthService(db).login(data.email, data.password, ip_address)
+    token_response = AuthService(db).login(data.email, data.password, ip_address)
+    set_auth_cookie(response, token_response.access_token)
+    return token_response
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Отзывает текущий access-токен (см. token_version) и снимает cookie."""
+    AuthService(db).logout(current_user)
+    clear_auth_cookie(response)
 
 
 @router.get("/me", response_model=UserResponse)

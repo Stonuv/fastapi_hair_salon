@@ -34,7 +34,7 @@ def make_service(*, admin_exists=False, email_exists=False, phone_exists=False, 
 def make_fake_user():
     return SimpleNamespace(
         id=uuid.uuid4(), email="owner@example.com", first_name="Иван", last_name="Иванов",
-        phone=None, role=UserRole.admin, is_blocked=False,
+        phone=None, role=UserRole.admin, is_blocked=False, token_version=0,
         created_at=datetime.now(timezone.utc),
     )
 

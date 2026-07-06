@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     secret_key:                  str = _DEFAULT_SECRET_KEY
     algorithm:                   str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 часа
+    # Access-токен для SPA доставляется httpOnly-cookie с флагом Secure —
+    # это НЕ то же самое, что debug: локальный docker-compose уже гоняет
+    # DEBUG=false, но сам по себе поднимает только plain HTTP (README —
+    # TLS ожидается на внешнем терминаторе). Secure=true ломает cookie на
+    # голом HTTP, поэтому включается отдельной переменной, только когда
+    # перед приложением реально стоит TLS-терминатор.
+    cookie_secure: bool = False
 
     # ── Bootstrap-код первичной настройки ──────────────────────────
     # POST /api/setup неизбежно публичен (до первого админа его нечем

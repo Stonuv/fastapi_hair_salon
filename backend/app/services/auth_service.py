@@ -6,7 +6,7 @@ from typing import Optional
 from uuid import UUID
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
@@ -50,8 +50,36 @@ def _hash_token(raw_token: str) -> str:
 _DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt()).decode()
 
 # ── HTTPBearer схема — в Swagger появится поле "Value: <token>" ──
-bearer_scheme = HTTPBearer()
+# auto_error=False: токен может прийти либо в httpOnly-cookie (SPA), либо в
+# заголовке Authorization (Swagger "Authorize", внешние API-клиенты) — какой
+# из двух источников обязателен, решает get_current_user, а не сама схема.
 _bearer_scheme_optional = HTTPBearer(auto_error=False)
+
+# Cookie с access-токеном для SPA (см. "Токен в localStorage" в README —
+# заменяет чтение токена из localStorage на стороне фронтенда).
+ACCESS_TOKEN_COOKIE = "access_token"
+
+
+def set_auth_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=ACCESS_TOKEN_COOKIE,
+        value=token,
+        max_age=settings.access_token_expire_minutes * 60,
+        path="/api",
+        httponly=True,
+        secure=settings.cookie_secure,
+        # Lax, а не Strict: иначе переход по прямой ссылке (открыть письмо со
+        # ссылкой сброса пароля в новой вкладке) на не-GET маршрутизацию не
+        # повлияет, но проще для навигации; для CSRF на POST/PATCH/DELETE
+        # Lax достаточен — куки не уходят при кросс-сайтовом non-GET запросе,
+        # а простой JSON-эндпоинт без form-encoded submit не эксплуатируется
+        # обычной CSRF-формой.
+        samesite="lax",
+    )
+
+
+def clear_auth_cookie(response: Response) -> None:
+    response.delete_cookie(key=ACCESS_TOKEN_COOKIE, path="/api")
 
 
 class AuthService:
@@ -198,7 +226,14 @@ class AuthService:
                 detail="Пользователь не найден",
             )
         self.user_repo.set_password(user, hash_password(new_password))
+        # Токены, выданные до сброса, не должны пережить смену пароля.
+        self.user_repo.bump_token_version(user)
         self.reset_token_repo.mark_used(token)
+
+    def logout(self, user: User) -> None:
+        """Отзывает текущий (и любой другой ранее выданный) access-токен
+        пользователя — единственный способ без хранения denylist'а/сессий."""
+        self.user_repo.bump_token_version(user)
 
 
 # ── JWT ──────────────────────────────────────────────────────────
@@ -206,52 +241,83 @@ class AuthService:
 
 def build_token_response(user: User) -> TokenResponse:
     return TokenResponse(
-        access_token=_create_access_token(user.id),
+        access_token=_create_access_token(user),
         user=UserResponse.model_validate(user),
     )
 
 
-def _create_access_token(user_id: UUID) -> str:
+def _create_access_token(user: User) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
-    payload = {"sub": str(user_id), "exp": expire}
+    # "ver" — снимок token_version на момент выдачи; get_current_user
+    # сверяет его с текущим значением в БД, что и даёт отзыв токена.
+    payload = {"sub": str(user.id), "ver": user.token_version, "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def _decode_token(token: str) -> Optional[UUID]:
+def _decode_token(token: str) -> Optional[tuple[UUID, int]]:
     try:
         payload = jwt.decode(
             token, settings.secret_key, algorithms=[settings.algorithm]
         )
         user_id = payload.get("sub")
-        return UUID(user_id) if user_id else None
-    except (JWTError, ValueError):
+        token_version = payload.get("ver")
+        if user_id is None or token_version is None:
+            return None
+        return UUID(user_id), int(token_version)
+    except (JWTError, ValueError, TypeError):
         return None
+
+
+def _token_from_request(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials],
+) -> Optional[str]:
+    # Cookie — основной путь для SPA (см. ACCESS_TOKEN_COOKIE); заголовок
+    # Authorization остаётся рабочим для Swagger "Authorize" и внешних
+    # API-клиентов, которым httpOnly-cookie недоступна.
+    return request.cookies.get(ACCESS_TOKEN_COOKIE) or (
+        credentials.credentials if credentials else None
+    )
 
 
 # ── Dependencies ─────────────────────────────────────────────────
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme_optional),
     db: Session = Depends(get_db),
 ) -> User:
-    user_id = _decode_token(credentials.credentials)
-    if not user_id:
+    token = _token_from_request(request, credentials)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется авторизация",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    decoded = _decode_token(token)
+    if not decoded:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Недействительный токен",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    user_id, token_version = decoded
     user = UserRepository(db).get_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Пользователь не найден",
         )
-    # Ранее выданный токен заблокированного пользователя недействителен —
-    # JWT сам по себе не отзываем, поэтому режем на каждой проверке.
+    # Токен пережил logout/смену пароля — token_version в payload устарел.
+    if user.token_version != token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен отозван, войдите заново",
+        )
+    # Ранее выданный токен заблокированного пользователя недействителен.
     if user.is_blocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -261,17 +327,23 @@ def get_current_user(
 
 
 def get_current_user_optional(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme_optional),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
     """Пользователь, если запрос авторизован, иначе None — для публичных
     эндпоинтов, которые показывают админу больше (например, скрытые услуги)."""
-    if not credentials:
+    token = _token_from_request(request, credentials)
+    if not token:
         return None
-    user_id = _decode_token(credentials.credentials)
-    if not user_id:
+    decoded = _decode_token(token)
+    if not decoded:
         return None
-    return UserRepository(db).get_by_id(user_id)
+    user_id, token_version = decoded
+    user = UserRepository(db).get_by_id(user_id)
+    if not user or user.token_version != token_version:
+        return None
+    return user
 
 
 def require_role(*roles: UserRole):

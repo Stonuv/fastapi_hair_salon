@@ -142,15 +142,23 @@ UserResponse`, где есть `email`, `phone`, `role`, `created_at` польз
 - `backend/app/schemas/master.py` (MasterResponse), `backend/app/routes/masters.py:67-70`
 Исправление: отдельная публичная схема без контактов.
 
-### 3.5. JWT: 24 часа жизни, без отзыва и refresh
-Access-токен живёт сутки, механизма инвалидировать его (logout на сервере,
-смена пароля, бан) нет. После сброса пароля старые токены продолжают работать.
-- `backend/app/services/auth_service.py:139-144`, `backend/app/config.py:16`
+### 3.5. ~~JWT: 24 часа жизни, без отзыва и refresh~~ — исправлено 2026-07-06
+Было: access-токен живёт сутки, механизма инвалидировать его (logout на
+сервере, смена пароля, бан) не было — старые токены продолжали работать
+после сброса пароля. Исправлено: `User.token_version` зашивается в payload
+(`ver`) и сверяется в `get_current_user` на каждый запрос; инкрементируется
+в `AuthService.logout`, `AuthService.confirm_password_reset`,
+`AdminService.update_user` (при `new_password`) и `AdminService.set_blocked`.
+- `backend/app/services/auth_service.py`, `backend/app/repositories/user_repository.py::bump_token_version`
 
-### 3.6. Токен в localStorage
-Классический XSS-риск (вместо httpOnly-cookie). Для курсового допустимо,
-но стоит зафиксировать как осознанный компромисс.
-- `frontend/src/api/client.js`, `frontend/src/stores/auth.js`
+### 3.6. ~~Токен в localStorage~~ — исправлено 2026-07-06
+Было: классический XSS-риск (токен читаем из JS). Исправлено: access-токен
+для SPA переехал в httpOnly-cookie (`ACCESS_TOKEN_COOKIE`, `set_auth_cookie`/
+`clear_auth_cookie`); `Authorization: Bearer` в теле ответа и в заголовке
+остаётся рабочим параллельно — для Swagger и внешних клиентов без доступа
+к cookie. `SameSite=Lax` — единственная CSRF-защита (осознанно, без
+отдельного CSRF-токена — обоснование в README).
+- `frontend/src/api/client.js`, `frontend/src/stores/auth.js`, `backend/app/services/auth_service.py`
 
 ### 3.7. Wildcard-инъекция в поиск
 `ilike(f"%{search}%")` не экранирует `%` и `_` в пользовательском вводе

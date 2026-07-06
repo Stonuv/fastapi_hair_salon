@@ -11,13 +11,15 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
-// 401 от API: чистим и стор, и localStorage (auth.logout), затем уводим на
-// логин с возвратом. Неудачная попытка входа (мы ещё не залогинены) или
-// запрос со страницы логина редирект не вызывает.
+// 401 от API: чистим Pinia-стор локально (clearSession — не auth.logout(),
+// иначе POST /auth/logout на уже отвергнутый токен сам вернёт 401 и
+// зациклит обработчик); затем уводим на логин с возвратом. Неудачная
+// попытка входа (мы ещё не залогинены) или запрос со страницы логина
+// редирект не вызывает.
 setUnauthorizedHandler(() => {
   const auth = useAuthStore()
   if (!auth.isLoggedIn) return
-  auth.logout()
+  auth.clearSession()
   const current = router.currentRoute.value
   if (current.path !== '/login') {
     router.push({ path: '/login', query: { redirect: current.fullPath } })

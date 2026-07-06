@@ -96,6 +96,8 @@ class AdminService:
 
         if data.new_password:
             self.user_repo.set_password(user, hash_password(data.new_password))
+            # Токены, выданные до принудительной смены пароля, отзываются.
+            self.user_repo.bump_token_version(user)
 
         return UserResponse.model_validate(user)
 
@@ -138,6 +140,10 @@ class AdminService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Пользователь не найден")
         user = self.user_repo.set_blocked(user, is_blocked)
+        if is_blocked:
+            # is_blocked уже проверяется в get_current_user на каждый запрос,
+            # но отзыв токена сразу закрывает окно между запросами тоже.
+            self.user_repo.bump_token_version(user)
         return UserResponse.model_validate(user)
 
     def delete_user(self, user_id: UUID) -> None:

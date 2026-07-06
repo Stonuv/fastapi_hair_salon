@@ -103,6 +103,13 @@ class UserRepository:
         user.password_hash = password_hash
         self.db.flush()
 
+    def bump_token_version(self, user: User) -> None:
+        """Отзывает все ранее выданные JWT пользователя (logout, смена/сброс
+        пароля, блокировка) — старый token_version в payload перестаёт
+        совпадать с текущим при проверке в get_current_user."""
+        user.token_version += 1
+        self.db.flush()
+
     def set_role(self, user: User, role: UserRole) -> User:
         user.role = role
         self.db.flush()

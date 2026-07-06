@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Index, String, text
+from sqlalchemy import Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -40,6 +40,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # Блокировка (ТЗ 4.2 MIN) — отличается от мягкого удаления: аккаунт и
     # история сохраняются и видны, но вход и действия по токену запрещены.
     is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Инкрементируется при logout, смене/сбросе пароля и блокировке — так
+    # уже выданные JWT отзываются без хранения denylist'а (см. auth_service).
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Профиль мастера (только если role = 'master')
     master_profile: Mapped["Master | None"] = relationship(
