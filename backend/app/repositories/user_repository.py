@@ -31,6 +31,10 @@ class UserRepository:
         stmt = select(User).where(User.phone == phone, User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
+    def has_role(self, role: UserRole) -> bool:
+        stmt = select(User.id).where(User.role == role, User.deleted_at.is_(None)).limit(1)
+        return self.db.execute(stmt).scalar() is not None
+
     def list_paginated(
         self,
         *,

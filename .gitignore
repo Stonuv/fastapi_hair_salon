@@ -7,3 +7,4 @@ dist/
 # Рабочие заметки и дизайн-артефакты — не часть кодовой базы
 claude_design_examples/
 Saitama Barbershop.dc.html
+.env

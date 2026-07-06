@@ -14,12 +14,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(data) {
     const res = await authApi.register(data)
-    _setSession(res.data)
+    setSession(res.data)
   }
 
   async function login(data) {
     const res = await authApi.login(data)
-    _setSession(res.data)
+    setSession(res.data)
   }
 
   async function fetchMe() {
@@ -50,7 +50,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  function _setSession(data) {
+  function setSession(data) {
     token.value = data.access_token
     user.value = data.user
     localStorage.setItem('token', data.access_token)
@@ -59,6 +59,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token, user, ready,
     isLoggedIn, isClient, isMaster, isAdmin,
-    register, login, fetchMe, updateMe, logout,
+    register, login, fetchMe, updateMe, logout, setSession,
   }
 })

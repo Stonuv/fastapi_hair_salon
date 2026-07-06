@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useSetupStore } from '../stores/setup'
 
 const routes = [
+  { path: '/setup', name: 'setup', component: () => import('../views/SetupWizard.vue'), meta: { hideHeader: true } },
   { path: '/', name: 'home', component: () => import('../views/HomePage.vue') },
   { path: '/masters', name: 'masters', component: () => import('../views/MastersPage.vue') },
   { path: '/masters/:id', name: 'master-booking', component: () => import('../views/BookingPage.vue'), props: true },
@@ -45,6 +47,17 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  const setup = useSetupStore()
+  if (!setup.checked) {
+    await setup.checkStatus()
+  }
+  if (!setup.completed) {
+    return to.name === 'setup' ? true : { name: 'setup' }
+  }
+  if (setup.completed && to.name === 'setup') {
+    return { name: 'home' }
+  }
+
   const auth = useAuthStore()
   if (!auth.ready) {
     await auth.fetchMe()

@@ -85,11 +85,7 @@ class AuthService:
                 else "Пользователь с таким email уже существует"
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-        token = _create_access_token(user.id)
-        return TokenResponse(
-            access_token=token,
-            user=UserResponse.model_validate(user),
-        )
+        return build_token_response(user)
 
     def update_profile(self, user: User, data: UserUpdate) -> UserResponse:
         if (data.phone is not None and data.phone != user.phone
@@ -154,11 +150,7 @@ class AuthService:
                 detail="Аккаунт заблокирован. Обратитесь к администратору.",
             )
 
-        token = _create_access_token(user.id)
-        return TokenResponse(
-            access_token=token,
-            user=UserResponse.model_validate(user),
-        )
+        return build_token_response(user)
 
     def request_password_reset(self, email: str) -> None:
         """
@@ -210,6 +202,13 @@ class AuthService:
 
 
 # ── JWT ──────────────────────────────────────────────────────────
+
+
+def build_token_response(user: User) -> TokenResponse:
+    return TokenResponse(
+        access_token=_create_access_token(user.id),
+        user=UserResponse.model_validate(user),
+    )
 
 
 def _create_access_token(user_id: UUID) -> str:

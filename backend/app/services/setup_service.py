@@ -1,0 +1,66 @@
+import secrets
+
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from ..config import settings
+from ..models.enums import UserRole
+from ..repositories.user_repository import UserRepository
+from ..schemas.auth import TokenResponse
+from ..schemas.setup import SetupRequest
+from .auth_service import build_token_response, hash_password
+from .site_settings_service import SiteSettingsService
+
+
+class SetupService:
+    """Первичная настройка после развёртывания: создание первого админа
+    (и опционально базовых полей контента сайта) одним запросом от визарда
+    на фронтенде. Как только хотя бы один admin существует, эндпоинт
+    навсегда возвращает 409 — повторно им воспользоваться нельзя.
+
+    До появления админа /api/setup неизбежно публичен — если задан
+    SETUP_TOKEN (обязателен вне debug, см. config.py), запрос обязан
+    предъявить его, иначе первым админом станет тот, кто быстрее найдёт
+    /setup после деплоя, а не тот, у кого есть доступ к серверу."""
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.user_repo = UserRepository(db)
+
+    def is_completed(self) -> bool:
+        return self.user_repo.has_role(UserRole.admin)
+
+    def requires_token(self) -> bool:
+        return bool(settings.setup_token)
+
+    def complete(self, data: SetupRequest) -> TokenResponse:
+        if settings.setup_token:
+            # compare_digest — сравнение за постоянное время, не даёт
+            # угадывать код побайтово по времени ответа.
+            if not data.setup_token or not secrets.compare_digest(
+                data.setup_token, settings.setup_token,
+            ):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Неверный код настройки (SETUP_TOKEN)")
+        if self.is_completed():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Настройка уже выполнена")
+        if self.user_repo.email_exists(data.admin.email):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Пользователь с таким email уже существует")
+        if data.admin.phone and self.user_repo.phone_exists(data.admin.phone):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Пользователь с таким номером телефона уже существует")
+        try:
+            user = self.user_repo.create(data.admin, hash_password(data.admin.password),
+                                         role=UserRole.admin)
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Пользователь с таким email уже существует")
+
+        if data.site_content is not None:
+            SiteSettingsService(self.db).update(data.site_content)
+
+        return build_token_response(user)

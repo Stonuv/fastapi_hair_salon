@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     algorithm:                   str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 часа
 
+    # ── Bootstrap-код первичной настройки ──────────────────────────
+    # POST /api/setup неизбежно публичен (до первого админа его нечем
+    # защитить) — без кода первый, кто успеет открыть /setup после деплоя,
+    # становится админом. В debug не требуется (удобство локальной разработки);
+    # вне debug обязателен — см. _setup_token_required_outside_debug.
+    setup_token: str | None = None
+
     # ── Защита от перебора паролей ────────────────────────────────
     # После N неудачных попыток входа по email вход блокируется на M минут
     # (журнал login_attempts). Запросы сброса пароля лимитируются аналогично.
@@ -52,6 +59,18 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 "SECRET_KEY не задан: при DEBUG=false задайте собственный "
                 "SECRET_KEY через переменную окружения или backend/.env"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _setup_token_required_outside_debug(self) -> "Settings":
+        # Fail-fast: вне debug без кода POST /api/setup стал бы открытой
+        # гонкой за права админа для первого, кто найдёт эндпоинт после деплоя.
+        if not self.debug and not self.setup_token:
+            raise RuntimeError(
+                "SETUP_TOKEN не задан: при DEBUG=false задайте SETUP_TOKEN "
+                "через переменную окружения или backend/.env — иначе "
+                "/api/setup останется открытым для первого встречного"
             )
         return self
 

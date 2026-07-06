@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
-                     reviews_router, site_settings_router)
+                     reviews_router, site_settings_router, setup_router)
 
 # uvicorn настраивает только свои собственные логгеры (uvicorn.*) —
 # без этого вызова логгеры приложения (например, auth_service при
@@ -28,6 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(setup_router)
 app.include_router(auth_router)
 app.include_router(services_router)
 app.include_router(masters_router)
