@@ -35,7 +35,7 @@
       </div>
     </Teleport>
 
-    <div class="flex flex-1 flex-col">
+    <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-4 sm:px-6">
         <div class="flex items-center gap-3">
           <button class="cursor-pointer text-ink-900 lg:hidden" aria-label="Открыть меню" @click="mobileOpen = true">
