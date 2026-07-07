@@ -16,6 +16,11 @@
   --color-ink-600: 92 89 85;
   --color-stone-50: 244 243 240;
   --color-stone-200: 227 225 220;
+
+  /* Пара шрифтов по умолчанию ("golos" в src/theme/fonts.js); переключается
+     applyFont() из настроек сайта. */
+  --font-display: 'Golos Text', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 @layer base {

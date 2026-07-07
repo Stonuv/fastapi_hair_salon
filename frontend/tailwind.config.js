@@ -16,10 +16,12 @@ export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // Аналогично цветам — читаются из CSS-переменных (см. main.css :root),
+      // переключаются админ-панелью через applyFont() (src/theme/fonts.js).
       fontFamily: {
-        display: ['"Golos Text"', 'sans-serif'],
-        sans: ['"Golos Text"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        display: 'var(--font-display)',
+        sans: 'var(--font-display)',
+        mono: 'var(--font-mono)',
       },
       colors: {
         brand: {

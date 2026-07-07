@@ -96,6 +96,10 @@ class FooterContent(BaseModel):
 # UI в админке (какая пресет-кнопка подсвечена); фактически применяются
 # всегда значения `colors`, "custom" ставится фронтендом при ручной правке.
 ThemePreset = Literal["default", "coffee", "slate", "custom"]
+# Пары шрифтов (осн. текст+заголовки / моно-надписи вроде eyebrow) — только
+# готовые пары, без произвольного ввода (см. frontend/src/theme/fonts.js
+# — там же Google Fonts URL и CSS-фолбэки для каждой пары).
+FontPreset = Literal["golos", "archivo", "manrope", "grotesk", "inter"]
 
 
 class ThemeColors(BaseModel):
@@ -113,6 +117,7 @@ class ThemeColors(BaseModel):
 class ThemeContent(BaseModel):
     preset: ThemePreset = "default"
     colors: ThemeColors = Field(default_factory=ThemeColors)
+    font:   FontPreset = "golos"
 
 
 class SiteContent(BaseModel):

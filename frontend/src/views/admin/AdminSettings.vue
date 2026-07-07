@@ -134,6 +134,25 @@
           </div>
 
           <div>
+            <p class="mb-2 text-sm font-medium text-ink-900">Шрифты</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(preset, name) in fontPresets" :key="name" type="button"
+                class="border px-3 py-2 text-left transition-colors"
+                :class="form.theme.font === name
+                  ? 'border-brand-900 bg-brand-900 text-stone-50'
+                  : 'border-stone-200 text-ink-600 hover:border-brand-900'"
+                @click="form.theme.font = name"
+              >
+                <span class="block text-base" :style="{ fontFamily: preset.display }">{{ preset.label.split(' + ')[0] }}</span>
+                <span class="mt-0.5 block font-mono text-[10px] uppercase tracking-wide opacity-70" :style="{ fontFamily: preset.mono }">
+                  {{ preset.label.split(' + ')[1] }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div>
             <p class="mb-2 text-sm font-medium text-ink-900">Цвета вручную</p>
             <div class="grid gap-3 sm:grid-cols-2">
               <label v-for="t in themeTokens" :key="t.key" class="flex items-center gap-3 border border-stone-200 px-3 py-2">
@@ -173,6 +192,7 @@ import { useToastStore } from '../../stores/toast'
 import { useSiteContentStore } from '../../stores/siteContent'
 import { extractErrorMessage } from '../../utils/errors'
 import { applyTheme, THEME_PRESETS, THEME_TOKENS } from '../../theme/presets'
+import { applyFont, FONT_PRESETS } from '../../theme/fonts'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -194,6 +214,7 @@ const heroVariants = [
 ]
 const themePresets = THEME_PRESETS
 const themeTokens = THEME_TOKENS
+const fontPresets = FONT_PRESETS
 
 onMounted(async () => {
   try {
@@ -207,10 +228,12 @@ onMounted(async () => {
   // Живое превью темы по всему сайту (включая саму админку), пока форма открыта;
   // при уходе со страницы без сохранения возвращаем сохранённую тему (см. ниже).
   watch(() => form.theme?.colors, (colors) => applyTheme(colors), { deep: true })
+  watch(() => form.theme?.font, (font) => applyFont(font))
 })
 
 onBeforeUnmount(() => {
   applyTheme(siteContentStore.content.theme?.colors)
+  applyFont(siteContentStore.content.theme?.font)
 })
 
 function selectThemePreset(name) {
