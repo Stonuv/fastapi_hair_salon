@@ -1,6 +1,8 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from .fields import HexColorStr
 
 # ── Контент сайта — редактируется администратором (CMS) ───────────
 # Каждый раздел соответствует блоку на главной странице / шапке / футере.
@@ -13,7 +15,11 @@ class HeaderContent(BaseModel):
     brand_tagline: Annotated[str, Field(min_length=1, max_length=60)] = "Барбершоп"
 
 
+HeroVariant = Literal["split", "poster", "dark"]
+
+
 class HeroContent(BaseModel):
+    variant:          HeroVariant = "split"
     eyebrow:          Annotated[str, Field(max_length=200)] = "С 2019 года — современное барберство"
     title:            Annotated[str, Field(min_length=1, max_length=200)] = "Чёткий\nсрез.\nТихий\nзал."
     subtitle:         Annotated[str, Field(max_length=500)] = (
@@ -85,6 +91,30 @@ class FooterContent(BaseModel):
     bottom_note: Annotated[str, Field(max_length=200)] = "Запись онлайн · Оплата картой и наличными"
 
 
+# ── Тема оформления — применяется сайт-целиком (Tailwind-токены как
+# CSS-переменные, см. frontend/tailwind.config.js). `preset` — чисто для
+# UI в админке (какая пресет-кнопка подсвечена); фактически применяются
+# всегда значения `colors`, "custom" ставится фронтендом при ручной правке.
+ThemePreset = Literal["default", "coffee", "slate", "custom"]
+
+
+class ThemeColors(BaseModel):
+    brand_900:  HexColorStr = "#111111"
+    brand_800:  HexColorStr = "#3A3A3A"
+    brand_700:  HexColorStr = "#5C5C5C"
+    accent_400: HexColorStr = "#FBBF24"
+    accent_100: HexColorStr = "#ECEAE5"
+    ink_900:    HexColorStr = "#111111"
+    ink_600:    HexColorStr = "#5C5955"
+    stone_50:   HexColorStr = "#F4F3F0"
+    stone_200:  HexColorStr = "#E3E1DC"
+
+
+class ThemeContent(BaseModel):
+    preset: ThemePreset = "default"
+    colors: ThemeColors = Field(default_factory=ThemeColors)
+
+
 class SiteContent(BaseModel):
     """Полный редактируемый контент сайта. Используется и как тело
     PATCH-запроса, и как тело ответа — форма в админке всегда
@@ -96,6 +126,7 @@ class SiteContent(BaseModel):
     hero:     HeroContent     = Field(default_factory=HeroContent)
     features: FeaturesContent = Field(default_factory=FeaturesContent)
     services: ServicesContent = Field(default_factory=ServicesContent)
+    theme:    ThemeContent    = Field(default_factory=ThemeContent)
     masters:  MastersContent  = Field(default_factory=MastersContent)
     cta:      CtaContent      = Field(default_factory=CtaContent)
     footer:   FooterContent   = Field(default_factory=FooterContent)

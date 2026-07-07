@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Значения по умолчанию для тематизируемых токенов — "R G B" без rgb(),
+   формат нужен tailwind.config.js (rgb(var(--x) / <alpha-value>)).
+   Совпадают с пресетом "default" в src/theme/presets.js; перезаписываются
+   в рантайме applyTheme() из настроек сайта (Админка → Настройки → Тема). */
+:root {
+  --color-brand-900: 17 17 17;
+  --color-brand-800: 58 58 58;
+  --color-brand-700: 92 92 92;
+  --color-accent-400: 251 191 36;
+  --color-accent-100: 236 234 229;
+  --color-ink-900: 17 17 17;
+  --color-ink-600: 92 89 85;
+  --color-stone-50: 244 243 240;
+  --color-stone-200: 227 225 220;
+}
+
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;

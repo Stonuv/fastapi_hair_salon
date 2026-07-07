@@ -1,3 +1,16 @@
+// Тематизируемые токены (brand/accent/ink/stone) читаются из CSS-переменных
+// вида "R G B" (см. src/assets/main.css :root) — это единственный способ
+// дать Tailwind и админ-панели "Тема оформления" (frontend/src/theme/presets.js)
+// менять эти цвета в рантайме, а не только на этапе сборки. Формат
+// rgb(var(...) / <alpha-value>) сохраняет поддержку модификаторов
+// прозрачности (bg-brand-900/40 и т.п.).
+function withOpacity(variable) {
+  return ({ opacityValue }) =>
+    opacityValue === undefined
+      ? `rgb(var(${variable}))`
+      : `rgb(var(${variable}) / ${opacityValue})`
+}
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -10,21 +23,21 @@ export default {
       },
       colors: {
         brand: {
-          900: '#111111',
-          800: '#3A3A3A',
-          700: '#5C5C5C',
+          900: withOpacity('--color-brand-900'),
+          800: withOpacity('--color-brand-800'),
+          700: withOpacity('--color-brand-700'),
         },
         accent: {
-          400: '#FBBF24',
-          100: '#ECEAE5',
+          400: withOpacity('--color-accent-400'),
+          100: withOpacity('--color-accent-100'),
         },
         ink: {
-          900: '#111111',
-          600: '#5C5955',
+          900: withOpacity('--color-ink-900'),
+          600: withOpacity('--color-ink-600'),
         },
         stone: {
-          50: '#F4F3F0',
-          200: '#E3E1DC',
+          50: withOpacity('--color-stone-50'),
+          200: withOpacity('--color-stone-200'),
         },
         danger: '#B91C1C',
         success: '#15803D',

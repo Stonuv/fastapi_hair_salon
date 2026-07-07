@@ -15,6 +15,21 @@
       <BaseCard>
         <StepTitle n="2" title="Главный экран" />
         <div class="space-y-4">
+          <div>
+            <p class="mb-2 text-sm font-medium text-ink-900">Дизайн главного экрана</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="v in heroVariants" :key="v.value" type="button"
+                class="border px-3 py-2 text-left font-mono text-xs uppercase tracking-wide transition-colors"
+                :class="form.hero.variant === v.value
+                  ? 'border-brand-900 bg-brand-900 text-stone-50'
+                  : 'border-stone-200 text-ink-600 hover:border-brand-900'"
+                @click="form.hero.variant = v.value"
+              >
+                {{ v.label }}
+              </button>
+            </div>
+          </div>
           <BaseInput v-model="form.hero.eyebrow" label="Надпись над заголовком" />
           <BaseInput v-model="form.hero.title" as="textarea" :rows="3" label="Заголовок" hint="Каждая строка — перенос строки в заголовке" required />
           <BaseInput v-model="form.hero.subtitle" as="textarea" label="Подзаголовок" />
@@ -88,6 +103,52 @@
         </div>
       </BaseCard>
 
+      <BaseCard v-if="form.theme">
+        <StepTitle n="8" title="Тема оформления" />
+        <div class="space-y-5">
+          <div>
+            <p class="mb-2 text-sm font-medium text-ink-900">Готовые палитры</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(preset, name) in themePresets" :key="name" type="button"
+                class="flex items-center gap-2 border px-3 py-2 font-mono text-xs uppercase tracking-wide transition-colors"
+                :class="form.theme.preset === name
+                  ? 'border-brand-900 bg-brand-900 text-stone-50'
+                  : 'border-stone-200 text-ink-600 hover:border-brand-900'"
+                @click="selectThemePreset(name)"
+              >
+                <span class="flex -space-x-1">
+                  <span class="h-4 w-4 rounded-full border border-white/40" :style="{ background: preset.colors.brand_900 }" />
+                  <span class="h-4 w-4 rounded-full border border-white/40" :style="{ background: preset.colors.accent_400 }" />
+                  <span class="h-4 w-4 rounded-full border border-white/40" :style="{ background: preset.colors.stone_50 }" />
+                </span>
+                {{ preset.label }}
+              </button>
+              <span
+                class="flex items-center border px-3 py-2 font-mono text-xs uppercase tracking-wide"
+                :class="form.theme.preset === 'custom' ? 'border-brand-900 bg-brand-900 text-stone-50' : 'border-stone-200 text-ink-600'"
+              >
+                Свой вариант
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <p class="mb-2 text-sm font-medium text-ink-900">Цвета вручную</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label v-for="t in themeTokens" :key="t.key" class="flex items-center gap-3 border border-stone-200 px-3 py-2">
+                <input
+                  type="color" :value="form.theme.colors[t.key]"
+                  class="h-8 w-8 shrink-0 cursor-pointer border-0 bg-transparent p-0"
+                  @input="setThemeColor(t.key, $event.target.value)"
+                />
+                <span class="text-sm text-ink-600">{{ t.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </BaseCard>
+
         <div class="flex justify-end">
           <BaseButton type="submit" :loading="saving">Сохранить все изменения</BaseButton>
         </div>
@@ -106,11 +167,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { settingsApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { useSiteContentStore } from '../../stores/siteContent'
 import { extractErrorMessage } from '../../utils/errors'
+import { applyTheme, THEME_PRESETS, THEME_TOKENS } from '../../theme/presets'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -125,6 +187,14 @@ const loading = ref(true)
 const saving = ref(false)
 const form = reactive({})
 
+const heroVariants = [
+  { value: 'split', label: 'A — Разделённый' },
+  { value: 'poster', label: 'B — Постер' },
+  { value: 'dark', label: 'C — Тёмный' },
+]
+const themePresets = THEME_PRESETS
+const themeTokens = THEME_TOKENS
+
 onMounted(async () => {
   try {
     const { data } = await settingsApi.get()
@@ -134,7 +204,24 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  // Живое превью темы по всему сайту (включая саму админку), пока форма открыта;
+  // при уходе со страницы без сохранения возвращаем сохранённую тему (см. ниже).
+  watch(() => form.theme?.colors, (colors) => applyTheme(colors), { deep: true })
 })
+
+onBeforeUnmount(() => {
+  applyTheme(siteContentStore.content.theme?.colors)
+})
+
+function selectThemePreset(name) {
+  form.theme.preset = name
+  form.theme.colors = { ...THEME_PRESETS[name].colors }
+}
+
+function setThemeColor(key, value) {
+  form.theme.preset = 'custom'
+  form.theme.colors[key] = value
+}
 
 async function save() {
   saving.value = true

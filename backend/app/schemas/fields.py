@@ -17,6 +17,8 @@ def _fits_bcrypt(v: str) -> str:
 
 
 NameStr        = Annotated[str, Field(min_length=1, max_length=100)]
+# Цвет темы оформления: строго #RRGGBB (то, что отдаёт <input type="color">)
+HexColorStr    = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{6}$")]
 # Телефон: цифры, необязательный +, скобки/пробелы/дефисы; 5–20 символов
 PhoneStr       = Annotated[str, Field(max_length=20,
                                       pattern=r"^\+?[0-9()\- ]{5,20}$")]

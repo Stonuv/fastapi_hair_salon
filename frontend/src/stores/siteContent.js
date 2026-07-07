@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { settingsApi } from '../api'
+import { applyTheme, THEME_PRESETS } from '../theme/presets'
 
 /**
  * Контент сайта, редактируемый через /admin/settings (CMS).
@@ -11,6 +12,7 @@ function defaultContent() {
   return {
     header: { brand_name: 'Сайтама', brand_tagline: 'Барбершоп' },
     hero: {
+      variant: 'split',
       eyebrow: 'С 2019 года — современное барберство',
       title: 'Чёткий\nсрез.\nТихий\nзал.',
       subtitle: 'Без навязанных услуг и спешки. Точная стрижка и чистый финиш — запись с точностью до минуты.',
@@ -53,18 +55,21 @@ function defaultContent() {
       ],
       bottom_note: 'Запись онлайн · Оплата картой и наличными',
     },
+    theme: { preset: 'default', colors: { ...THEME_PRESETS.default.colors } },
   }
 }
 
 export const useSiteContentStore = defineStore('siteContent', () => {
   const content = ref(defaultContent())
   const loaded = ref(false)
+  applyTheme(content.value.theme.colors)
 
   async function load(force = false) {
     if (loaded.value && !force) return
     try {
       const { data } = await settingsApi.get()
       content.value = data
+      applyTheme(data.theme?.colors)
     } finally {
       loaded.value = true
     }
@@ -72,6 +77,7 @@ export const useSiteContentStore = defineStore('siteContent', () => {
 
   function set(data) {
     content.value = data
+    applyTheme(data.theme?.colors)
   }
 
   return { content, loaded, load, set }

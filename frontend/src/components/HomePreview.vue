@@ -1,7 +1,7 @@
 <template>
   <div :class="{ 'pointer-events-none': !interactive }">
-    <!-- Hero -->
-    <section class="bg-stone-50">
+    <!-- Hero A — split (editorial) -->
+    <section v-if="heroVariant === 'split'" class="bg-stone-50">
       <div class="mx-auto grid max-w-6xl sm:grid-cols-2">
         <div class="flex flex-col justify-center gap-6 px-4 py-16 sm:px-6 sm:py-24">
           <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.hero.eyebrow }}</div>
@@ -35,6 +35,60 @@
           <span v-else class="absolute bottom-5 left-5 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
             [ мастер за креслом ]
           </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hero B — centered poster -->
+    <section v-else-if="heroVariant === 'poster'" class="bg-stone-50">
+      <div class="mx-auto flex max-w-5xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
+        <div class="font-mono text-xs uppercase tracking-[0.22em] text-ink-600">{{ content.hero.eyebrow }}</div>
+        <div
+          class="mt-8 w-full font-display font-black uppercase leading-[1.15] tracking-tight text-ink-900"
+          style="font-size: clamp(2.75rem, 11vw, 7rem)"
+        >
+          {{ content.header.brand_name }}
+        </div>
+        <div class="relative mt-6 h-56 w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)] sm:h-72">
+          <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <span v-else class="absolute bottom-4 left-4 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
+            [ интерьер барбершопа ]
+          </span>
+        </div>
+        <div class="mt-8 flex w-full flex-col items-center justify-between gap-6 sm:flex-row sm:text-left">
+          <p class="max-w-md text-base leading-relaxed text-ink-600">{{ content.hero.subtitle }}</p>
+          <router-link :to="{ name: 'masters' }"><BaseButton size="lg">{{ content.hero.primary_button }} ↗</BaseButton></router-link>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hero C — dark asymmetric, type-led -->
+    <section v-else class="bg-ink-900">
+      <div class="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:grid-cols-[1.4fr_1fr] sm:px-6 sm:py-24">
+        <div class="flex flex-col justify-between gap-8">
+          <div class="font-mono text-xs uppercase tracking-[0.16em] text-white/55">{{ content.hero.eyebrow }}</div>
+          <h1 class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.88] tracking-tight text-stone-50 sm:text-7xl">
+            {{ content.hero.title }}
+          </h1>
+          <div class="flex flex-wrap items-center gap-5">
+            <router-link :to="{ name: 'masters' }">
+              <BaseButton size="lg" class="!border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">{{ content.hero.primary_button }} ↗</BaseButton>
+            </router-link>
+            <a href="#services" class="font-mono text-xs uppercase tracking-[0.06em] text-white/55 hover:text-white">{{ content.hero.secondary_button }}</a>
+          </div>
+        </div>
+        <div class="flex flex-col">
+          <div class="relative min-h-[220px] flex-1 overflow-hidden bg-[repeating-linear-gradient(135deg,#262626_0_14px,#1c1c1c_14px_28px)]">
+            <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+            <span v-else class="absolute bottom-4 left-4 bg-ink-900 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wide text-white/45">
+              [ портрет мастера ]
+            </span>
+          </div>
+          <div class="mt-6 space-y-2 font-mono text-[11px] uppercase tracking-[0.06em] text-white/70">
+            <div>{{ avgDurationLabel }} · средняя стрижка</div>
+            <div>{{ mastersTotal }} мастеров на смене</div>
+            <div>{{ servicesTotal }} услуг в каталоге</div>
+          </div>
         </div>
       </div>
     </section>
@@ -135,7 +189,7 @@ import Skeleton from './ui/Skeleton.vue'
 import EmptyState from './ui/EmptyState.vue'
 import MasterCard from './MasterCard.vue'
 
-defineProps({
+const props = defineProps({
   content: { type: Object, required: true },
   interactive: { type: Boolean, default: true },
 })
@@ -148,6 +202,8 @@ const servicesTotal = ref('—')
 const masters = ref([])
 const mastersLoading = ref(true)
 const mastersTotal = ref('—')
+
+const heroVariant = computed(() => props.content.hero?.variant || 'split')
 
 const marqueeText = computed(() =>
   services.value.length
