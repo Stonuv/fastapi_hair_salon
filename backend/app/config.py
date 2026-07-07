@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # ── JWT ──────────────────────────────────────────────────────
     secret_key:                  str = _DEFAULT_SECRET_KEY
     algorithm:                   str = "HS256"
-    access_token_expire_minutes: int = 60 * 24  # 24 часа
+    access_token_expire_minutes: int = 60  # 1 час
     # Access-токен для SPA доставляется httpOnly-cookie с флагом Secure —
     # это НЕ то же самое, что debug: локальный docker-compose уже гоняет
     # DEBUG=false, но сам по себе поднимает только plain HTTP (README —
