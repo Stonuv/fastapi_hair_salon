@@ -37,7 +37,28 @@
             <BaseInput v-model="form.hero.primary_button" label="Текст основной кнопки" required />
             <BaseInput v-model="form.hero.secondary_button" label="Текст второй кнопки" required />
           </div>
-          <BaseInput v-model="form.hero.photo_url" label="Фото справа (URL)" placeholder="https://…" hint="Если не указано — показывается заглушка" />
+          <div>
+            <p class="mb-2 text-sm font-medium text-ink-900">Медиа в блоке фото</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="m in heroMediaTypes" :key="m.value" type="button"
+                class="border px-3 py-2 text-left font-mono text-xs uppercase tracking-wide transition-colors"
+                :class="(form.hero.media_type || 'photo') === m.value
+                  ? 'border-brand-900 bg-brand-900 text-stone-50'
+                  : 'border-stone-200 text-ink-600 hover:border-brand-900'"
+                @click="form.hero.media_type = m.value"
+              >
+                {{ m.label }}
+              </button>
+            </div>
+          </div>
+          <BaseInput
+            v-if="(form.hero.media_type || 'photo') === 'photo'"
+            v-model="form.hero.photo_url" label="Фото справа (URL)" placeholder="https://…" hint="Если не указано — показывается заглушка"
+          />
+          <p v-else class="font-mono text-xs text-ink-600">
+            Вместо фото показывается интерактивная 3D-модель зала — вращается вслед за курсором.
+          </p>
         </div>
       </BaseCard>
 
@@ -211,6 +232,10 @@ const heroVariants = [
   { value: 'split', label: 'A — Разделённый' },
   { value: 'poster', label: 'B — Постер' },
   { value: 'dark', label: 'C — Тёмный' },
+]
+const heroMediaTypes = [
+  { value: 'photo', label: 'Фото' },
+  { value: '3d', label: '3D-комната' },
 ]
 const themePresets = THEME_PRESETS
 const themeTokens = THEME_TOKENS

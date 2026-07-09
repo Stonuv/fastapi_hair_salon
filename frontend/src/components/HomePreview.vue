@@ -33,13 +33,20 @@
             </div>
           </div>
         </div>
-        <div class="relative min-h-[280px] overflow-hidden bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)] sm:min-h-full">
-          <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
-          <span v-else class="absolute bottom-5 left-5 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
-            [ мастер за креслом ]
-          </span>
+        <div class="relative min-h-[280px] overflow-hidden sm:min-h-full" :class="panelBgClass('light')">
+          <Hero3DRoom v-if="content.hero.media_type === '3d'" />
+          <template v-else>
+            <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+            <span v-else class="absolute bottom-5 left-5 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
+              [ мастер за креслом ]
+            </span>
+          </template>
+          <div v-if="editable" class="absolute right-3 top-3 flex gap-1">
+            <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
+            <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
+          </div>
           <EditableText
-            v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+            v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
             class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
           />
         </div>
@@ -55,13 +62,20 @@
           class="mt-8 w-full font-display font-black uppercase leading-[1.15] tracking-tight text-ink-900"
           style="font-size: clamp(2.75rem, 11vw, 7rem)"
         />
-        <div class="relative mt-6 h-56 w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)] sm:h-72">
-          <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
-          <span v-else class="absolute bottom-4 left-4 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
-            [ интерьер барбершопа ]
-          </span>
+        <div class="relative mt-6 h-56 w-full overflow-hidden sm:h-72" :class="panelBgClass('light')">
+          <Hero3DRoom v-if="content.hero.media_type === '3d'" />
+          <template v-else>
+            <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+            <span v-else class="absolute bottom-4 left-4 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
+              [ интерьер барбершопа ]
+            </span>
+          </template>
+          <div v-if="editable" class="absolute right-3 top-3 flex gap-1">
+            <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
+            <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
+          </div>
           <EditableText
-            v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+            v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
             class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
           />
         </div>
@@ -95,13 +109,20 @@
           </div>
         </div>
         <div class="flex flex-col">
-          <div class="relative min-h-[220px] flex-1 overflow-hidden bg-[repeating-linear-gradient(135deg,#262626_0_14px,#1c1c1c_14px_28px)]">
-            <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
-            <span v-else class="absolute bottom-4 left-4 bg-ink-900 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wide text-white/45">
-              [ портрет мастера ]
-            </span>
+          <div class="relative min-h-[220px] flex-1 overflow-hidden" :class="panelBgClass('dark')">
+            <Hero3DRoom v-if="content.hero.media_type === '3d'" />
+            <template v-else>
+              <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+              <span v-else class="absolute bottom-4 left-4 bg-ink-900 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wide text-white/45">
+                [ портрет мастера ]
+              </span>
+            </template>
+            <div v-if="editable" class="absolute right-3 top-3 flex gap-1">
+              <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
+              <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
+            </div>
             <EditableText
-              v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+              v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
               class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
             />
           </div>
@@ -207,7 +228,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { mastersApi, servicesApi } from '../api'
 import { useToastStore } from '../stores/toast'
 import { extractErrorMessage } from '../utils/errors'
@@ -217,6 +238,10 @@ import EmptyState from './ui/EmptyState.vue'
 import EditableText from './ui/EditableText.vue'
 import EditableLink from './ui/EditableLink.vue'
 import MasterCard from './MasterCard.vue'
+
+// three.js — тяжёлая зависимость, нужна только когда hero.media_type === '3d',
+// поэтому грузим отдельным чанком, а не в общий бандл главной страницы.
+const Hero3DRoom = defineAsyncComponent(() => import('./Hero3DRoom.vue'))
 
 const props = defineProps({
   content: { type: Object, required: true },
@@ -234,6 +259,23 @@ const mastersLoading = ref(true)
 const mastersTotal = ref('—')
 
 const heroVariant = computed(() => props.content.hero?.variant || 'split')
+
+function mediaTypeBtnClass(type) {
+  return (props.content.hero.media_type || 'photo') === type
+    ? 'bg-brand-900 text-stone-50'
+    : 'bg-white/90 text-ink-600 hover:bg-white'
+}
+
+// В режиме 3D панель не должна показывать штриховку "нет фото" — canvas
+// прозрачный (alpha: true), и полосы просвечивали бы сквозь и вокруг модели.
+function panelBgClass(scheme) {
+  if (props.content.hero.media_type === '3d') {
+    return scheme === 'dark' ? 'bg-ink-900' : 'bg-stone-100'
+  }
+  return scheme === 'dark'
+    ? 'bg-[repeating-linear-gradient(135deg,#262626_0_14px,#1c1c1c_14px_28px)]'
+    : 'bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)]'
+}
 
 const marqueeText = computed(() =>
   services.value.length

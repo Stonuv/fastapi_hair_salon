@@ -16,6 +16,9 @@ class HeaderContent(BaseModel):
 
 
 HeroVariant = Literal["split", "poster", "dark"]
+# Медиа в правом/верхнем блоке главного экрана: статичное фото или
+# интерактивная 3D-модель зала (вращается за курсором на фронтенде).
+HeroMediaType = Literal["photo", "3d"]
 
 
 class HeroContent(BaseModel):
@@ -27,6 +30,7 @@ class HeroContent(BaseModel):
     )
     primary_button:   Annotated[str, Field(min_length=1, max_length=60)] = "Записаться"
     secondary_button: Annotated[str, Field(min_length=1, max_length=60)] = "Услуги и цены"
+    media_type:       HeroMediaType = "photo"
     photo_url:        Annotated[str | None, Field(default=None, max_length=2048)]
 
 

@@ -19,6 +19,7 @@ function defaultContent() {
       subtitle: 'Без навязанных услуг и спешки. Точная стрижка и чистый финиш — запись с точностью до минуты.',
       primary_button: 'Записаться',
       secondary_button: 'Услуги и цены',
+      media_type: 'photo',
       photo_url: null,
     },
     features: {
