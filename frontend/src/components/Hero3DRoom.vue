@@ -56,8 +56,8 @@ function onPointerMove(event) {
 function initScene() {
   scene = new THREE.Scene()
 
-  camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100)
-  camera.position.set(3.6, 2.9, 3.9)
+  camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
+  camera.position.set(-3.5, 2.9, 3.9) // XYX
   camera.lookAt(0, 0.15, 0)
 
   renderer = new THREE.WebGLRenderer({ canvas: canvasEl.value, antialias: true, alpha: true })
