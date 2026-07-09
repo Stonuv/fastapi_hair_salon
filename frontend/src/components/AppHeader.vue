@@ -1,9 +1,25 @@
 <template>
   <header class="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/50 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-      <router-link to="/" class="flex items-baseline gap-2.5">
-        <span class="font-display text-lg font-black uppercase tracking-tight text-ink-900 sm:text-xl">{{ content.header.brand_name }}</span>
-        <span class="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600 sm:inline">{{ content.header.brand_tagline }}</span>
+      <div v-if="editable" class="flex items-baseline gap-2.5">
+        <EditableText
+          v-model="localContent.header.brand_name" editable tag="span"
+          class="font-display text-lg font-black uppercase tracking-tight text-ink-900 sm:text-xl"
+        />
+        <EditableText
+          v-model="localContent.header.brand_tagline" editable tag="span"
+          class="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600 sm:inline"
+        />
+      </div>
+      <router-link v-else to="/" class="flex items-baseline gap-2.5">
+        <EditableText
+          v-model="localContent.header.brand_name" tag="span"
+          class="font-display text-lg font-black uppercase tracking-tight text-ink-900 sm:text-xl"
+        />
+        <EditableText
+          v-model="localContent.header.brand_tagline" tag="span"
+          class="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-ink-600 sm:inline"
+        />
       </router-link>
 
       <nav class="hidden items-center gap-8 sm:flex">
@@ -55,16 +71,24 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
 import { useSiteContentStore } from '../stores/siteContent'
 import BaseButton from './ui/BaseButton.vue'
+import EditableText from './ui/EditableText.vue'
+
+const props = defineProps({
+  content: { type: Object, default: null },
+  editable: { type: Boolean, default: false },
+})
 
 const auth = useAuthStore()
 const router = useRouter()
-const { content } = storeToRefs(useSiteContentStore())
+const { content: storeContent } = storeToRefs(useSiteContentStore())
+const localContent = computed(() => props.content ?? storeContent.value)
 
 function handleLogout() {
   auth.logout()

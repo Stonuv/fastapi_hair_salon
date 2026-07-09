@@ -4,16 +4,19 @@
     <section v-if="heroVariant === 'split'" class="bg-stone-50">
       <div class="mx-auto grid max-w-6xl sm:grid-cols-2">
         <div class="flex flex-col justify-center gap-6 px-4 py-16 sm:px-6 sm:py-24">
-          <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.hero.eyebrow }}</div>
-          <h1 class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-ink-900 sm:text-6xl lg:text-7xl">
-            {{ content.hero.title }}
-          </h1>
-          <p class="max-w-md text-base leading-relaxed text-ink-600">
-            {{ content.hero.subtitle }}
-          </p>
+          <EditableText v-model="content.hero.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600" />
+          <EditableText
+            v-model="content.hero.title" :editable="editable" multiline tag="h1"
+            class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-ink-900 sm:text-6xl lg:text-7xl"
+          />
+          <EditableText v-model="content.hero.subtitle" :editable="editable" multiline tag="p" class="max-w-md text-base leading-relaxed text-ink-600" />
           <div class="flex flex-wrap gap-3">
-            <router-link :to="{ name: 'masters' }"><BaseButton size="lg">{{ content.hero.primary_button }}</BaseButton></router-link>
-            <a href="#services"><BaseButton variant="ghost" size="lg">{{ content.hero.secondary_button }}</BaseButton></a>
+            <EditableLink :to="{ name: 'masters' }" :editable="editable">
+              <BaseButton size="lg"><EditableText v-model="content.hero.primary_button" :editable="editable" /></BaseButton>
+            </EditableLink>
+            <EditableLink href="#services" :editable="editable">
+              <BaseButton variant="ghost" size="lg"><EditableText v-model="content.hero.secondary_button" :editable="editable" /></BaseButton>
+            </EditableLink>
           </div>
           <div class="flex flex-wrap gap-8 border-t border-stone-200 pt-6">
             <div>
@@ -35,6 +38,10 @@
           <span v-else class="absolute bottom-5 left-5 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
             [ мастер за креслом ]
           </span>
+          <EditableText
+            v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+            class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
+          />
         </div>
       </div>
     </section>
@@ -42,22 +49,27 @@
     <!-- Hero B — centered poster -->
     <section v-else-if="heroVariant === 'poster'" class="bg-stone-50">
       <div class="mx-auto flex max-w-5xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24">
-        <div class="font-mono text-xs uppercase tracking-[0.22em] text-ink-600">{{ content.hero.eyebrow }}</div>
-        <div
+        <EditableText v-model="content.hero.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.22em] text-ink-600" />
+        <EditableText
+          v-model="content.header.brand_name" :editable="editable"
           class="mt-8 w-full font-display font-black uppercase leading-[1.15] tracking-tight text-ink-900"
           style="font-size: clamp(2.75rem, 11vw, 7rem)"
-        >
-          {{ content.header.brand_name }}
-        </div>
+        />
         <div class="relative mt-6 h-56 w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#e4e2dd_0_14px,#dbd8d2_14px_28px)] sm:h-72">
           <img v-if="content.hero.photo_url" :src="content.hero.photo_url" alt="" class="absolute inset-0 h-full w-full object-cover" />
           <span v-else class="absolute bottom-4 left-4 bg-stone-50 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-600">
             [ интерьер барбершопа ]
           </span>
+          <EditableText
+            v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+            class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
+          />
         </div>
         <div class="mt-8 flex w-full flex-col items-center justify-between gap-6 sm:flex-row sm:text-left">
-          <p class="max-w-md text-base leading-relaxed text-ink-600">{{ content.hero.subtitle }}</p>
-          <router-link :to="{ name: 'masters' }"><BaseButton size="lg">{{ content.hero.primary_button }} ↗</BaseButton></router-link>
+          <EditableText v-model="content.hero.subtitle" :editable="editable" multiline tag="p" class="max-w-md text-base leading-relaxed text-ink-600" />
+          <EditableLink :to="{ name: 'masters' }" :editable="editable">
+            <BaseButton size="lg"><EditableText v-model="content.hero.primary_button" :editable="editable" /> ↗</BaseButton>
+          </EditableLink>
         </div>
       </div>
     </section>
@@ -66,15 +78,20 @@
     <section v-else class="bg-ink-900">
       <div class="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:grid-cols-[1.4fr_1fr] sm:px-6 sm:py-24">
         <div class="flex flex-col justify-between gap-8">
-          <div class="font-mono text-xs uppercase tracking-[0.16em] text-white/55">{{ content.hero.eyebrow }}</div>
-          <h1 class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.88] tracking-tight text-stone-50 sm:text-7xl">
-            {{ content.hero.title }}
-          </h1>
+          <EditableText v-model="content.hero.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.16em] text-white/55" />
+          <EditableText
+            v-model="content.hero.title" :editable="editable" multiline tag="h1"
+            class="whitespace-pre-line font-display text-5xl font-black uppercase leading-[0.88] tracking-tight text-stone-50 sm:text-7xl"
+          />
           <div class="flex flex-wrap items-center gap-5">
-            <router-link :to="{ name: 'masters' }">
-              <BaseButton size="lg" class="!border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">{{ content.hero.primary_button }} ↗</BaseButton>
-            </router-link>
-            <a href="#services" class="font-mono text-xs uppercase tracking-[0.06em] text-white/55 hover:text-white">{{ content.hero.secondary_button }}</a>
+            <EditableLink :to="{ name: 'masters' }" :editable="editable">
+              <BaseButton size="lg" class="!border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">
+                <EditableText v-model="content.hero.primary_button" :editable="editable" /> ↗
+              </BaseButton>
+            </EditableLink>
+            <EditableLink href="#services" :editable="editable" class="font-mono text-xs uppercase tracking-[0.06em] text-white/55 hover:text-white">
+              <EditableText v-model="content.hero.secondary_button" :editable="editable" />
+            </EditableLink>
           </div>
         </div>
         <div class="flex flex-col">
@@ -83,6 +100,10 @@
             <span v-else class="absolute bottom-4 left-4 bg-ink-900 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wide text-white/45">
               [ портрет мастера ]
             </span>
+            <EditableText
+              v-if="editable" v-model="content.hero.photo_url" editable placeholder="URL фото"
+              class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
+            />
           </div>
           <div class="mt-6 space-y-2 font-mono text-[11px] uppercase tracking-[0.06em] text-white/70">
             <div>{{ avgDurationLabel }} · средняя стрижка</div>
@@ -104,15 +125,16 @@
     <!-- features -->
     <section class="bg-stone-50 px-4 py-20 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.features.eyebrow }}</div>
-        <h2 class="mt-3 max-w-xl font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl">
-          {{ content.features.title }}
-        </h2>
+        <EditableText v-model="content.features.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600" />
+        <EditableText
+          v-model="content.features.title" :editable="editable" tag="h2"
+          class="mt-3 max-w-xl font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl"
+        />
         <div class="mt-12 grid gap-10 sm:grid-cols-3">
-          <div v-for="(f, i) in content.features.items" :key="f.title" class="border-t border-ink-900 pt-5">
+          <div v-for="(f, i) in content.features.items" :key="i" class="border-t border-ink-900 pt-5">
             <div class="font-mono text-xs text-ink-600">{{ String(i + 1).padStart(2, '0') }}</div>
-            <h3 class="mt-4 font-display text-xl font-bold text-ink-900">{{ f.title }}</h3>
-            <p class="mt-2 text-sm leading-relaxed text-ink-600">{{ f.text }}</p>
+            <EditableText v-model="f.title" :editable="editable" tag="h3" class="mt-4 font-display text-xl font-bold text-ink-900" />
+            <EditableText v-model="f.text" :editable="editable" multiline tag="p" class="mt-2 text-sm leading-relaxed text-ink-600" />
           </div>
         </div>
       </div>
@@ -123,10 +145,13 @@
       <div class="mx-auto max-w-6xl">
         <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div class="font-mono text-xs uppercase tracking-[0.16em] text-white/50">{{ content.services.eyebrow }}</div>
-            <h2 class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-stone-50 sm:text-5xl">{{ content.services.title }}</h2>
+            <EditableText v-model="content.services.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.16em] text-white/50" />
+            <EditableText
+              v-model="content.services.title" :editable="editable" tag="h2"
+              class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-stone-50 sm:text-5xl"
+            />
           </div>
-          <div class="whitespace-pre-line font-mono text-xs leading-relaxed text-white/50">{{ content.services.note }}</div>
+          <EditableText v-model="content.services.note" :editable="editable" multiline class="whitespace-pre-line font-mono text-xs leading-relaxed text-white/50" />
         </div>
 
         <div v-if="servicesLoading" class="grid gap-x-16 sm:grid-cols-2">
@@ -148,10 +173,11 @@
     <!-- masters -->
     <section class="bg-stone-50 px-4 py-20 sm:px-6">
       <div class="mx-auto max-w-6xl">
-        <div class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600">{{ content.masters.eyebrow }}</div>
-        <h2 class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl">
-          {{ content.masters.title }}
-        </h2>
+        <EditableText v-model="content.masters.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.16em] text-ink-600" />
+        <EditableText
+          v-model="content.masters.title" :editable="editable" tag="h2"
+          class="mt-3 font-display text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink-900 sm:text-5xl"
+        />
 
         <div v-if="mastersLoading" class="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-4">
           <Skeleton v-for="i in 4" :key="i" height="h-72" />
@@ -165,16 +191,17 @@
 
     <!-- CTA -->
     <section class="bg-ink-900 px-4 py-24 text-center sm:px-6">
-      <div class="font-mono text-xs uppercase tracking-[0.2em] text-white/50">{{ content.cta.eyebrow }}</div>
-      <h2 class="mx-auto mt-5 max-w-2xl font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-stone-50 sm:text-6xl">
-        {{ content.cta.title }}
-      </h2>
-      <p class="mx-auto mt-5 max-w-md text-base text-white/60">
-        {{ content.cta.subtitle }}
-      </p>
-      <router-link :to="{ name: 'masters' }">
-        <BaseButton size="lg" class="mt-8 !border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">{{ content.cta.button_label }} ↗</BaseButton>
-      </router-link>
+      <EditableText v-model="content.cta.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.2em] text-white/50" />
+      <EditableText
+        v-model="content.cta.title" :editable="editable" tag="h2"
+        class="mx-auto mt-5 max-w-2xl font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-stone-50 sm:text-6xl"
+      />
+      <EditableText v-model="content.cta.subtitle" :editable="editable" multiline tag="p" class="mx-auto mt-5 max-w-md text-base text-white/60" />
+      <EditableLink :to="{ name: 'masters' }" :editable="editable">
+        <BaseButton size="lg" class="mt-8 !border-stone-50 !bg-stone-50 !text-ink-900 hover:!bg-white">
+          <EditableText v-model="content.cta.button_label" :editable="editable" /> ↗
+        </BaseButton>
+      </EditableLink>
     </section>
   </div>
 </template>
@@ -187,11 +214,14 @@ import { extractErrorMessage } from '../utils/errors'
 import BaseButton from './ui/BaseButton.vue'
 import Skeleton from './ui/Skeleton.vue'
 import EmptyState from './ui/EmptyState.vue'
+import EditableText from './ui/EditableText.vue'
+import EditableLink from './ui/EditableLink.vue'
 import MasterCard from './MasterCard.vue'
 
 const props = defineProps({
   content: { type: Object, required: true },
   interactive: { type: Boolean, default: true },
+  editable: { type: Boolean, default: false },
 })
 
 const toast = useToastStore()
