@@ -82,16 +82,15 @@ frontend/
 ### Вариант 1: Docker (весь стек одной командой)
 
 ```bash
-SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))") \
-SETUP_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(24))") \
-docker compose up --build
+cp .env.example .env   # заполните SECRET_KEY/SETUP_TOKEN, см. комментарии в файле
+docker compose up --build -d
 ```
 
-Приложение — http://localhost:8080, Swagger — http://localhost:8080/api/docs.
-Миграции накатываются автоматически при старте бэкенда. Для публичного
-деплоя добавьте TLS-терминатор (Caddy / certbot) перед nginx.
+Приложение — http://localhost, Swagger — http://localhost/api/docs (Caddy
+слушает 80/443 и проксирует на nginx/бэкенд — см. «Деплой на VPS» ниже).
+Миграции накатываются автоматически при старте бэкенда.
 
-Сразу после первого старта зайдите на http://localhost:8080/setup — см.
+Сразу после первого старта зайдите на http://localhost/setup — см.
 «Первичная настройка» ниже.
 
 ### Вариант 2: локально
@@ -152,6 +151,70 @@ VPS» ниже про Caddy, `VK_REDIRECT_URI` придётся обновить
 
 ---
 
+## Деплой на VPS
+
+Стек — `docker-compose.yml` (Postgres + backend + nginx со статикой SPA +
+[Caddy](https://caddyserver.com/) как единственная точка входа на 80/443).
+Caddy сам получает и продлевает сертификат Let's Encrypt — руками ничего не
+трогать не нужно, ни nginx, ни backend TLS не касаются.
+
+#### 1. Docker на VPS (если ещё не установлен)
+
+```bash
+curl -fsSL https://get.docker.com | sh   # официальный скрипт Docker
+sudo usermod -aG docker $USER && newgrp docker
+```
+
+#### 2. Код на сервер
+
+```bash
+git clone <URL вашего репозитория>
+cd fastapi_hair_salon
+cp .env.example .env
+```
+
+Заполните в `.env`: `SECRET_KEY` и `SETUP_TOKEN` (команды генерации — прямо в
+комментариях файла). Остальное (`SITE_ADDRESS`, `COOKIE_SECURE`, `SMTP_*`,
+`VK_*`) можно оставить закомментированным — заработает по IP на голом HTTP.
+
+#### 3. Firewall
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80,443/tcp
+sudo ufw enable
+```
+
+#### 4. Запуск
+
+```bash
+docker compose up --build -d
+```
+
+Приложение — `http://<IP вашего VPS>/`. Зайдите на `/setup` и введите
+`SETUP_TOKEN` — создаст первого админа (см. «Первичная настройка» ниже).
+
+#### 5. Когда появится домен
+
+Пропишите A-запись домена на IP VPS, затем в `.env`:
+
+```bash
+SITE_ADDRESS=your-domain.ru
+COOKIE_SECURE=true
+FRONTEND_BASE_URL=https://your-domain.ru
+```
+
+```bash
+docker compose up -d   # пересоздаст caddy и backend с новыми переменными
+```
+
+Caddy сам выпустит сертификат и включит редирект `http -> https` — никаких
+дополнительных действий. После этого можно вернуться к VK ID (redirect URI
+и `VK_REDIRECT_URI` на `https://your-domain.ru/api/auth/vk/callback`) и/или
+подключить реальный SMTP — оба блока переменных уже готовы в `.env.example`.
+
+---
+
 ## Первичная настройка
 
 После деплоя в системе нет ни одного пользователя с ролью `admin` — создать
@@ -199,7 +262,9 @@ UTC, отчёты режут сутки по UTC, а фронтенд показ
 
 ## Известные ограничения
 
-- CI/CD и HTTPS не настроены (docker-compose собирает прод-стек, TLS — на
-  внешнем терминаторе)
+- CI/CD не настроен — деплой на VPS ручной (`git pull && docker compose up --build -d`)
+- HTTPS настроен через Caddy (`docker-compose.yml`, см. «Деплой на VPS»), но
+  требует домена — по голому IP Let's Encrypt сертификат не выдать, Caddy
+  просто отдаёт HTTP
 - Дефолтные тексты сайта продублированы в `stores/siteContent.js` и
   `schemas/site_settings.py` — при изменении синхронизировать вручную

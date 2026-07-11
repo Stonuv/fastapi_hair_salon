@@ -1,0 +1,7 @@
+# SITE_ADDRESS приходит из docker-compose.yml (env SITE_ADDRESS, дефолт ":80").
+# ":80" — обычный HTTP на голом IP, без домена TLS всё равно не выдать.
+# Домен ("your-domain.ru") — Caddy сам получает сертификат Let's Encrypt и
+# редиректит http -> https, конфиг менять не нужно.
+{$SITE_ADDRESS} {
+	reverse_proxy frontend:80
+}

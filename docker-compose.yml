@@ -1,18 +1,23 @@
-# Продовая сборка всего стека: PostgreSQL + FastAPI + nginx со статикой SPA.
+# Продовая сборка всего стека: PostgreSQL + FastAPI + nginx со статикой SPA +
+# Caddy как TLS-терминатор перед всем этим.
 #
-#   SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))") \
-#   SETUP_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(24))") \
-#   docker compose up --build
+#   cp .env.example .env   # заполните SECRET_KEY/SETUP_TOKEN/POSTGRES_PASSWORD
+#   docker compose up --build -d
 #
-# Приложение — http://localhost:8080, Swagger — http://localhost:8080/api/docs.
-# Сразу после первого запуска зайдите на http://localhost:8080/setup и введите
-# SETUP_TOKEN — это создаёт первого админа (см. README «Первичная настройка»).
-# Для публичного деплоя добавьте перед nginx TLS-терминатор (например, Caddy
-# или certbot на хосте) — HTTPS в compose сознательно не настраивается.
+# Без домена (SITE_ADDRESS не задан или ":80") Caddy отдаёт обычный HTTP на
+# 80-м порту — так и работает первый деплой по голому IP. Как только домен
+# указывает на VPS (A-запись), задайте SITE_ADDRESS=your-domain.ru в .env и
+# перезапустите Caddy (docker compose up -d caddy) — сертификат Let's
+# Encrypt получается автоматически, без правки Caddyfile.
+#
+# Приложение — http://<IP или домен>/, Swagger — /api/docs. Сразу после
+# первого запуска зайдите на /setup и введите SETUP_TOKEN — это создаёт
+# первого админа (см. README «Первичная настройка»).
 
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: barbershop
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barbershop}
@@ -27,22 +32,53 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://barbershop:${POSTGRES_PASSWORD:-barbershop}@db:5432/barbershop
       # При DEBUG=false приложение откажется стартовать без своего SECRET_KEY/SETUP_TOKEN
       SECRET_KEY: ${SECRET_KEY:?Задайте SECRET_KEY (python -c "import secrets; print(secrets.token_urlsafe(48))")}
       SETUP_TOKEN: ${SETUP_TOKEN:?Задайте SETUP_TOKEN (python -c "import secrets; print(secrets.token_urlsafe(24))")}
       DEBUG: "false"
+      # true только после того, как перед приложением реально встал Caddy с
+      # настоящим доменом (см. SITE_ADDRESS) — на голом HTTP ломает cookie.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-no-reply@saitama-barbershop.local}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Барбершоп «Сайтама»}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost}
+      VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+      VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+      VK_REDIRECT_URI: ${VK_REDIRECT_URI:-http://localhost/api/auth/vk/callback}
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
     build: ./frontend
-    ports:
-      - "8080:80"
+    restart: unless-stopped
     depends_on:
       - backend
 
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

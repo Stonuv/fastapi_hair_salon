@@ -30,7 +30,7 @@ npm run build
 `pyrightconfig.json` points at `backend/venv` (the real virtualenv), `typeCheckingMode: basic`.
 
 ### Deploy
-`docker-compose.yml` at the repo root builds the full stack (PostgreSQL 16 + backend with auto-migrations + nginx serving the SPA and proxying `/api`); requires `SECRET_KEY` in the environment because the compose file sets `DEBUG=false` and `Settings` fail-fasts on the default secret outside debug.
+`docker-compose.yml` at the repo root builds the full stack (PostgreSQL 16 + backend with auto-migrations + nginx serving the SPA and proxying `/api` + Caddy as the sole edge on 80/443); requires `SECRET_KEY`/`SETUP_TOKEN` in the environment (root `.env`, see `.env.example`) because the compose file sets `DEBUG=false` and `Settings` fail-fasts on the default secret outside debug. `Caddyfile` reverse-proxies everything to `frontend:80`; its site address comes from `SITE_ADDRESS` (compose env var, defaults to `:80` — plain HTTP, works on a bare VPS IP with no domain). Pointing a real domain at the VPS and setting `SITE_ADDRESS=your-domain` (then `docker compose up -d`) is the *only* step needed for HTTPS — Caddy obtains and renews the Let's Encrypt cert itself, no nginx/backend changes. `COOKIE_SECURE` must flip to `true` at the same time (also a compose env var) — it's independent of `DEBUG` deliberately (see Auth & RBAC) and breaks login if set before real TLS is in front. `SMTP_*`/`VK_*` compose env vars pass straight through to the backend's `settings.smtp_*`/`settings.vk_*` (see below) — unset, they default to Mailpit/disabled-VK, which is safe (email send failures are caught and logged, never break a request).
 
 ## Architecture
 
