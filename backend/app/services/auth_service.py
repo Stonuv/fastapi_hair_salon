@@ -21,6 +21,7 @@ from ..repositories.password_reset_token_repository import PasswordResetTokenRep
 from ..repositories.user_repository import UserRepository
 from ..schemas.auth import TokenResponse
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
+from ..utils.email import send_email
 from ._errors import constraint_name
 
 logger = logging.getLogger(__name__)
@@ -147,8 +148,11 @@ class AuthService:
 
         user = self.user_repo.get_by_email(email)
         # bcrypt выполняется и для несуществующего email (сравнение с dummy-хешем) —
-        # время ответа не раскрывает, зарегистрирован ли адрес.
-        hashed = user.password_hash if user else _DUMMY_HASH
+        # время ответа не раскрывает, зарегистрирован ли адрес. Аккаунт без
+        # пароля (VK ID) тоже сравнивается с dummy-хешем — у него не может
+        # быть верного пароля, но ответ ("неверный email или пароль") должен
+        # быть неотличим от обычного случая.
+        hashed = user.password_hash if user and user.password_hash else _DUMMY_HASH
         password_ok = _verify_password(password, hashed) and user is not None
         # Верный пароль заблокированного аккаунта — это тоже неуспешный вход
         success = password_ok and not user.is_blocked
@@ -182,13 +186,17 @@ class AuthService:
 
     def request_password_reset(self, email: str) -> None:
         """
-        Если email зарегистрирован — создаёт токен сброса и пишет ссылку в лог
-        сервера (нет SMTP-провайдера для реальной отправки писем).
+        Если email зарегистрирован — создаёт токен сброса и отправляет
+        ссылку письмом (SMTP, см. settings.smtp_* / utils/email.py).
         Снаружи всегда ведёт себя одинаково, независимо от результата —
         чтобы не дать возможность перебором узнать, какие email зарегистрированы.
         """
         user = self.user_repo.get_by_email(email)
         if not user:
+            return
+        if not user.password_hash:
+            # OAuth-аккаунт (VK ID) — у него нет пароля, который можно сбросить.
+            logger.info("Password reset requested for OAuth-only account %s — ignored", email)
             return
 
         # Rate limit: не даём бесконечно генерировать токены (и засорять лог).
@@ -207,9 +215,27 @@ class AuthService:
         )
         self.reset_token_repo.create(user.id, _hash_token(raw_token), expires_at)
 
+        reset_link = f"{settings.frontend_base_url}/reset-password?token={raw_token}"
         logger.info(
-            "Password reset requested for %s — link: /reset-password?token=%s (expires %s)",
-            user.email, raw_token, expires_at.isoformat(),
+            "Password reset requested for %s — link: %s (expires %s)",
+            user.email, reset_link, expires_at.isoformat(),
+        )
+        send_email(
+            to=user.email,
+            subject="Восстановление пароля — Барбершоп «Сайтама»",
+            text_body=(
+                f"Здравствуйте, {user.first_name}!\n\n"
+                f"Для сброса пароля перейдите по ссылке (действует "
+                f"{settings.password_reset_token_expire_minutes} минут):\n{reset_link}\n\n"
+                "Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо."
+            ),
+            html_body=(
+                f"<p>Здравствуйте, {user.first_name}!</p>"
+                f"<p>Для сброса пароля перейдите по ссылке (действует "
+                f"{settings.password_reset_token_expire_minutes} минут):</p>"
+                f'<p><a href="{reset_link}">{reset_link}</a></p>'
+                "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.</p>"
+            ),
         )
 
     def confirm_password_reset(self, raw_token: str, new_password: str) -> None:

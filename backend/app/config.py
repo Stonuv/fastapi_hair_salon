@@ -44,9 +44,33 @@ class Settings(BaseSettings):
     password_reset_max_requests_per_hour: int = 3
 
     # ── Восстановление пароля ─────────────────────────────────────
-    # Реальной отправки email нет (нет SMTP-провайдера) — ссылка на
-    # сброс пишется в лог сервера, см. services/auth_service.py.
     password_reset_token_expire_minutes: int = 30
+
+    # ── Email (SMTP) ─────────────────────────────────────────────
+    # Дефолты нацелены на локальный Mailpit (docker-compose.dev.yml —
+    # SMTP :1025, веб-интерфейс на :8025, авторизация не нужна). Для
+    # прод-провайдера (Yandex/Mail.ru/SendGrid/...) переопределяются через
+    # окружение: обычно потребуются smtp_user/smtp_password/smtp_use_tls.
+    smtp_host:      str  = "localhost"
+    smtp_port:      int  = 1025
+    smtp_user:      str | None = None
+    smtp_password:  str | None = None
+    smtp_use_tls:   bool = False
+    smtp_from_email: str = "no-reply@saitama-barbershop.local"
+    smtp_from_name:  str = "Барбершоп «Сайтама»"
+    # Базовый URL SPA — нужен для ссылки сброса пароля в письме (не то же
+    # самое, что cors_origins, хотя обычно совпадает с одним из значений).
+    frontend_base_url: str = "http://localhost:5173"
+
+    # ── VK ID (OAuth 2.1 + PKCE) ───────────────────────────────────
+    # vk_client_id не задан → кнопка "Войти через VK" не работает (см.
+    # GET /api/auth/vk/enabled) — приложение при этом всё равно стартует,
+    # OAuth в задании факультативен. Получить client_id/secret: id.vk.com/business
+    # (redirect URI приложения — тот же, что и vk_redirect_uri ниже; VK ID
+    # разрешает localhost на этапе разработки).
+    vk_client_id:     str | None = None
+    vk_client_secret: str | None = None
+    vk_redirect_uri:  str = "http://localhost:8000/api/auth/vk/callback"
 
     # ── CORS ─────────────────────────────────────────────────────
     cors_origins: list[str] = [

@@ -31,6 +31,10 @@ class UserRepository:
         stmt = select(User).where(User.phone == phone, User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
+    def get_by_vk_id(self, vk_user_id: str) -> Optional[User]:
+        stmt = select(User).where(User.vk_user_id == vk_user_id, User.deleted_at.is_(None))
+        return self.db.execute(stmt).scalar_one_or_none()
+
     def has_role(self, role: UserRole) -> bool:
         stmt = select(User.id).where(User.role == role, User.deleted_at.is_(None)).limit(1)
         return self.db.execute(stmt).scalar() is not None
@@ -81,6 +85,31 @@ class UserRepository:
             role=role,
         )
         self.db.add(user)
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
+    def create_vk_oauth_user(self, *, email: str, first_name: str, last_name: str,
+                             vk_user_id: str) -> User:
+        """Первый вход через VK ID для email, не найденного среди существующих
+        пользователей — регистрация без пароля (см. User.password_hash)."""
+        user = User(
+            email=email,
+            password_hash=None,
+            first_name=first_name,
+            last_name=last_name,
+            vk_user_id=vk_user_id,
+            role=UserRole.client,
+        )
+        self.db.add(user)
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
+    def link_vk_id(self, user: User, vk_user_id: str) -> User:
+        """Привязывает VK-аккаунт к уже существующему пользователю (найденному
+        по email из VK ID) — так повторный вход через VK находит его напрямую."""
+        user.vk_user_id = vk_user_id
         self.db.flush()
         self.db.refresh(user)
         return user

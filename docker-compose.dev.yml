@@ -1,0 +1,16 @@
+# Вспомогательные сервисы для локальной разработки (backend/frontend/Postgres
+# запускаются нативно per README «Вариант 2: локально» — здесь только то, что
+# неудобно ставить руками).
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Mailpit — фейковый SMTP-сервер: backend/.env по умолчанию уже указывает на
+# него (SMTP_HOST=localhost, SMTP_PORT=1025), письма (сброс пароля) ловятся
+# на http://localhost:8025 и никуда реально не уходят.
+
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # веб-интерфейс

@@ -1,4 +1,5 @@
 """Пароли и RBAC-зависимости — без БД."""
+import uuid
 from types import SimpleNamespace
 
 import pytest
@@ -6,8 +7,8 @@ from fastapi import HTTPException
 
 from app.models.enums import UserRole
 from app.repositories._query_utils import escape_like
-from app.services.auth_service import (_verify_password, hash_password,
-                                       require_role)
+from app.services.auth_service import (AuthService, _verify_password,
+                                       hash_password, require_role)
 
 
 class TestPasswordHashing:
@@ -41,6 +42,30 @@ class TestRequireRole:
         with pytest.raises(HTTPException) as exc:
             dep(current_user=self._user(UserRole.client))
         assert exc.value.status_code == 403
+
+
+class TestLoginOAuthOnlyAccount:
+    """VK ID-аккаунты не имеют password_hash — login() обязан отклонить
+    попытку входа по паролю тем же 401, что и "пользователь не найден",
+    а не упасть на bcrypt.checkpw(None)."""
+
+    def _service(self, user):
+        svc = AuthService.__new__(AuthService)
+        svc.db = SimpleNamespace(commit=lambda: None)
+        svc.user_repo = SimpleNamespace(get_by_email=lambda email: user)
+        svc.login_attempt_repo = SimpleNamespace(
+            count_recent_failed=lambda email, window_start: 0,
+            create=lambda **kwargs: None,
+        )
+        return svc
+
+    def test_rejects_with_401_instead_of_raising(self):
+        user = SimpleNamespace(id=uuid.uuid4(), email="vk-user@example.com",
+                               password_hash=None, is_blocked=False)
+        svc = self._service(user)
+        with pytest.raises(HTTPException) as exc:
+            svc.login("vk-user@example.com", "any-password")
+        assert exc.value.status_code == 401
 
 
 class TestEscapeLike:

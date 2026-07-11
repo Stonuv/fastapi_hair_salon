@@ -9,4 +9,5 @@ export const authApi = {
   requestPasswordReset: (email) => client.post('/auth/password-reset/request', { email }),
   confirmPasswordReset: (token, newPassword) =>
     client.post('/auth/password-reset/confirm', { token, new_password: newPassword }),
+  vkEnabled: () => client.get('/auth/vk/enabled'),
 }

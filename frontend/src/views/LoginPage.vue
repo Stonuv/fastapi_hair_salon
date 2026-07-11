@@ -27,6 +27,8 @@
         <BaseButton type="submit" class="w-full" :loading="loading">Войти</BaseButton>
       </form>
 
+      <VkLoginButton />
+
       <p class="mt-4 text-center text-sm">
         <router-link to="/password-reset" class="text-brand-900 hover:underline">Забыли пароль?</router-link>
       </p>
@@ -39,7 +41,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -48,6 +50,7 @@ import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import VkLoginButton from '../components/ui/VkLoginButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -57,6 +60,24 @@ const { errors, setError, clearError, setFromResponse } = useFormErrors()
 
 const form = reactive({ email: '', password: '' })
 const loading = ref(false)
+
+// Ошибки OAuth-редиректа приходят query-параметром (см. routes/auth.py
+// vk_callback: fail() редиректит на /login?error=<код>, а не 4xx/5xx —
+// пользователь в этот момент уже в браузере посреди редиректа с VK).
+const VK_ERROR_MESSAGES = {
+  vk_not_configured: 'Вход через VK временно недоступен',
+  vk_auth_cancelled: 'Вход через VK отменён',
+  vk_auth_failed: 'Не удалось войти через VK. Попробуйте ещё раз',
+  vk_token_exchange_failed: 'Не удалось войти через VK. Попробуйте ещё раз',
+  vk_user_info_failed: 'Не удалось получить данные профиля VK',
+  vk_email_required: 'К вашему аккаунту VK не привязан email — вход невозможен',
+  account_blocked: 'Аккаунт заблокирован. Обратитесь к администратору',
+}
+
+onMounted(() => {
+  const code = route.query.error
+  if (code) toast.error(VK_ERROR_MESSAGES[code] || 'Не удалось войти через VK')
+})
 
 function validateEmail() {
   if (!form.email) return setError('email', 'Укажите email')

@@ -52,6 +52,8 @@
         <BaseButton type="submit" class="w-full" :loading="loading">Зарегистрироваться</BaseButton>
       </form>
 
+      <VkLoginButton />
+
       <p class="mt-4 text-center text-sm text-ink-600">
         Уже есть аккаунт?
         <router-link to="/login" class="font-medium text-brand-900 hover:underline">Войти</router-link>
@@ -70,6 +72,7 @@ import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import VkLoginButton from '../components/ui/VkLoginButton.vue'
 
 const router = useRouter()
 const auth = useAuthStore()

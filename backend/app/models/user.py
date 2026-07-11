@@ -26,11 +26,17 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
               postgresql_where=text("deleted_at IS NULL")),
         Index("uq_users_phone_active", "phone", unique=True,
               postgresql_where=text("deleted_at IS NULL AND phone IS NOT NULL")),
+        Index("uq_users_vk_user_id_active", "vk_user_id", unique=True,
+              postgresql_where=text("deleted_at IS NULL AND vk_user_id IS NOT NULL")),
         Index("ix_users_role", "role"),
     )
 
     email: Mapped[str] = mapped_column(String(255), nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # NULL — аккаунт создан через VK ID (OAuth), пароля никогда не было;
+    # такие аккаунты не проходят обычный login() по email/паролю (см. auth_service).
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # ID пользователя VK ID (user_info.user_id) — привязка OAuth-аккаунта.
+    vk_user_id: Mapped[str | None] = mapped_column(String(64))
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(20))
