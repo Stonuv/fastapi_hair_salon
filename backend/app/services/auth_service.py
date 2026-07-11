@@ -216,7 +216,10 @@ class AuthService:
         self.reset_token_repo.create(user.id, _hash_token(raw_token), expires_at)
 
         reset_link = f"{settings.frontend_base_url}/reset-password?token={raw_token}"
-        logger.info(
+        # DEBUG, не INFO: с рабочим SMTP это только для локальной отладки —
+        # на INFO (уровень по умолчанию в проде, см. main.py) сырой токен
+        # утекал бы в логи контейнера и позволял сбросить пароль в обход письма.
+        logger.debug(
             "Password reset requested for %s — link: %s (expires %s)",
             user.email, reset_link, expires_at.isoformat(),
         )
