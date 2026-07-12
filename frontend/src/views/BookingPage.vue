@@ -32,13 +32,16 @@
           <button
             v-for="ms in masterServices"
             :key="ms.service.id"
-            class="flex w-full cursor-pointer items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors duration-200"
+            class="flex w-full cursor-pointer items-start justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors duration-200"
             :class="selectedService?.service.id === ms.service.id
               ? 'border-brand-900 bg-accent-100/60'
               : 'border-stone-200 bg-white hover:border-brand-900/50'"
             @click="selectService(ms)"
           >
-            <span class="font-medium text-ink-900">{{ ms.service.name }}</span>
+            <span>
+              <span class="block font-medium text-ink-900">{{ ms.service.name }}</span>
+              <span v-if="ms.service.description" class="mt-0.5 block text-sm text-ink-600">{{ ms.service.description }}</span>
+            </span>
             <span class="whitespace-nowrap font-mono text-sm text-brand-700">{{ ms.service.duration_min }} мин · {{ ms.final_price }} ₽</span>
           </button>
         </div>
@@ -51,7 +54,7 @@
           <button
             v-for="d in availableDates"
             :key="d.iso"
-            class="flex min-w-[64px] cursor-pointer flex-col items-center rounded-lg border px-3 py-2 transition-colors duration-200"
+            class="flex w-20 flex-shrink-0 cursor-pointer flex-col items-center rounded-lg border px-3 py-2 transition-colors duration-200"
             :class="selectedDate === d.iso ? 'border-brand-900 bg-accent-100/60' : 'border-stone-200 bg-white hover:border-brand-900/50'"
             @click="selectDate(d.iso)"
           >

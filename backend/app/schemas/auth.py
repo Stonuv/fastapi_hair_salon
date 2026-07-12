@@ -1,15 +1,15 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
-from .fields import PasswordStr
+from .fields import NormalizedEmailStr, PasswordStr
 from .user import UserResponse
 
 # ── Запрос на вход ───────────────────────────────────────────────
 
 
 class LoginRequest(BaseModel):
-    email:    Annotated[EmailStr, Field(description="Email пользователя")]
+    email:    Annotated[NormalizedEmailStr, Field(description="Email пользователя")]
     password: Annotated[str, Field(description="Пароль")]
 
 
@@ -22,11 +22,11 @@ class TokenResponse(BaseModel):
     user:         Annotated[UserResponse, Field(description="Данные авторизованного пользователя")]
 
 
-# ── Восстановление пароля (без реальной отправки email — см. config.py) ──
+# ── Восстановление пароля ──────────────────────────────────────
 
 
 class PasswordResetRequest(BaseModel):
-    email: Annotated[EmailStr, Field(description="Email для восстановления пароля")]
+    email: Annotated[NormalizedEmailStr, Field(description="Email для восстановления пароля")]
 
 
 class PasswordResetConfirm(BaseModel):

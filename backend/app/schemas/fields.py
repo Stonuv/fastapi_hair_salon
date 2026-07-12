@@ -2,7 +2,7 @@
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import AfterValidator, Field, PlainSerializer
+from pydantic import AfterValidator, BeforeValidator, EmailStr, Field, PlainSerializer
 
 # bcrypt хеширует только первые 72 байта и (начиная с bcrypt 5.x) бросает
 # ValueError на более длинный ввод — без верхней границы запрос с длинным
@@ -17,6 +17,12 @@ def _fits_bcrypt(v: str) -> str:
 
 
 NameStr        = Annotated[str, Field(min_length=1, max_length=100)]
+# Email не должен быть case sensitive: без нормализации "User@Example.com" и
+# "user@example.com" проходят и уникальность (партиальный индекс по email),
+# и последующий поиск как разные адреса — lower() применяется до валидации
+# EmailStr, чтобы регистрация/логин/сброс пароля/редактирование админом
+# всегда сравнивали приведённое значение.
+NormalizedEmailStr = Annotated[EmailStr, BeforeValidator(lambda v: v.lower() if isinstance(v, str) else v)]
 # Цвет темы оформления: строго #RRGGBB (то, что отдаёт <input type="color">)
 HexColorStr    = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{6}$")]
 # Телефон: цифры, необязательный +, скобки/пробелы/дефисы; 5–20 символов

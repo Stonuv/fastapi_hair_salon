@@ -1,8 +1,12 @@
 <template>
+  <!-- exact-active-class, не active-class: обе панели (dashboard/admin) держат
+       index-пункт ("Мои записи"/"Статистика") на пустом дочернем path ('') —
+       нестрогий active-class у router-link подсвечивал бы его на любом
+       вложенном маршруте (например /dashboard/schedule), а не только на себе. -->
   <router-link
     :to="to"
     class="flex items-center gap-3 px-3 py-2.5 font-mono text-xs uppercase tracking-wide text-white/80 transition-colors duration-200 hover:bg-white/10 hover:text-white"
-    active-class="bg-white/15 text-white"
+    exact-active-class="bg-white/15 text-white"
   >
     <component :is="icon" class="h-5 w-5" aria-hidden="true" />
     <span>{{ label }}</span>

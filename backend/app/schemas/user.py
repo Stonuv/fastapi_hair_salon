@@ -2,16 +2,16 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.enums import UserRole
-from .fields import NameStr, PasswordStr, PhoneStr
+from .fields import NameStr, NormalizedEmailStr, PasswordStr, PhoneStr
 
 # ── Базовые поля ─────────────────────────────────────────────────
 
 
 class UserBase(BaseModel):
-    email:      Annotated[EmailStr, Field(description="Email пользователя")]
+    email:      Annotated[NormalizedEmailStr, Field(description="Email пользователя")]
     first_name: Annotated[NameStr,  Field(description="Имя")]
     last_name:  Annotated[NameStr,  Field(description="Фамилия")]
     phone:      Annotated[PhoneStr | None, Field(default=None, description="Номер телефона")]
@@ -43,7 +43,7 @@ class AdminUserUpdate(BaseModel):
     """Редактирование пользователя администратором — в отличие от
     самостоятельного обновления профиля (UserUpdate), позволяет также
     менять email и принудительно задать новый пароль."""
-    email:        Annotated[EmailStr | None, Field(default=None)]
+    email:        Annotated[NormalizedEmailStr | None, Field(default=None)]
     first_name:   Annotated[NameStr | None,  Field(default=None)]
     last_name:    Annotated[NameStr | None,  Field(default=None)]
     phone:        Annotated[PhoneStr | None, Field(default=None)]

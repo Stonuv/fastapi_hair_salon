@@ -146,7 +146,10 @@ const editData = reactive({
 async function saveProfile() {
   editLoading.value = true
   try {
-    await auth.updateMe(editData)
+    // '' -> null: PhoneStr на бэкенде допускает "не указан" только как null
+    // (пустая строка не проходит паттерн PhoneStr, {5,20} символов) — иначе
+    // пустое поле телефона блокирует сохранение имени/фамилии целиком.
+    await auth.updateMe({ ...editData, phone: editData.phone || null })
     toast.success('Профиль обновлён')
     editOpen.value = false
   } catch (err) {

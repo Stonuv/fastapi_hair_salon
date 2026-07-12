@@ -7,7 +7,11 @@
       class="w-full cursor-pointer rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 text-base transition-colors duration-200 focus:border-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
       @change="$emit('update:modelValue', $event.target.value)"
     >
-      <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
+      <!-- Не disabled: во всех текущих применениях placeholder — это реальный
+           вариант "сбросить фильтр" (например /masters "Любая услуга"), а не
+           просто затравка формы — disabled делал бы его невыбираемым назад
+           после того, как выбран другой option (ISSUES #24). -->
+      <option v-if="placeholder" value="">{{ placeholder }}</option>
       <slot />
     </select>
   </div>

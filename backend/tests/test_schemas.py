@@ -7,14 +7,14 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.appointment import AppointmentCreate
-from app.schemas.auth import PasswordResetConfirm
+from app.schemas.auth import LoginRequest, PasswordResetConfirm, PasswordResetRequest
 from app.schemas.schedule import ScheduleCreate, ScheduleUpdate
 from app.schemas.service import ServiceCreate, ServiceResponse
 from app.schemas.user import UserCreate
 
 
-def _user(password: str) -> UserCreate:
-    return UserCreate(email="a@b.c", first_name="Имя", last_name="Фамилия",
+def _user(password: str, email: str = "a@b.c") -> UserCreate:
+    return UserCreate(email=email, first_name="Имя", last_name="Фамилия",
                       password=password)
 
 
@@ -39,6 +39,20 @@ class TestPasswordLimits:
     def test_reset_confirm_uses_same_limits(self):
         with pytest.raises(ValidationError):
             PasswordResetConfirm(token="t", new_password="x" * 100)
+
+
+class TestEmailNormalization:
+    """Email не case sensitive нигде в проекте (ISSUES #31) — .lower()
+    применяется на уровне схемы, до записи/поиска в БД."""
+
+    def test_user_create_lowercases_email(self):
+        assert _user("правильный-пароль-1", email="User@Example.COM").email == "user@example.com"
+
+    def test_login_request_lowercases_email(self):
+        assert LoginRequest(email="User@Example.COM", password="x").email == "user@example.com"
+
+    def test_password_reset_request_lowercases_email(self):
+        assert PasswordResetRequest(email="User@Example.COM").email == "user@example.com"
 
 
 class TestScheduleValidation:

@@ -76,7 +76,12 @@ class VkOAuthService:
             raise VkOAuthError("vk_token_exchange_failed")
 
         profile = self._fetch_user_info(access_token)
+        # .lower() — email нигде в проекте не case sensitive (партиальный
+        # уникальный индекс/поиск по users.email), а этот email пришёл не
+        # через Pydantic-схему (NormalizedEmailStr), а напрямую из ответа VK.
         email = profile.get("email")
+        if email:
+            email = email.lower()
         first_name = profile.get("first_name") or "VK"
         last_name = profile.get("last_name") or "User"
 

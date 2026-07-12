@@ -286,7 +286,10 @@ const marqueeText = computed(() =>
 const avgDurationLabel = computed(() => {
   if (!services.value.length) return '—'
   const avg = services.value.reduce((sum, s) => sum + s.duration_min, 0) / services.value.length
-  return `${Math.round(avg)} мин`
+  // Округляем до 10 минут — это витринная цифра в hero-блоке, точность до
+  // минуты (например "32 мин") выглядит случайной, а не как аккуратная
+  // маркетинговая метрика (ISSUES #6).
+  return `${Math.round(avg / 10) * 10} мин`
 })
 
 async function loadServices() {
