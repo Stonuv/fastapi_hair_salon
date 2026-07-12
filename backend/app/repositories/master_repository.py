@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Literal, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..models.master import Master, MasterService
+from ..models.service import Service
 from ..models.user import User
 from ..schemas.master import MasterUpdate
 from ._query_utils import LIKE_ESCAPE_CHAR, escape_like, paginated
@@ -39,7 +41,7 @@ class MasterRepository:
         page_size: int,
         specialization: str | None = None,
         service_id: uuid.UUID | None = None,
-        sort_by: Literal["name", "coefficient"] = "name",
+        sort_by: Literal["name", "price"] = "name",
         sort_order: Literal["asc", "desc"] = "asc",
     ) -> tuple[list[Master], int]:
         """Каталог активных мастеров — фильтр по специализации и/или оказываемой услуге."""
@@ -54,9 +56,22 @@ class MasterRepository:
                 f"%{escape_like(specialization)}%", escape=LIKE_ESCAPE_CHAR
             ))
         if service_id is not None:
-            stmt = stmt.join(Master.services).where(MasterService.service_id == service_id)
+            stmt = (stmt.join(Master.services).join(MasterService.service)
+                        .where(MasterService.service_id == service_id))
 
-        sort_column = User.last_name if sort_by == "name" else Master.coefficient
+        if sort_by == "name":
+            sort_column = User.last_name
+        elif service_id is not None:
+            # Услуга выбрана — точная итоговая цена для неё: override, если
+            # задан, иначе base_price * coefficient (см. _final_price в
+            # services/master_service.py — та же формула).
+            sort_column = func.coalesce(MasterService.price_override, Service.price * Master.coefficient)
+        else:
+            # Без выбранной услуги единой цены не существует (у мастера может
+            # быть много услуг по разным ценам) — coefficient как приближение
+            # общего уровня цен; наружу термин "коэффициент" не выставляется,
+            # только "цена" (см. sort_by в routes/masters.py).
+            sort_column = Master.coefficient
         order = sort_column.asc() if sort_order == "asc" else sort_column.desc()
         stmt = stmt.order_by(order)
 
@@ -106,7 +121,7 @@ class MasterRepository:
     # ── Услуги мастера ───────────────────────────────────────────
 
     def add_service(self, master_id: uuid.UUID, service_id: uuid.UUID,
-                    price_override: float | None = None) -> MasterService:
+                    price_override: Decimal | None = None) -> MasterService:
         ms = MasterService(
             master_id=master_id,
             service_id=service_id,

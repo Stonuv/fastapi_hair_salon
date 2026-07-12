@@ -39,7 +39,7 @@ class MasterService:
         self, *, page: int, page_size: int,
         specialization: str | None = None,
         service_id: UUID | None = None,
-        sort_by: Literal["name", "coefficient"] = "name",
+        sort_by: Literal["name", "price"] = "name",
         sort_order: Literal["asc", "desc"] = "asc",
     ) -> PageResponse[MasterBriefResponse]:
         masters, total = self.master_repo.list_paginated(

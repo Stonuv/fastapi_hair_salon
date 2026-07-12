@@ -18,7 +18,7 @@
         </BaseSelect>
         <BaseSelect v-model="filters.sort_by">
           <option value="name">По имени</option>
-          <option value="coefficient">По коэффициенту</option>
+          <option value="price">По цене</option>
         </BaseSelect>
         <button
           class="flex items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-ink-600 transition-colors duration-200 hover:border-brand-900 hover:text-brand-900 cursor-pointer"

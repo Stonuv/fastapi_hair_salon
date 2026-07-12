@@ -41,7 +41,7 @@ def get_masters(
     page_params: Annotated[PageParams, Depends()],
     specialization: Annotated[str | None, Query(description="Поиск по специализации")] = None,
     service_id: Annotated[UUID | None, Query(description="Фильтр: оказывает указанную услугу")] = None,
-    sort_by: Annotated[Literal["name", "coefficient"], Query()] = "name",
+    sort_by: Annotated[Literal["name", "price"], Query()] = "name",
     sort_order: Annotated[Literal["asc", "desc"], Query()] = "asc",
 ):
     """Каталог активных мастеров — фильтр + сортировка + пагинация (1.4). Публичный эндпоинт."""
