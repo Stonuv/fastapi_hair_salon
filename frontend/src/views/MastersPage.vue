@@ -11,23 +11,25 @@
     </section>
 
     <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div class="mb-8 grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr_auto]">
+      <div class="mb-8 grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr]">
         <BaseInput v-model="filters.specialization" placeholder="Поиск по специализации…" aria-label="Поиск по специализации" />
         <BaseSelect v-model="filters.service_id" placeholder="Любая услуга">
           <option v-for="s in services" :key="s.id" :value="s.id">{{ s.name }}</option>
         </BaseSelect>
-        <BaseSelect v-model="filters.sort_by">
-          <option value="name">По имени</option>
-          <option value="price">По цене</option>
-        </BaseSelect>
-        <button
-          class="flex items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-ink-600 transition-colors duration-200 hover:border-brand-900 hover:text-brand-900 cursor-pointer"
-          :aria-label="filters.sort_order === 'asc' ? 'По возрастанию' : 'По убыванию'"
-          @click="filters.sort_order = filters.sort_order === 'asc' ? 'desc' : 'asc'"
-        >
-          <BarsArrowUpIcon v-if="filters.sort_order === 'asc'" class="h-5 w-5" aria-hidden="true" />
-          <BarsArrowDownIcon v-else class="h-5 w-5" aria-hidden="true" />
-        </button>
+        <div class="flex gap-3">
+          <BaseSelect v-model="filters.sort_by" class="flex-1">
+            <option value="name">По имени</option>
+            <option value="price">По цене</option>
+          </BaseSelect>
+          <button
+            class="flex w-11 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-ink-600 transition-colors duration-200 hover:border-brand-900 hover:text-brand-900 cursor-pointer"
+            :aria-label="filters.sort_order === 'asc' ? 'По возрастанию' : 'По убыванию'"
+            @click="filters.sort_order = filters.sort_order === 'asc' ? 'desc' : 'asc'"
+          >
+            <BarsArrowUpIcon v-if="filters.sort_order === 'asc'" class="h-5 w-5" aria-hidden="true" />
+            <BarsArrowDownIcon v-else class="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">

@@ -49,10 +49,9 @@
               <BaseInput v-model="form.price" type="number" min="1" step="1" label="Цена, ₽" required />
               <BaseInput v-model="form.duration_min" type="number" min="5" step="5" label="Длительность, мин" required />
             </div>
-            <label v-if="editingId" class="flex items-center gap-2 text-sm text-ink-900">
-              <input v-model="form.is_active" type="checkbox" class="h-5 w-5 cursor-pointer rounded border-stone-200 text-brand-900" />
+            <BaseCheckbox v-if="editingId" v-model="form.is_active" class="text-sm text-ink-900">
               Активна в каталоге
-            </label>
+            </BaseCheckbox>
             <div class="flex justify-end gap-3">
               <BaseButton variant="ghost" size="sm" type="button" @click="formOpen = false">Отмена</BaseButton>
               <BaseButton size="sm" type="submit" :loading="saving">Сохранить</BaseButton>
@@ -86,6 +85,7 @@ import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'

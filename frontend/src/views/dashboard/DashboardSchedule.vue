@@ -3,14 +3,9 @@
     <Skeleton v-if="loading" height="h-96" />
     <div v-else class="space-y-3">
       <BaseCard v-for="day in days" :key="day.value" class="flex flex-wrap items-center gap-4">
-        <label class="flex w-32 flex-shrink-0 items-center gap-2 font-medium text-ink-900">
-          <input
-            type="checkbox"
-            class="h-5 w-5 cursor-pointer rounded border-stone-200 text-brand-900 focus:ring-brand-900/30"
-            v-model="day.is_working"
-          />
+        <BaseCheckbox v-model="day.is_working" class="w-32 flex-shrink-0 font-medium text-ink-900">
           {{ day.label }}
-        </label>
+        </BaseCheckbox>
         <template v-if="day.is_working">
           <BaseInput v-model="day.start_time" type="time" class="w-36" />
           <span class="text-ink-600">—</span>
@@ -40,6 +35,7 @@ import { extractErrorMessage } from '../../utils/errors'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 
 const profileStore = useMasterProfileStore()

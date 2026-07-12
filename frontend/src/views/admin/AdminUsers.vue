@@ -1,24 +1,27 @@
 <template>
   <div>
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="grid flex-1 gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
+      <div class="grid flex-1 gap-3 sm:grid-cols-[2fr_1fr_1fr]">
         <BaseInput v-model="search" placeholder="Поиск по имени или email…" aria-label="Поиск" />
         <BaseSelect v-model="role" placeholder="Любая роль">
           <option value="client">Клиент</option>
           <option value="master">Мастер</option>
           <option value="admin">Администратор</option>
         </BaseSelect>
-        <BaseSelect v-model="sortBy">
-          <option value="created_at">По дате регистрации</option>
-          <option value="email">По email</option>
-        </BaseSelect>
-        <button
-          class="flex items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-ink-600 transition-colors duration-200 hover:border-brand-900 hover:text-brand-900 cursor-pointer"
-          @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-        >
-          <BarsArrowUpIcon v-if="sortOrder === 'asc'" class="h-5 w-5" aria-hidden="true" />
-          <BarsArrowDownIcon v-else class="h-5 w-5" aria-hidden="true" />
-        </button>
+        <div class="flex gap-3">
+          <BaseSelect v-model="sortBy" class="flex-1">
+            <option value="created_at">По дате регистрации</option>
+            <option value="email">По email</option>
+          </BaseSelect>
+          <button
+            class="flex w-11 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-white text-ink-600 transition-colors duration-200 hover:border-brand-900 hover:text-brand-900 cursor-pointer"
+            :aria-label="sortOrder === 'asc' ? 'По возрастанию' : 'По убыванию'"
+            @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+          >
+            <BarsArrowUpIcon v-if="sortOrder === 'asc'" class="h-5 w-5" aria-hidden="true" />
+            <BarsArrowDownIcon v-else class="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <BaseButton @click="openCreate">Создать пользователя</BaseButton>
     </div>

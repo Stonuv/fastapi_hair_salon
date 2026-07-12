@@ -10,6 +10,7 @@
       :placeholder="placeholder"
       :required="required"
       :rows="rows"
+      :lang="lang"
       class="w-full rounded-lg border px-3.5 py-2.5 text-base transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
       :class="error ? 'border-danger focus:border-danger' : 'border-stone-200 focus:border-brand-900'"
       @input="$emit('update:modelValue', $event.target.value)"
@@ -26,6 +27,7 @@
       :min="min"
       :max="max"
       :step="step"
+      :lang="lang"
       class="w-full rounded-lg border px-3.5 py-2.5 text-base transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
       :class="error ? 'border-danger focus:border-danger' : 'border-stone-200 focus:border-brand-900'"
       @input="$emit('update:modelValue', $event.target.value)"
@@ -52,6 +54,7 @@ const props = defineProps({
   min: [String, Number],
   max: [String, Number],
   step: [String, Number],
+  lang: { type: String, default: 'ru' },
 })
 defineEmits(['update:modelValue', 'blur'])
 

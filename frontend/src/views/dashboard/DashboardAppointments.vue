@@ -1,15 +1,15 @@
 <template>
   <div>
     <div class="mb-4 flex flex-wrap items-center gap-3">
-      <BaseSelect v-model="statusFilter" class="w-48">
+      <BaseSelect v-model="statusFilter" class="w-full sm:w-48">
         <option value="">Все статусы</option>
         <option value="pending">Ожидают</option>
         <option value="confirmed">Подтверждены</option>
         <option value="done">Завершены</option>
         <option value="cancelled">Отменены</option>
       </BaseSelect>
-      <BaseInput v-model="dateFrom" type="date" class="w-44" />
-      <BaseInput v-model="dateTo" type="date" class="w-44" />
+      <BaseInput v-model="dateFrom" type="date" class="w-[calc(50%-0.375rem)] sm:w-44" />
+      <BaseInput v-model="dateTo" type="date" class="w-[calc(50%-0.375rem)] sm:w-44" />
     </div>
 
     <div v-if="loading" class="space-y-3">

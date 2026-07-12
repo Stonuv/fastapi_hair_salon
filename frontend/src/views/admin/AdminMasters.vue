@@ -48,7 +48,7 @@
             <p v-if="!masterServices[m.id]?.items?.length" class="text-sm text-ink-600">Нет услуг</p>
           </div>
 
-          <form class="mt-3 flex flex-wrap items-end gap-2" @submit.prevent="addService(m)">
+          <form class="mt-3 flex flex-wrap items-end gap-2" novalidate @submit.prevent="addService(m)">
             <BaseSelect v-model="newService[m.id]" class="w-52" placeholder="Услуга">
               <option v-for="s in allServices" :key="s.id" :value="s.id">{{ s.name }}</option>
             </BaseSelect>
@@ -67,14 +67,9 @@
               :key="day.value"
               class="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 px-3 py-2"
             >
-              <label class="flex w-32 flex-shrink-0 items-center gap-2 text-sm font-medium text-ink-900">
-                <input
-                  type="checkbox"
-                  class="h-4 w-4 cursor-pointer rounded border-stone-200 text-brand-900 focus:ring-brand-900/30"
-                  v-model="day.is_working"
-                />
+              <BaseCheckbox v-model="day.is_working" class="w-32 flex-shrink-0 text-sm font-medium text-ink-900">
                 {{ day.label }}
-              </label>
+              </BaseCheckbox>
               <template v-if="day.is_working">
                 <BaseInput v-model="day.start_time" type="time" class="w-32" />
                 <span class="text-ink-600">—</span>
@@ -111,6 +106,7 @@ import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'

@@ -3,7 +3,7 @@
     <Skeleton v-if="loading" height="h-96" />
 
     <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_660px] lg:items-start">
-      <form class="space-y-6" @submit.prevent="save">
+      <form class="space-y-6" novalidate @submit.prevent="save">
       <BaseCard>
         <StepTitle n="1" title="Шапка сайта" />
         <div class="grid gap-4 sm:grid-cols-2">
