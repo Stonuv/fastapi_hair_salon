@@ -54,10 +54,12 @@ class TestIsCompleted:
 
 class TestComplete:
     def test_rejects_when_admin_already_exists(self):
+        # 404, не 409 — эндпоинт должен выглядеть закрытым для внешнего
+        # наблюдателя, а не просто "занятым" (ISSUES #28).
         svc = make_service(admin_exists=True)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request())
-        assert exc.value.status_code == 409
+        assert exc.value.status_code == 404
 
     def test_rejects_duplicate_email(self):
         svc = make_service(admin_exists=False, email_exists=True)

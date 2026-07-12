@@ -26,7 +26,8 @@ def complete_setup(data: SetupRequest, response: Response, db: Session = Depends
     Публичный по необходимости — до первого вызова в системе нет ни одного
     admin, которым можно было бы его защитить; если задан SETUP_TOKEN, вместо
     этого запрос обязан предъявить его в теле (см. SetupService.complete).
-    Самоблокируется: как только admin появился, дальнейшие вызовы возвращают 409.
+    Самоблокируется: как только admin появился, дальнейшие вызовы возвращают
+    404 (не 409 — эндпоинт должен выглядеть закрытым, а не просто занятым).
     """
     token_response = SetupService(db).complete(data)
     set_auth_cookie(response, token_response.access_token)

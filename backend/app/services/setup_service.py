@@ -17,7 +17,10 @@ class SetupService:
     """Первичная настройка после развёртывания: создание первого админа
     (и опционально базовых полей контента сайта) одним запросом от визарда
     на фронтенде. Как только хотя бы один admin существует, эндпоинт
-    навсегда возвращает 409 — повторно им воспользоваться нельзя.
+    навсегда возвращает 404 — выглядит как несуществующий, а не просто
+    запрещённый (ISSUES #28: 409 подтверждал бы факт установки анонимному
+    пробующему запросу; GET /api/setup/status при этом остаётся 200 как и
+    был — на нём завязан общий router-guard фронтенда на каждой навигации).
 
     До появления админа /api/setup неизбежно публичен — если задан
     SETUP_TOKEN (обязателен вне debug, см. config.py), запрос обязан
@@ -44,7 +47,7 @@ class SetupService:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                     detail="Неверный код настройки (SETUP_TOKEN)")
         if self.is_completed():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Настройка уже выполнена")
         if self.user_repo.email_exists(data.admin.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,

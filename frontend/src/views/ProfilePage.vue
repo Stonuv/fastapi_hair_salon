@@ -23,7 +23,7 @@
       </form>
     </BaseCard>
 
-    <section class="mt-10">
+    <section v-if="!auth.isMaster" class="mt-10">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 class="font-display text-xl font-bold uppercase tracking-tight text-ink-900">Мои записи</h2>
         <BaseSelect v-model="statusFilter" class="w-48">
@@ -196,7 +196,14 @@ async function cancel(id) {
 
 useDebouncedWatch(statusFilter, () => { page.value = 1; loadAppointments() }, 0)
 useDebouncedWatch(page, loadAppointments, 0)
-onMounted(loadAppointments)
+
+// GET /api/appointments/my — только роль client (админ тоже пропускается
+// бэкендом, но у него своя панель); у мастера нет записей "как клиента" —
+// раздел скрыт выше (v-if="!auth.isMaster"), здесь дублируем проверку, чтобы
+// не слать заведомо 403-запрос при заходе мастера на /profile.
+onMounted(() => {
+  if (!auth.isMaster) loadAppointments()
+})
 
 // ── Отзыв ──────────────────────────────────────────────────────────
 const reviewTarget = ref(null)

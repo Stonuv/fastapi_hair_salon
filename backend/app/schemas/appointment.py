@@ -9,7 +9,7 @@ from ..models.enums import AppointmentStatus
 from .fields import MoneyOut
 from .master import MasterBriefResponse
 from .service import ServiceResponse
-from .user import UserResponse
+from .user import ClientBriefResponse
 
 # ── Создание записи (от клиента) ─────────────────────────────────
 
@@ -66,7 +66,7 @@ class AppointmentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id:          UUID
-    client:      UserResponse
+    client:      ClientBriefResponse
     master:      MasterBriefResponse
     service:     ServiceResponse
     start_time:  datetime

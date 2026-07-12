@@ -74,3 +74,15 @@ class UserPublicResponse(BaseModel):
 
     first_name: str
     last_name:  str
+
+
+class ClientBriefResponse(BaseModel):
+    """Клиент в контексте записи (AppointmentResponse.client) — имя и
+    телефон (мастеру есть смысл связаться), без email/роли/is_blocked/
+    created_at: клиенту эти поля о себе тут не нужны, мастеру/админу —
+    тем более (ISSUES #23 — GET /appointments/{id} отдавал полный UserResponse)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    first_name: str
+    last_name:  str
+    phone:      str | None

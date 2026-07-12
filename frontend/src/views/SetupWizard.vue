@@ -221,7 +221,7 @@ async function finish() {
     toast.success('Настройка завершена — добро пожаловать!')
     router.push({ name: 'admin-stats' })
   } catch (err) {
-    if (err.response?.status === 409) {
+    if (err.response?.status === 404) {
       setup.markCompleted()
       toast.error('Настройка уже была выполнена ранее')
       router.push({ name: 'login' })

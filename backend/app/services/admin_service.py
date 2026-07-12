@@ -121,9 +121,18 @@ class AdminService:
         if user.role != UserRole.master:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Сначала назначьте пользователю роль 'master'")
-        if self.master_repo.get_by_user_id(user_id):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Профиль мастера уже существует")
+        existing = self.master_repo.get_by_user_id(user_id)
+        if existing:
+            if existing.is_active:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Профиль мастера уже существует")
+            # Пользователь уже был мастером и был демоушен (change_role лишь
+            # деактивирует профиль, не удаляет — см. master_repo.deactivate) —
+            # восстанавливаем старый профиль вместо 409 без выхода, который
+            # раньше вынуждал пересоздавать аккаунт с нуля.
+            master = self.master_repo.reactivate(existing)
+            master = self.master_repo.get_by_id(master.id)
+            return MasterResponse.model_validate(master)
         master = self.master_repo.create(user_id)
         master = self.master_repo.get_by_id(master.id)
         return MasterResponse.model_validate(master)

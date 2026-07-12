@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..models.appointment import Appointment
@@ -87,6 +87,15 @@ class AppointmentRepository:
             .order_by(Appointment.start_time)
         )
         return list(self.db.execute(stmt).scalars().all())
+
+    def count_active_for_client(self, client_id: uuid.UUID) -> int:
+        """Число незавершённых записей клиента (pending/confirmed) — для лимита
+        на одновременные бронирования (см. settings.max_active_appointments_per_client)."""
+        stmt = select(func.count()).where(
+            Appointment.client_id == client_id,
+            Appointment.status.in_((AppointmentStatus.pending, AppointmentStatus.confirmed)),
+        )
+        return self.db.execute(stmt).scalar_one()
 
     def get_overlapping(self, master_id: uuid.UUID,
                         start_time: datetime,

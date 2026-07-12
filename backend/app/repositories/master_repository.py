@@ -113,6 +113,15 @@ class MasterRepository:
         master.is_active = False
         self.db.flush()
 
+    def reactivate(self, master: Master) -> Master:
+        """Обратное к deactivate() — при повторном назначении роли master тому
+        же пользователю восстанавливает его старый профиль (специализация,
+        коэффициент, услуги, история отзывов) вместо создания нового."""
+        master.is_active = True
+        self.db.flush()
+        self.db.refresh(master)
+        return master
+
     def soft_delete(self, master: Master) -> None:
         master.deleted_at = datetime.now(timezone.utc)
         master.is_active = False

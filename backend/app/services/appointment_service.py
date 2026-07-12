@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..models.enums import AppointmentStatus, UserRole
 from ..models.user import User
 from ..repositories.appointment_repository import AppointmentRepository
@@ -44,6 +45,19 @@ class AppointmentService:
     # ── Создание записи ──────────────────────────────────────────
 
     def create(self, client_id: UUID, data: AppointmentCreate) -> AppointmentResponse:
+        # 0. Лимит одновременных незавершённых записей — иначе клиент может
+        # забронировать неограниченное число слотов подряд.
+        active_count = self.appointment_repo.count_active_for_client(client_id)
+        if active_count >= settings.max_active_appointments_per_client:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Слишком много активных записей (максимум "
+                    f"{settings.max_active_appointments_per_client}). Дождитесь "
+                    "завершения одной из них или отмените её."
+                ),
+            )
+
         # 1. Проверяем что мастер и услуга существуют
         master = self.master_repo.get_by_id(data.master_id)
         if not master or not master.is_active:
