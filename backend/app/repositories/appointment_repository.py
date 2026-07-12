@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Literal, Optional
 
@@ -148,3 +148,53 @@ class AppointmentRepository:
         self.db.flush()
         self.db.refresh(appointment)
         return appointment
+
+    # ── Напоминания (ReminderService) ───────────────────────────────
+
+    def list_due_24h_reminders(self, now: datetime) -> list[Appointment]:
+        """Записи, которым пора получить напоминание "за 24 часа": ещё не
+        отправлено, до начала остался 24-часовой рубеж, но ещё больше 2
+        часов — если опрос пропустил окно (бэкенд был недоступен), запись
+        уже попавшая в 2-часовое окно получит только "за 2 часа", без
+        задвоения писем."""
+        stmt = (
+            select(Appointment)
+            .options(
+                joinedload(Appointment.client),
+                joinedload(Appointment.master).joinedload(Master.user),
+                joinedload(Appointment.service),
+            )
+            .where(
+                Appointment.status.in_((AppointmentStatus.pending, AppointmentStatus.confirmed)),
+                Appointment.reminder_24h_sent_at.is_(None),
+                Appointment.start_time > now + timedelta(hours=2),
+                Appointment.start_time <= now + timedelta(hours=24),
+            )
+        )
+        return list(self.db.execute(stmt).unique().scalars().all())
+
+    def list_due_2h_reminders(self, now: datetime) -> list[Appointment]:
+        """Записи, которым пора получить напоминание "за 2 часа"."""
+        stmt = (
+            select(Appointment)
+            .options(
+                joinedload(Appointment.client),
+                joinedload(Appointment.master).joinedload(Master.user),
+                joinedload(Appointment.service),
+            )
+            .where(
+                Appointment.status.in_((AppointmentStatus.pending, AppointmentStatus.confirmed)),
+                Appointment.reminder_2h_sent_at.is_(None),
+                Appointment.start_time > now,
+                Appointment.start_time <= now + timedelta(hours=2),
+            )
+        )
+        return list(self.db.execute(stmt).unique().scalars().all())
+
+    def mark_24h_reminder_sent(self, appointment: Appointment) -> None:
+        appointment.reminder_24h_sent_at = datetime.now(timezone.utc)
+        self.db.flush()
+
+    def mark_2h_reminder_sent(self, appointment: Appointment) -> None:
+        appointment.reminder_2h_sent_at = datetime.now(timezone.utc)
+        self.db.flush()

@@ -9,6 +9,7 @@ from .config import settings
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
                      reviews_router, site_settings_router, setup_router)
+from .scheduler import lifespan
 
 # uvicorn настраивает только свои собственные логгеры (uvicorn.*) —
 # без этого вызова логгеры приложения (например, auth_service при
@@ -20,6 +21,7 @@ app = FastAPI(
     debug=settings.debug,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

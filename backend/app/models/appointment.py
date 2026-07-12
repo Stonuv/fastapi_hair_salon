@@ -53,6 +53,10 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         SAEnum(AppointmentStatus, name="appointment_status"),
         nullable=False, default=AppointmentStatus.pending,
     )
+    # NULL — напоминание ещё не отправлено; см. ReminderService/reminder_repo.
+    # Метка времени отправки, а не bool — заодно и аудит, когда ушло письмо.
+    reminder_24h_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_2h_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     client: Mapped["User"] = relationship(back_populates="appointments", foreign_keys=[client_id])
     master: Mapped["Master"] = relationship(back_populates="appointments", foreign_keys=[master_id])
