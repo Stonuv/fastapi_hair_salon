@@ -65,9 +65,9 @@
                 {{ day.label }}
               </BaseCheckbox>
               <template v-if="day.is_working">
-                <BaseInput v-model="day.start_time" type="time" class="w-32" />
+                <BaseTimeInput v-model="day.start_time" />
                 <span class="text-ink-600">—</span>
-                <BaseInput v-model="day.end_time" type="time" class="w-32" />
+                <BaseTimeInput v-model="day.end_time" />
               </template>
               <span v-else class="text-sm text-ink-600">Выходной</span>
               <BaseButton
@@ -101,6 +101,7 @@ import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
+import BaseTimeInput from '../../components/ui/BaseTimeInput.vue'
 import ImageUpload from '../../components/ui/ImageUpload.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'

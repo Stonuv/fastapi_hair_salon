@@ -1,6 +1,7 @@
+from datetime import time
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .fields import HexColorStr
 
@@ -95,6 +96,23 @@ class FooterContent(BaseModel):
     bottom_note: Annotated[str, Field(max_length=200)] = "Запись онлайн · Оплата картой и наличными"
 
 
+# ── Время работы салона (ISSUES #36) ──────────────────────────────
+# В отличие от footer.hours (просто текст для отображения в футере — может
+# написать что угодно) — это машиночитаемая жёсткая граница: расписание
+# любого мастера (MasterService.set_schedule/update_schedule) и любая
+# запись (AppointmentService._validate_within_schedule) не могут выходить
+# за эти рамки, даже если конкретный мастер хочет "работать допоздна".
+class BusinessHoursContent(BaseModel):
+    open_time:  Annotated[time, Field(description="Открытие салона")] = time(9, 0)
+    close_time: Annotated[time, Field(description="Закрытие салона")] = time(20, 0)
+
+    @model_validator(mode="after")
+    def close_after_open(self) -> "BusinessHoursContent":
+        if self.close_time <= self.open_time:
+            raise ValueError("Время закрытия должно быть позже времени открытия")
+        return self
+
+
 # ── Тема оформления — применяется сайт-целиком (Tailwind-токены как
 # CSS-переменные, см. frontend/tailwind.config.js). `preset` — чисто для
 # UI в админке (какая пресет-кнопка подсвечена); фактически применяются
@@ -139,3 +157,4 @@ class SiteContent(BaseModel):
     masters:  MastersContent  = Field(default_factory=MastersContent)
     cta:      CtaContent      = Field(default_factory=CtaContent)
     footer:   FooterContent   = Field(default_factory=FooterContent)
+    business_hours: BusinessHoursContent = Field(default_factory=BusinessHoursContent)

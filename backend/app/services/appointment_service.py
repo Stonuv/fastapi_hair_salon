@@ -18,6 +18,7 @@ from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
                                    AppointmentResponse, SlotListResponse, SlotResponse)
 from ..schemas.pagination import PageResponse
 from ..utils.email import send_email
+from .site_settings_service import SiteSettingsService
 
 # Допустимые переходы статуса записи (1.5 — машина состояний).
 # pending -> confirmed -> done — основной путь, cancelled достижим из pending/confirmed.
@@ -43,6 +44,7 @@ class AppointmentService:
         self.master_repo      = MasterRepository(db)
         self.service_repo     = ServiceRepository(db)
         self.schedule_repo    = ScheduleRepository(db)
+        self.site_settings_service = SiteSettingsService(db)
 
     # ── Создание записи ──────────────────────────────────────────
 
@@ -453,4 +455,19 @@ class AppointmentService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Запись выходит за рамки рабочего времени мастера "
                        f"({schedule.start_time}–{schedule.end_time})",
+            )
+
+        # Бэкстоп поверх расписания мастера (ISSUES #36): MasterService уже
+        # не даёт задать расписание за пределами времени работы салона, но
+        # эта проверка защищает и записи по расписаниям, заведённым до
+        # появления настройки, и саму запись — на случай длинной услуги,
+        # которая укладывается в расписание мастера, но не в часы салона.
+        hours = self.site_settings_service.get().business_hours
+        salon_open = datetime.combine(start_time.date(), hours.open_time).replace(tzinfo=timezone.utc)
+        salon_close = datetime.combine(start_time.date(), hours.close_time).replace(tzinfo=timezone.utc)
+        if start_time < salon_open or end_time > salon_close:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Запись выходит за рамки времени работы салона "
+                       f"({hours.open_time.strftime('%H:%M')}–{hours.close_time.strftime('%H:%M')})",
             )

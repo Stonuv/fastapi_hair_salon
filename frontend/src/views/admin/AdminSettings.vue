@@ -125,8 +125,22 @@
         </div>
       </BaseCard>
 
+      <BaseCard v-if="form.business_hours">
+        <StepTitle n="8" title="Время работы салона" />
+        <p class="mb-4 text-sm text-ink-600">
+          Жёсткая граница для расписаний мастеров и записей клиентов — ни одно расписание и ни одна запись
+          не могут выходить за эти рамки, даже если мастер укажет для себя более широкие часы.
+          Не путать с полем «Часы работы» в подвале сайта (п. 7) — это просто текст.
+        </p>
+        <div class="flex items-center gap-3">
+          <BaseTimeInput v-model="form.business_hours.open_time" />
+          <span class="text-ink-600">—</span>
+          <BaseTimeInput v-model="form.business_hours.close_time" />
+        </div>
+      </BaseCard>
+
       <BaseCard v-if="form.theme">
-        <StepTitle n="8" title="Тема оформления" />
+        <StepTitle n="9" title="Тема оформления" />
         <div class="space-y-5">
           <div>
             <p class="mb-2 text-sm font-medium text-ink-900">Готовые палитры</p>
@@ -218,6 +232,7 @@ import { applyFont, FONT_PRESETS } from '../../theme/fonts'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import BaseTimeInput from '../../components/ui/BaseTimeInput.vue'
 import ImageUpload from '../../components/ui/ImageUpload.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import StepTitle from '../../components/ui/StepTitle.vue'

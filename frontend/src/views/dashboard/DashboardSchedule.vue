@@ -7,9 +7,9 @@
           {{ day.label }}
         </BaseCheckbox>
         <template v-if="day.is_working">
-          <BaseInput v-model="day.start_time" type="time" class="w-36" />
+          <BaseTimeInput v-model="day.start_time" />
           <span class="text-ink-600">—</span>
-          <BaseInput v-model="day.end_time" type="time" class="w-36" />
+          <BaseTimeInput v-model="day.end_time" />
         </template>
         <span v-else class="text-sm text-ink-600">Выходной</span>
         <BaseButton
@@ -33,9 +33,9 @@ import { useMasterProfileStore } from '../../stores/masterProfile'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import BaseCard from '../../components/ui/BaseCard.vue'
-import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
+import BaseTimeInput from '../../components/ui/BaseTimeInput.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 
 const profileStore = useMasterProfileStore()

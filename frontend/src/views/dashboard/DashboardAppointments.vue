@@ -8,8 +8,8 @@
         <option value="done">Завершены</option>
         <option value="cancelled">Отменены</option>
       </BaseSelect>
-      <BaseInput v-model="dateFrom" type="date" class="w-[calc(50%-0.375rem)] sm:w-44" />
-      <BaseInput v-model="dateTo" type="date" class="w-[calc(50%-0.375rem)] sm:w-44" />
+      <BaseDateInput v-model="dateFrom" class="w-full sm:w-56" />
+      <BaseDateInput v-model="dateTo" class="w-full sm:w-56" />
     </div>
 
     <div v-if="loading" class="space-y-3">
@@ -67,7 +67,7 @@ import { ALLOWED_TRANSITIONS, RESCHEDULABLE_STATUSES, STATUS_ACTION_LABELS } fro
 import AppointmentCard from '../../components/AppointmentCard.vue'
 import RescheduleModal from '../../components/RescheduleModal.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
-import BaseInput from '../../components/ui/BaseInput.vue'
+import BaseDateInput from '../../components/ui/BaseDateInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'

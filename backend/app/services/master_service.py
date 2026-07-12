@@ -14,6 +14,7 @@ from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
 from ..schemas.pagination import PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..schemas.service import ServiceResponse
+from .site_settings_service import SiteSettingsService
 
 
 def _final_price(price_override: Decimal | None, base_price: Decimal,
@@ -32,6 +33,7 @@ class MasterService:
         self.service_repo  = ServiceRepository(db)
         self.schedule_repo = ScheduleRepository(db)
         self.review_repo   = ReviewRepository(db)
+        self.site_settings_service = SiteSettingsService(db)
 
     # ── Каталог мастеров ─────────────────────────────────────────
 
@@ -155,6 +157,8 @@ class MasterService:
     def set_schedule(self, master_id: UUID,
                      data: ScheduleCreate) -> ScheduleResponse:
         self._check_master_exists(master_id)
+        if data.is_working:
+            self._validate_within_business_hours(data.start_time, data.end_time)
 
         existing = self.schedule_repo.get_by_master_and_day(
             master_id, data.day_of_week
@@ -187,11 +191,29 @@ class MasterService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="end_time должен быть позже start_time",
             )
+        effective_working = data.is_working if data.is_working is not None else schedule.is_working
+        if effective_working:
+            self._validate_within_business_hours(new_start, new_end)
 
         schedule = self.schedule_repo.update(schedule, data)
         return ScheduleResponse.model_validate(schedule)
 
     # ── Вспомогательное ──────────────────────────────────────────
+
+    def _validate_within_business_hours(self, start_time, end_time) -> None:
+        """Расписание мастера не может выходить за общее время работы
+        салона (ISSUES #36) — иначе мастер мог бы "работать" глубокой ночью
+        или запись на длинную услугу перед закрытием заходила бы за него
+        (см. также AppointmentService._validate_within_schedule — тот же
+        бэкстоп на уровне самой записи, на случай расписаний, заведённых
+        до появления этой настройки)."""
+        hours = self.site_settings_service.get().business_hours
+        if start_time < hours.open_time or end_time > hours.close_time:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Расписание должно быть в пределах времени работы салона "
+                       f"({hours.open_time.strftime('%H:%M')}–{hours.close_time.strftime('%H:%M')})",
+            )
 
     def _check_master_exists(self, master_id: UUID) -> None:
         if not self.master_repo.get_by_id(master_id):

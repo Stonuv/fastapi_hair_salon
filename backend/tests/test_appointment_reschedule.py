@@ -72,12 +72,18 @@ class FakeScheduleRepo:
         return SimpleNamespace(start_time=time(0, 0), end_time=time(23, 59), is_working=True)
 
 
+class FakeSiteSettingsService:
+    def get(self):
+        return SimpleNamespace(business_hours=SimpleNamespace(open_time=time(0, 0), close_time=time(23, 59)))
+
+
 def make_service(*, appointment=None, overlap=None, owns_master=True):
     svc = AppointmentService.__new__(AppointmentService)
     svc.db = SimpleNamespace(rollback=lambda: None)
     svc.appointment_repo = FakeAppointmentRepo(appointment or make_appointment(), overlap=overlap)
     svc.master_repo = FakeMasterRepo(owns=owns_master)
     svc.schedule_repo = FakeScheduleRepo()
+    svc.site_settings_service = FakeSiteSettingsService()
     return svc
 
 

@@ -3,24 +3,12 @@
     <!-- Filter bar -->
     <div class="flex flex-wrap items-end gap-3">
       <div class="flex flex-col gap-1">
-        <label for="date-from" class="text-xs font-medium uppercase tracking-wide text-ink-600">С</label>
-        <input
-          id="date-from"
-          v-model="dateFrom"
-          type="date"
-          :max="dateTo"
-          class="rounded-lg border border-stone-200 px-3.5 py-2.5 text-sm focus:border-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
-        />
+        <span class="text-xs font-medium uppercase tracking-wide text-ink-600">С</span>
+        <BaseDateInput v-model="dateFrom" class="w-56" />
       </div>
       <div class="flex flex-col gap-1">
-        <label for="date-to" class="text-xs font-medium uppercase tracking-wide text-ink-600">По</label>
-        <input
-          id="date-to"
-          v-model="dateTo"
-          type="date"
-          :min="dateFrom"
-          class="rounded-lg border border-stone-200 px-3.5 py-2.5 text-sm focus:border-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
-        />
+        <span class="text-xs font-medium uppercase tracking-wide text-ink-600">По</span>
+        <BaseDateInput v-model="dateTo" class="w-56" />
       </div>
       <button
         class="rounded-lg bg-brand-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -228,6 +216,7 @@ import { adminApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import BaseCard from '../../components/ui/BaseCard.vue'
+import BaseDateInput from '../../components/ui/BaseDateInput.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import KpiCard from '../../components/KpiCard.vue'
