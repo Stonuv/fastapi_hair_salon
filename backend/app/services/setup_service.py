@@ -1,6 +1,7 @@
 import secrets
 
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,13 @@ from ..schemas.auth import TokenResponse
 from ..schemas.setup import SetupRequest
 from .auth_service import build_token_response, hash_password
 from .site_settings_service import SiteSettingsService
+
+
+# Произвольный, но постоянный ключ для pg_advisory_xact_lock — сериализует
+# конкурентные вызовы /api/setup, чтобы проверка is_completed() и создание
+# админа были атомарны (иначе два одновременных запроса могут оба пройти
+# проверку и оба создать "первого" админа).
+_SETUP_LOCK_KEY = 727271
 
 
 class SetupService:
@@ -46,6 +54,7 @@ class SetupService:
             ):
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                     detail="Неверный код настройки (SETUP_TOKEN)")
+        self.db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _SETUP_LOCK_KEY})
         if self.is_completed():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Настройка уже выполнена")

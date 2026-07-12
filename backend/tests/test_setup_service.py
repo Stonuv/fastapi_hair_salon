@@ -13,9 +13,12 @@ from app.services import setup_service as setup_service_module
 from app.services.setup_service import SetupService
 
 
-def make_service(*, admin_exists=False, email_exists=False, phone_exists=False, create_result=None):
+def make_service(*, admin_exists=False, email_exists=False, phone_exists=False,
+                 create_result=None, executed=None):
     svc = SetupService.__new__(SetupService)
-    svc.db = None
+    svc.db = SimpleNamespace(
+        execute=lambda *args, **kwargs: executed.append(args) if executed is not None else None
+    )
 
     def create(*args, **kwargs):
         if create_result is None:
@@ -78,6 +81,16 @@ class TestComplete:
         res = svc.complete(make_request())
         assert res.user.role == UserRole.admin
         assert res.access_token
+
+    def test_acquires_advisory_lock_before_checking_admin_exists(self):
+        """Regression test: complete() must serialize concurrent callers via
+        pg_advisory_xact_lock before is_completed(), otherwise two racing
+        requests can both pass the check and both create an admin."""
+        executed = []
+        svc = make_service(admin_exists=True, executed=executed)
+        with pytest.raises(HTTPException):
+            svc.complete(make_request())
+        assert any("pg_advisory_xact_lock" in str(call[0]) for call in executed)
 
 
 class TestSetupTokenGate:
