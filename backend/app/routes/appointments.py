@@ -9,7 +9,8 @@ from ..database import get_db
 from ..models.enums import AppointmentStatus
 from ..models.user import User
 from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
-                                   AppointmentResponse, AppointmentStatusUpdate)
+                                   AppointmentReschedule, AppointmentResponse,
+                                   AppointmentStatusUpdate)
 from ..schemas.pagination import PageParams, PageResponse
 from ..services.appointment_service import AppointmentService
 from ..services.auth_service import (get_current_admin, get_current_client,
@@ -123,3 +124,19 @@ def update_appointment_status(
     cancelled достижим из pending/confirmed, done/cancelled — терминальные.
     """
     return AppointmentService(db).update_status(appointment_id, data.status, current_user)
+
+
+@router.patch("/{appointment_id}/reschedule", response_model=AppointmentResponse)
+def reschedule_appointment(
+    appointment_id: UUID,
+    data: AppointmentReschedule,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_master),
+):
+    """
+    Перенести запись на другое время — со стороны мастера или администратора.
+    Мастер и услуга не меняются; новое время проверяется теми же правилами,
+    что и при создании (рабочие часы мастера, отсутствие пересечений).
+    Клиенту отправляется письмо об изменении времени.
+    """
+    return AppointmentService(db).reschedule(appointment_id, data.start_time, current_user)

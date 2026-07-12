@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..models.appointment import Appointment
 from ..models.enums import AppointmentStatus, UserRole
 from ..models.user import User
 from ..repositories.appointment_repository import AppointmentRepository
@@ -16,6 +17,7 @@ from ..repositories.service_repository import ServiceRepository
 from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
                                    AppointmentResponse, SlotListResponse, SlotResponse)
 from ..schemas.pagination import PageResponse
+from ..utils.email import send_email
 
 # Допустимые переходы статуса записи (1.5 — машина состояний).
 # pending -> confirmed -> done — основной путь, cancelled достижим из pending/confirmed.
@@ -246,11 +248,93 @@ class AppointmentService:
         appointment = self.appointment_repo.update_status(appointment, new_status)
         return AppointmentResponse.model_validate(appointment)
 
+    # ── Перенос записи (мастером / админом) ───────────────────────
+
+    def reschedule(self, appointment_id: UUID, new_start_time: datetime,
+                   requesting_user: User) -> AppointmentResponse:
+        """Мастер (или админ) переносит запись на другое время — мастер и
+        услуга не меняются, только start_time/end_time. Валидация та же,
+        что и при создании (рабочие часы, отсутствие пересечений)."""
+        appointment = self.appointment_repo.get_by_id(appointment_id)
+        if not appointment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Запись не найдена")
+
+        if requesting_user.role != UserRole.admin:
+            own_master = self.master_repo.get_by_user_id(requesting_user.id)
+            if not own_master or own_master.id != appointment.master_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Можно переносить только свои записи")
+
+        if appointment.status not in (AppointmentStatus.pending, AppointmentStatus.confirmed):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Нельзя перенести запись со статусом '{appointment.status.value}'",
+            )
+
+        if new_start_time <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Нельзя перенести на прошедшее время")
+
+        old_start_time = appointment.start_time
+        # Длительность не меняется — берём её из уже сохранённого интервала,
+        # а не заново из service.duration_min (та же величина, но без лишнего запроса).
+        new_end_time = new_start_time + (appointment.end_time - appointment.start_time)
+
+        self._validate_within_schedule(appointment.master_id, new_start_time, new_end_time)
+
+        overlap = self.appointment_repo.get_overlapping(
+            appointment.master_id, new_start_time, new_end_time,
+            exclude_id=appointment.id,
+        )
+        if overlap:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Выбранное время уже занято")
+
+        try:
+            appointment = self.appointment_repo.update_schedule(
+                appointment, new_start_time, new_end_time
+            )
+        except IntegrityError:
+            self.db.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Выбранное время уже занято")
+
+        self._notify_client_of_reschedule(appointment, old_start_time)
+        return AppointmentResponse.model_validate(appointment)
+
+    def _notify_client_of_reschedule(self, appointment: Appointment,
+                                     old_start_time: datetime) -> None:
+        old_when = old_start_time.strftime("%d.%m.%Y %H:%M")
+        new_when = appointment.start_time.strftime("%d.%m.%Y %H:%M")
+        send_email(
+            to=appointment.client.email,
+            subject="Запись перенесена",
+            text_body=(
+                f"Здравствуйте, {appointment.client.first_name}!\n\n"
+                "Мастер перенёс вашу запись в Барбершоп «Сайтама».\n\n"
+                f"Было: {old_when}\n"
+                f"Стало: {new_when}\n"
+                f"Услуга: {appointment.service_name}\n"
+                f"Мастер: {appointment.master_name}\n\n"
+                "Если новое время не подходит, вы можете отменить запись в личном кабинете."
+            ),
+            html_body=(
+                f"<p>Здравствуйте, {appointment.client.first_name}!</p>"
+                "<p>Мастер перенёс вашу запись в Барбершоп «Сайтама».</p>"
+                f"<p>Было: {old_when}<br>Стало: <b>{new_when}</b><br>"
+                f"Услуга: {appointment.service_name}<br>"
+                f"Мастер: {appointment.master_name}</p>"
+                "<p>Если новое время не подходит, вы можете отменить запись в личном кабинете.</p>"
+            ),
+        )
+
     # ── Свободные слоты ──────────────────────────────────────────
 
     def get_available_slots(self, master_id: UUID,
                             target_date: date,
-                            service_id: UUID) -> SlotListResponse:
+                            service_id: UUID,
+                            exclude_appointment_id: UUID | None = None) -> SlotListResponse:
         """
         Возвращает список свободных слотов мастера на конкретный день.
         Алгоритм:
@@ -294,11 +378,14 @@ class AppointmentService:
         )
         # Репозиторий уже отфильтровал отменённые и вернул записи,
         # пересекающие рабочее окно (в т.ч. начавшиеся до него).
+        # exclude_appointment_id — при переносе самой записи мастером её
+        # текущий слот не должен считаться "занятым" (self-overlap).
         booked_ranges = [
             (a.start_time, a.end_time)
             for a in self.appointment_repo.get_by_master_in_range(
                 master_id, day_start, day_end
             )
+            if a.id != exclude_appointment_id
         ]
 
         # Генерируем слоты. Сетка не фиксированная: наткнувшись на занятый

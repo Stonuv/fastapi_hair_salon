@@ -39,6 +39,21 @@ class AppointmentStatusUpdate(BaseModel):
     status: Annotated[AppointmentStatus, Field(description="Новый статус записи")]
 
 
+# ── Перенос записи (от мастера / админа) ──────────────────────────
+
+
+class AppointmentReschedule(BaseModel):
+    """Услуга и мастер не меняются — только время; end_time пересчитывается
+    на сервере из длительности той же услуги."""
+    start_time: Annotated[AwareDatetime, Field(
+        description="Новое время начала (обязательно с таймзоной; нормализуется в UTC)")]
+
+    @field_validator("start_time")
+    @classmethod
+    def _normalize_to_utc(cls, v: datetime) -> datetime:
+        return v.astimezone(timezone.utc)
+
+
 # ── Краткий ответ (для списков) ───────────────────────────────────
 
 

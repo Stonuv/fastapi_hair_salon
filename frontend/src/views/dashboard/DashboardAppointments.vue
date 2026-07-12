@@ -28,6 +28,14 @@
       >
         <template #actions>
           <BaseButton
+            v-if="RESCHEDULABLE_STATUSES.includes(apt.status)"
+            variant="ghost"
+            size="sm"
+            @click="openReschedule(apt)"
+          >
+            Перенести
+          </BaseButton>
+          <BaseButton
             v-for="action in ALLOWED_TRANSITIONS[apt.status]"
             :key="action"
             :variant="action === 'cancelled' ? 'ghost' : 'primary'"
@@ -42,6 +50,8 @@
     </div>
 
     <Pagination v-model:page="page" :total-pages="totalPages" />
+
+    <RescheduleModal v-model:open="rescheduleOpen" :appointment="rescheduleTarget" @rescheduled="load" />
   </div>
 </template>
 
@@ -53,8 +63,9 @@ import { useMasterProfileStore } from '../../stores/masterProfile'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
-import { ALLOWED_TRANSITIONS, STATUS_ACTION_LABELS } from '../../utils/appointmentStatus'
+import { ALLOWED_TRANSITIONS, RESCHEDULABLE_STATUSES, STATUS_ACTION_LABELS } from '../../utils/appointmentStatus'
 import AppointmentCard from '../../components/AppointmentCard.vue'
+import RescheduleModal from '../../components/RescheduleModal.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -73,6 +84,14 @@ const totalPages = ref(1)
 const statusFilter = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
+
+const rescheduleOpen = ref(false)
+const rescheduleTarget = ref(null)
+
+function openReschedule(apt) {
+  rescheduleTarget.value = apt
+  rescheduleOpen.value = true
+}
 
 async function load() {
   loading.value = true

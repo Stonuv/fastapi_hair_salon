@@ -51,10 +51,12 @@ class FakeScheduleRepo:
 
 class FakeAppointmentRepo:
     def __init__(self, booked=()):
-        self.booked = list(booked)
+        # booked: (start, end) или (start, end, id) — id по умолчанию своё
+        # для каждой записи, чтобы exclude_appointment_id можно было тестировать.
+        self.booked = [b if len(b) == 3 else (*b, uuid.uuid4()) for b in booked]
 
     def get_by_master_in_range(self, master_id, date_from, date_to):
-        return [SimpleNamespace(start_time=s, end_time=e) for s, e in self.booked]
+        return [SimpleNamespace(id=i, start_time=s, end_time=e) for s, e, i in self.booked]
 
 
 def make_service(*, booked=(), duration_min=30, schedule_kwargs=None,
@@ -126,3 +128,33 @@ class TestSlotGeneration:
         with pytest.raises(HTTPException) as exc:
             svc.get_available_slots(MASTER_ID, TOMORROW, SERVICE_ID)
         assert exc.value.status_code == 400
+
+
+class TestExcludeAppointmentId:
+    def test_excluded_appointment_does_not_block_its_own_slot(self):
+        """Перенос записи мастером: текущий слот самой переносимой записи не
+        должен считаться занятым при выборе нового времени (self-overlap)."""
+        own_id = uuid.uuid4()
+        svc = make_service(booked=[(_dt(time(10, 0)), _dt(time(10, 30)), own_id)])
+        result = svc.get_available_slots(MASTER_ID, TOMORROW, SERVICE_ID,
+                                         exclude_appointment_id=own_id)
+        assert slot_times(result) == [
+            (time(10, 0), time(10, 30)),
+            (time(10, 30), time(11, 0)),
+            (time(11, 0), time(11, 30)),
+            (time(11, 30), time(12, 0)),
+        ]
+
+    def test_other_appointments_still_block_when_excluding_one(self):
+        own_id = uuid.uuid4()
+        svc = make_service(booked=[
+            (_dt(time(10, 0)), _dt(time(10, 30)), own_id),
+            (_dt(time(11, 0)), _dt(time(11, 30)), uuid.uuid4()),
+        ])
+        result = svc.get_available_slots(MASTER_ID, TOMORROW, SERVICE_ID,
+                                         exclude_appointment_id=own_id)
+        assert slot_times(result) == [
+            (time(10, 0), time(10, 30)),
+            (time(10, 30), time(11, 0)),
+            (time(11, 30), time(12, 0)),
+        ]

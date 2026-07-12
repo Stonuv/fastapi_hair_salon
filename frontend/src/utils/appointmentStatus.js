@@ -12,3 +12,7 @@ export const STATUS_ACTION_LABELS = {
   done: 'Завершить',
   cancelled: 'Отменить',
 }
+
+/** Зеркало проверки в AppointmentService.reschedule() — перенос доступен
+ * только для незавершённых записей. */
+export const RESCHEDULABLE_STATUSES = ['pending', 'confirmed']

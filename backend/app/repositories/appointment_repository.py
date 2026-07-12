@@ -149,6 +149,20 @@ class AppointmentRepository:
         self.db.refresh(appointment)
         return appointment
 
+    def update_schedule(self, appointment: Appointment, start_time: datetime,
+                        end_time: datetime) -> Appointment:
+        """Перенос записи мастером. Сбрасывает уже отправленные напоминания
+        (reminder_*_sent_at) — они считались под старое время; иначе для
+        перенесённой записи напоминание на новое время просто не пришло бы
+        (флаг "уже отправлено" остался бы true с прошлого раза)."""
+        appointment.start_time = start_time
+        appointment.end_time = end_time
+        appointment.reminder_24h_sent_at = None
+        appointment.reminder_2h_sent_at = None
+        self.db.flush()
+        self.db.refresh(appointment)
+        return appointment
+
     # ── Напоминания (ReminderService) ───────────────────────────────
 
     def list_due_24h_reminders(self, now: datetime) -> list[Appointment]:

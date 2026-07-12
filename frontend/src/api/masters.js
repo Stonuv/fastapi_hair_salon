@@ -19,6 +19,12 @@ export const mastersApi = {
   updateSchedule: (id, dayOfWeek, data) =>
     client.patch(`/masters/${id}/schedule/${dayOfWeek}`, data),
 
-  getSlots: (id, serviceId, targetDate) =>
-    client.get(`/masters/${id}/slots`, { params: { service_id: serviceId, target_date: targetDate } }),
+  getSlots: (id, serviceId, targetDate, excludeAppointmentId) =>
+    client.get(`/masters/${id}/slots`, {
+      params: {
+        service_id: serviceId,
+        target_date: targetDate,
+        exclude_appointment_id: excludeAppointmentId ?? undefined,
+      },
+    }),
 }

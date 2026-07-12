@@ -138,13 +138,18 @@ def update_schedule(master_id: UUID,
 
 @router.get("/{master_id}/slots", response_model=SlotListResponse)
 def get_slots(master_id: UUID, service_id: UUID, target_date: date,
+              exclude_appointment_id: UUID | None = None,
               db: Session = Depends(get_db)):
     """
     Свободные временные слоты мастера на дату.
     Публичный эндпоинт — используется на странице записи.
 
+    exclude_appointment_id — для переноса записи мастером: свой же текущий
+    слот не должен считаться занятым при выборе нового времени.
+
     Параметры запроса: ?service_id=...&target_date=2024-06-15
     """
     return AppointmentService(db).get_available_slots(
-        master_id, target_date, service_id
+        master_id, target_date, service_id,
+        exclude_appointment_id=exclude_appointment_id,
     )
