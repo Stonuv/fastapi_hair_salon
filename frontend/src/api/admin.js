@@ -17,6 +17,14 @@ export const adminApi = {
   updateMasterPhoto: (masterId, photoUrl) =>
     client.patch(`/admin/masters/${masterId}/photo`, { photo_url: photoUrl || null }),
 
+  uploadImage: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return client.post('/admin/uploads/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
   getReport: (params) => client.get('/admin/reports', { params }),
   exportReport: (params) => client.get('/admin/reports/export', { params, responseType: 'blob' }),
 }

@@ -1,7 +1,7 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,10 @@ from ..database import get_db
 from ..schemas.auth import (LoginRequest, PasswordResetConfirm,
                             PasswordResetRequest, TokenResponse)
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
-from ..services.auth_service import (AuthService, clear_auth_cookie,
-                                     get_current_user, set_auth_cookie)
+from ..services.auth_service import (REFRESH_TOKEN_COOKIE, AuthService,
+                                     clear_auth_cookie, clear_refresh_cookie,
+                                     create_session, get_current_user,
+                                     set_auth_cookie, set_refresh_cookie)
 from ..services.vk_oauth_service import (COOKIE_MAX_AGE, COOKIE_PATH,
                                          STATE_COOKIE, VERIFIER_COOKIE,
                                          VkOAuthError, VkOAuthService,
@@ -26,6 +28,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def register(data: UserCreate, response: Response, db: Session = Depends(get_db)):
     token_response = AuthService(db).register(data)
     set_auth_cookie(response, token_response.access_token)
+    set_refresh_cookie(response, create_session(db, token_response.user.id))
     return token_response
 
 
@@ -35,18 +38,37 @@ def login(data: LoginRequest, request: Request, response: Response,
     ip_address = request.client.host if request.client else None
     token_response = AuthService(db).login(data.email, data.password, ip_address)
     set_auth_cookie(response, token_response.access_token)
+    set_refresh_cookie(response, create_session(db, token_response.user.id))
+    return token_response
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
+    """Обновляет access-токен по refresh-токену (ротация — см. AuthService.
+    refresh_session) — так SPA держит пользователя авторизованным без
+    повторного ввода пароля, пока сессия не отозвана/не истекла."""
+    raw_refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if not raw_refresh:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Требуется авторизация")
+    token_response, new_raw_refresh = AuthService(db).refresh_session(raw_refresh)
+    set_auth_cookie(response, token_response.access_token)
+    set_refresh_cookie(response, new_raw_refresh)
     return token_response
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Отзывает текущий access-токен (см. token_version) и снимает cookie."""
-    AuthService(db).logout(current_user)
+    """Удаляет сессию (refresh-токен) текущего устройства и снимает обе cookie."""
+    raw_refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    AuthService(db).logout(raw_refresh)
     clear_auth_cookie(response)
+    clear_refresh_cookie(response)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -149,6 +171,7 @@ def vk_callback(
 
     redirect = RedirectResponse(f"{settings.frontend_base_url}/")
     set_auth_cookie(redirect, token_response.access_token)
+    set_refresh_cookie(redirect, create_session(db, token_response.user.id))
     redirect.delete_cookie(STATE_COOKIE, path=COOKIE_PATH)
     redirect.delete_cookie(VERIFIER_COOKIE, path=COOKIE_PATH)
     return redirect

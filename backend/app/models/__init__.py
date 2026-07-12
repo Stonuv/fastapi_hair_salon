@@ -11,6 +11,7 @@ from .review import Review
 from .password_reset_token import PasswordResetToken
 from .login_attempt import LoginAttempt
 from .site_settings import SiteSettings
+from .session import Session
 
 __all__ = [
     "UserRole",
@@ -25,4 +26,5 @@ __all__ = [
     "PasswordResetToken",
     "LoginAttempt",
     "SiteSettings",
+    "Session",
 ]

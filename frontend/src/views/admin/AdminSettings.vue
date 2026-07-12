@@ -52,10 +52,11 @@
               </button>
             </div>
           </div>
-          <BaseInput
-            v-if="(form.hero.media_type || 'photo') === 'photo'"
-            v-model="form.hero.photo_url" label="Фото справа (URL)" placeholder="https://…" hint="Если не указано — показывается заглушка"
-          />
+          <div v-if="(form.hero.media_type || 'photo') === 'photo'">
+            <p class="mb-1.5 block text-sm font-medium text-ink-900">Фото справа</p>
+            <ImageUpload v-model="form.hero.photo_url" />
+            <p class="mt-1 text-sm text-ink-600/80">Если не загружено — показывается заглушка</p>
+          </div>
           <p v-else class="font-mono text-xs text-ink-600">
             Вместо фото показывается интерактивная 3D-модель зала — вращается вслед за курсором.
           </p>
@@ -217,6 +218,7 @@ import { applyFont, FONT_PRESETS } from '../../theme/fonts'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import ImageUpload from '../../components/ui/ImageUpload.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import StepTitle from '../../components/ui/StepTitle.vue'
 import HomePreview from '../../components/HomePreview.vue'

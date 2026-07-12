@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .login_attempt import LoginAttempt
     from .master import Master
     from .password_reset_token import PasswordResetToken
+    from .session import Session
     from .appointment import Appointment
     from .review import Review
 
@@ -63,6 +64,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
     login_attempts: Mapped[list["LoginAttempt"]] = relationship(back_populates="user")
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[list["Session"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 

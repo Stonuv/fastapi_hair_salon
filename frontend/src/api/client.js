@@ -19,9 +19,44 @@ export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler
 }
 
+// Access-токен короткоживущий (см. backend/app/config.py) — 401 сперва
+// пробуем тихо пережить через refresh-токен (httpOnly-cookie, отдельная от
+// access) и повторить исходный запрос, вместо немедленного разлогина.
+// Общий промис — конкурентные 401 от нескольких запросов не должны бить по
+// /auth/refresh параллельно: ротация делает предыдущий refresh-токен
+// одноразовым, вторая параллельная попытка получила бы 401 на уже
+// использованный токен.
+let refreshPromise = null
+
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post('/api/auth/refresh', null, { withCredentials: true })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+  return refreshPromise
+}
+
+const NO_RETRY_PATHS = ['/auth/login', '/auth/register', '/auth/refresh']
+
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const { config, response } = error
+    const isNoRetryEndpoint = NO_RETRY_PATHS.some((path) => config?.url?.startsWith(path))
+
+    if (response?.status === 401 && config && !config._retriedAfterRefresh && !isNoRetryEndpoint) {
+      config._retriedAfterRefresh = true
+      try {
+        await refreshAccessToken()
+        return client(config)
+      } catch {
+        // refresh тоже не удался (сессия отозвана/истекла) — падаем ниже на onUnauthorized
+      }
+    }
+
     if (error.response?.status === 401 && onUnauthorized) {
       onUnauthorized()
     }

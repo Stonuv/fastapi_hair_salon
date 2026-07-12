@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas.auth import TokenResponse
 from ..schemas.setup import SetupRequest, SetupStatusResponse
-from ..services.auth_service import set_auth_cookie
+from ..services.auth_service import create_session, set_auth_cookie, set_refresh_cookie
 from ..services.setup_service import SetupService
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
@@ -31,4 +31,5 @@ def complete_setup(data: SetupRequest, response: Response, db: Session = Depends
     """
     token_response = SetupService(db).complete(data)
     set_auth_cookie(response, token_response.access_token)
+    set_refresh_cookie(response, create_session(db, token_response.user.id))
     return token_response

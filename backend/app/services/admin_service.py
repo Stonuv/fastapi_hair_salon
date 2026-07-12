@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..models.enums import UserRole
 from ..repositories.master_repository import MasterRepository
 from ..repositories.service_repository import ServiceRepository
+from ..repositories.session_repository import SessionRepository
 from ..repositories.stats_repository import StatsRepository
 from ..repositories.user_repository import UserRepository
 from ..schemas.admin_stats import AdminStatsResponse, DailyCount
@@ -25,6 +26,7 @@ class AdminService:
         self.user_repo    = UserRepository(db)
         self.master_repo  = MasterRepository(db)
         self.service_repo = ServiceRepository(db)
+        self.session_repo = SessionRepository(db)
         self.stats_repo   = StatsRepository(db)
 
     # ── Пользователи ─────────────────────────────────────────────
@@ -96,8 +98,10 @@ class AdminService:
 
         if data.new_password:
             self.user_repo.set_password(user, hash_password(data.new_password))
-            # Токены, выданные до принудительной смены пароля, отзываются.
+            # Токены, выданные до принудительной смены пароля, отзываются —
+            # и access (token_version), и все refresh-сессии.
             self.user_repo.bump_token_version(user)
+            self.session_repo.delete_all_for_user(user.id)
 
         return UserResponse.model_validate(user)
 
@@ -151,8 +155,10 @@ class AdminService:
         user = self.user_repo.set_blocked(user, is_blocked)
         if is_blocked:
             # is_blocked уже проверяется в get_current_user на каждый запрос,
-            # но отзыв токена сразу закрывает окно между запросами тоже.
+            # но отзыв токена и всех refresh-сессий сразу закрывает окно
+            # между запросами тоже.
             self.user_repo.bump_token_version(user)
+            self.session_repo.delete_all_for_user(user.id)
         return UserResponse.model_validate(user)
 
     def delete_user(self, user_id: UUID) -> None:
@@ -165,6 +171,8 @@ class AdminService:
         if master:
             self.master_repo.soft_delete(master)
         self.user_repo.soft_delete(user)
+        self.user_repo.bump_token_version(user)
+        self.session_repo.delete_all_for_user(user.id)
 
     # ── Услуги ───────────────────────────────────────────────────
 

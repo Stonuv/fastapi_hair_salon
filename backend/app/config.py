@@ -17,10 +17,18 @@ class Settings(BaseSettings):
     # Пример: postgresql://user:password@localhost:5432/barbershop
     database_url: str = "postgresql://postgres:postgres@localhost:5432/barbershop"
 
-    # ── JWT ──────────────────────────────────────────────────────
+    # ── JWT / сессии ─────────────────────────────────────────────
     secret_key:                  str = _DEFAULT_SECRET_KEY
     algorithm:                   str = "HS256"
-    access_token_expire_minutes: int = 60  # 1 час
+    # Access-токен короткоживущий и stateless (JWT, не хранится в БД) —
+    # его отзыв до истечения возможен только через token_version (см.
+    # models/user.py). Держит пользователя в системе refresh-токен
+    # (models/session.py): в БД хранится только SHA-256 хеш, "сырой" токен
+    # живёт в отдельной httpOnly-cookie и обновляет access через
+    # POST /api/auth/refresh (с ротацией — старая сессия удаляется, выдаётся
+    # новая) вплоть до logout/истечения/события безопасности.
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days:   int = 30
     # Access-токен для SPA доставляется httpOnly-cookie с флагом Secure —
     # это НЕ то же самое, что debug: локальный docker-compose уже гоняет
     # DEBUG=false, но сам по себе поднимает только plain HTTP (README —
@@ -45,6 +53,14 @@ class Settings(BaseSettings):
 
     # ── Восстановление пароля ─────────────────────────────────────
     password_reset_token_expire_minutes: int = 30
+
+    # ── Загрузка изображений (фото мастеров, hero-картинка) ────────
+    # Файлы лежат на диске backend-контейнера (см. docker-compose.yml —
+    # именованный volume, переживает пересоздание контейнера) и отдаются
+    # самим FastAPI через StaticFiles под /api/uploads — так nginx.conf
+    # фронтенда прокси /api как есть, без отдельного location для аплоадов.
+    upload_dir: str = "uploads"
+    upload_max_size_mb: int = 5
 
     # ── Бронирование ─────────────────────────────────────────────
     # Верхняя граница на количество одновременных незавершённых (pending/

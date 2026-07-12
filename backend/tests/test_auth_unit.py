@@ -7,8 +7,9 @@ from fastapi import HTTPException
 
 from app.models.enums import UserRole
 from app.repositories._query_utils import escape_like
-from app.services.auth_service import (AuthService, _verify_password,
-                                       hash_password, require_role)
+from app.services.auth_service import (AuthService, _hash_token,
+                                       _verify_password, hash_password,
+                                       require_role)
 
 
 class TestPasswordHashing:
@@ -66,6 +67,108 @@ class TestLoginOAuthOnlyAccount:
         with pytest.raises(HTTPException) as exc:
             svc.login("vk-user@example.com", "any-password")
         assert exc.value.status_code == 401
+
+
+class _FakeDb:
+    """Достаточно add/flush/refresh — ровно то, что использует
+    SessionRepository.create() внутри create_session()."""
+
+    def __init__(self):
+        self.added = []
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    def flush(self):
+        pass
+
+    def refresh(self, obj):
+        pass
+
+
+def make_auth_service(*, session=None, user=None):
+    svc = AuthService.__new__(AuthService)
+    svc.db = _FakeDb()
+    calls = {"deleted_by_hash": None, "deleted_session": None}
+
+    svc.session_repo = SimpleNamespace(
+        get_valid_by_hash=lambda token_hash: session,
+        delete_by_hash=lambda token_hash: calls.__setitem__("deleted_by_hash", token_hash),
+        delete=lambda sess: calls.__setitem__("deleted_session", sess),
+    )
+    svc.user_repo = SimpleNamespace(get_by_id=lambda uid: user)
+    svc._calls = calls
+    return svc
+
+
+class TestLogout:
+    """logout() отзывает ровно текущую сессию по refresh-токену устройства,
+    а не все сессии пользователя разом (см. models/session.py)."""
+
+    def test_deletes_session_matching_current_refresh_token(self):
+        svc = make_auth_service()
+        svc.logout("raw-refresh-token")
+        assert svc._calls["deleted_by_hash"] == _hash_token("raw-refresh-token")
+
+    def test_noop_without_refresh_token(self):
+        svc = make_auth_service()
+        svc.logout(None)
+        assert svc._calls["deleted_by_hash"] is None
+
+
+class TestRefreshSession:
+    def _user(self, is_blocked=False):
+        import datetime as _dt
+        return SimpleNamespace(
+            id=uuid.uuid4(), email="client@example.com", first_name="Иван",
+            last_name="Иванов", phone=None, role=UserRole.client,
+            is_blocked=is_blocked, token_version=0,
+            created_at=_dt.datetime.now(_dt.timezone.utc),
+        )
+
+    def _session(self, user_id):
+        return SimpleNamespace(id=uuid.uuid4(), user_id=user_id, token_hash="x")
+
+    def test_raises_401_when_session_not_found(self):
+        svc = make_auth_service(session=None)
+        with pytest.raises(HTTPException) as exc:
+            svc.refresh_session("stale-or-unknown-token")
+        assert exc.value.status_code == 401
+        assert svc._calls["deleted_session"] is None
+
+    def test_rotates_session_and_returns_new_refresh_token(self):
+        """Успешный refresh удаляет старую сессию и создаёт новую — старый
+        refresh-токен становится одноразовым (защита от повторного использования)."""
+        user = self._user()
+        session = self._session(user.id)
+        svc = make_auth_service(session=session, user=user)
+        token_response, new_raw_token = svc.refresh_session("current-refresh-token")
+        assert svc._calls["deleted_session"] is session
+        assert token_response.user.id == user.id
+        assert isinstance(new_raw_token, str) and new_raw_token
+        assert len(svc.db.added) == 1
+        assert svc.db.added[0].user_id == user.id
+        assert svc.db.added[0].token_hash == _hash_token(new_raw_token)
+
+    def test_raises_401_and_deletes_session_when_user_blocked(self):
+        user = self._user(is_blocked=True)
+        session = self._session(user.id)
+        svc = make_auth_service(session=session, user=user)
+        with pytest.raises(HTTPException) as exc:
+            svc.refresh_session("current-refresh-token")
+        assert exc.value.status_code == 401
+        assert svc._calls["deleted_session"] is session
+        assert svc.db.added == []
+
+    def test_raises_401_and_deletes_session_when_user_missing(self):
+        """Пользователь удалён между выдачей refresh-токена и его
+        использованием — сессия не должна пережить это."""
+        session = self._session(uuid.uuid4())
+        svc = make_auth_service(session=session, user=None)
+        with pytest.raises(HTTPException) as exc:
+            svc.refresh_session("current-refresh-token")
+        assert exc.value.status_code == 401
+        assert svc._calls["deleted_session"] is session
 
 
 class TestEscapeLike:

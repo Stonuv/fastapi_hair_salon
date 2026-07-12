@@ -53,6 +53,11 @@ services:
       VK_CLIENT_ID: ${VK_CLIENT_ID:-}
       VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
       VK_REDIRECT_URI: ${VK_REDIRECT_URI:-http://localhost/api/auth/vk/callback}
+    volumes:
+      # Загруженные фото мастеров/hero-картинка (см. utils/uploads.py) —
+      # именованный volume, иначе файлы терялись бы при каждом пересоздании
+      # контейнера (docker compose up --build).
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -80,5 +85,6 @@ services:
 
 volumes:
   pgdata:
+  uploads:
   caddy_data:
   caddy_config:

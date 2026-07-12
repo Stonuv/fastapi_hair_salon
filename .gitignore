@@ -1,5 +1,6 @@
 for_my_eyes_only.txt
 backend/*.env
+backend/uploads/
 __pycache__/
 *.pyc
 node_modules/

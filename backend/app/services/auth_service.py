@@ -18,6 +18,7 @@ from ..models.enums import UserRole
 from ..models.user import User
 from ..repositories.login_attempt_repository import LoginAttemptRepository
 from ..repositories.password_reset_token_repository import PasswordResetTokenRepository
+from ..repositories.session_repository import SessionRepository
 from ..repositories.user_repository import UserRepository
 from ..schemas.auth import TokenResponse
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
@@ -83,12 +84,45 @@ def clear_auth_cookie(response: Response) -> None:
     response.delete_cookie(key=ACCESS_TOKEN_COOKIE, path="/api")
 
 
+# Cookie с refresh-токеном (см. models/session.py) — путь ограничен /api/auth,
+# в отличие от access-токена: не должна уходить с каждым API-запросом,
+# нужна только эндпоинтам refresh/logout.
+REFRESH_TOKEN_COOKIE = "refresh_token"
+REFRESH_COOKIE_PATH = "/api/auth"
+
+
+def set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+        value=token,
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        path=REFRESH_COOKIE_PATH,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+    )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(key=REFRESH_TOKEN_COOKIE, path=REFRESH_COOKIE_PATH)
+
+
+def create_session(db: Session, user_id: UUID) -> str:
+    """Создаёт новую сессию (refresh-токен) для пользователя и возвращает
+    «сырой» токен для cookie — в БД остаётся только его хеш (_hash_token)."""
+    raw_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    SessionRepository(db).create(user_id, _hash_token(raw_token), expires_at)
+    return raw_token
+
+
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
         self.user_repo = UserRepository(db)
         self.login_attempt_repo = LoginAttemptRepository(db)
         self.reset_token_repo = PasswordResetTokenRepository(db)
+        self.session_repo = SessionRepository(db)
 
     def register(self, data: UserCreate) -> TokenResponse:
         if self.user_repo.email_exists(data.email):
@@ -255,14 +289,41 @@ class AuthService:
                 detail="Пользователь не найден",
             )
         self.user_repo.set_password(user, hash_password(new_password))
-        # Токены, выданные до сброса, не должны пережить смену пароля.
+        # Токены, выданные до сброса, не должны пережить смену пароля — и
+        # access (token_version), и все refresh-сессии на всех устройствах.
         self.user_repo.bump_token_version(user)
+        self.session_repo.delete_all_for_user(user.id)
         self.reset_token_repo.mark_used(token)
 
-    def logout(self, user: User) -> None:
-        """Отзывает текущий (и любой другой ранее выданный) access-токен
-        пользователя — единственный способ без хранения denylist'а/сессий."""
-        self.user_repo.bump_token_version(user)
+    def logout(self, raw_refresh_token: str | None) -> None:
+        """Удаляет ровно текущую сессию (устройство) — не трогает остальные.
+        Access-токен этого устройства доживает своим коротким TTL (см.
+        access_token_expire_minutes), но обновить его через /refresh уже
+        нельзя: сессии больше нет. Полную инвалидацию всех устройств сразу
+        делают только события безопасности — см. bump_token_version +
+        session_repo.delete_all_for_user (смена/сброс пароля, блокировка)."""
+        if raw_refresh_token:
+            self.session_repo.delete_by_hash(_hash_token(raw_refresh_token))
+
+    def refresh_session(self, raw_refresh_token: str) -> tuple[TokenResponse, str]:
+        """Ротация refresh-токена: старая сессия удаляется, выдаётся новая —
+        если старый токен всё же используют повторно (кража), следующий
+        refresh легитимного клиента получит 401 вместо тихой утечки доступа."""
+        session = self.session_repo.get_valid_by_hash(_hash_token(raw_refresh_token))
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Сессия недействительна или истекла, войдите заново",
+            )
+        user = self.user_repo.get_by_id(session.user_id)
+        self.session_repo.delete(session)
+        if not user or user.is_blocked:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Сессия недействительна или истекла, войдите заново",
+            )
+        new_raw_token = create_session(self.db, user.id)
+        return build_token_response(user), new_raw_token
 
 
 # ── JWT ──────────────────────────────────────────────────────────

@@ -1,9 +1,5 @@
 <template>
   <div class="-m-4 sm:-m-6">
-    <div class="border-b border-amber-300 bg-amber-50 px-4 py-2 text-center font-mono text-[11px] uppercase tracking-wide text-amber-900 sm:px-6">
-      Экспериментальная страница — редактирование прямо на реальной главной странице. Обычные «Настройки» не затронуты.
-    </div>
-
     <Skeleton v-if="loading" height="h-96" class="m-6" />
 
     <template v-else>

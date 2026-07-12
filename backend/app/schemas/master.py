@@ -91,8 +91,11 @@ class MasterServiceCreate(BaseModel):
 
 
 class MasterPhotoUpdate(BaseModel):
-    """Тело PATCH /api/admin/masters/{id}/photo. None очищает фото."""
+    """Тело PATCH /api/admin/masters/{id}/photo. None очищает фото. URL
+    приходит из POST /api/admin/uploads/image (корень-относительный путь
+    /api/uploads/...) — паттерн допускает и его, и старые абсолютные
+    http(s)-URL (обратная совместимость с уже сохранёнными значениями)."""
     photo_url: Annotated[str | None, Field(
-        default=None, max_length=500, pattern=r"^https?://.+",
-        description="URL фотографии (http/https) или null, чтобы убрать фото",
+        default=None, max_length=500, pattern=r"^(https?://.+|/.+)$",
+        description="URL фотографии или null, чтобы убрать фото",
     )]

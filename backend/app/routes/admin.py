@@ -4,7 +4,7 @@ from io import BytesIO
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -18,11 +18,13 @@ from ..schemas.master import MasterPhotoUpdate, MasterResponse, MasterUpdate
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.report import ReportResponse
 from ..schemas.service import ServiceResponse, ServiceUpdate
+from ..schemas.upload import ImageUploadResponse
 from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
 from ..services.admin_service import AdminService
 from ..services.auth_service import get_current_admin
 from ..services.report_service import ReportService
 from ..services.service_service import ServiceService
+from ..utils.uploads import save_uploaded_image
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -168,6 +170,17 @@ def delete_service(service_id: UUID,
                    db: Session = Depends(get_db), _=Depends(get_current_admin)):
     """Мягко удалить услугу — скрывается из каталога, история записей сохраняется."""
     AdminService(db).delete_service(service_id)
+
+
+# ── Загрузка изображений ────────────────────────────────────────
+
+@router.post("/uploads/image", response_model=ImageUploadResponse,
+            status_code=status.HTTP_201_CREATED)
+def upload_image(file: UploadFile = File(...), _=Depends(get_current_admin)):
+    """Загружает изображение (фото мастера, hero-картинка настроек сайта —
+    см. utils/uploads) и возвращает его URL; сохранение самой ссылки в
+    профиль/настройки делает отдельный вызов (PATCH .../photo, настройки сайта)."""
+    return ImageUploadResponse(url=save_uploaded_image(file))
 
 
 # ── Мастера ──────────────────────────────────────────────────────

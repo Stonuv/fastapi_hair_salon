@@ -14,13 +14,7 @@
             <p class="text-sm text-ink-600">{{ m.specialization || 'Без специализации' }}</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <BaseInput
-              :model-value="photoEdits[m.id] ?? m.photo_url ?? ''"
-              placeholder="URL фото"
-              class="w-56"
-              @update:model-value="(v) => (photoEdits[m.id] = v)"
-            />
-            <BaseButton variant="ghost" size="sm" :loading="savingPhoto === m.id" @click="savePhoto(m)">Сохранить фото</BaseButton>
+            <ImageUpload :model-value="m.photo_url" @update:model-value="(url) => updatePhoto(m, url)" />
             <BaseButton variant="ghost" size="sm" @click="toggleExpand(m.id)">
               {{ expanded === m.id ? 'Скрыть услуги' : 'Услуги' }}
             </BaseButton>
@@ -107,6 +101,7 @@ import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
+import ImageUpload from '../../components/ui/ImageUpload.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'
@@ -119,8 +114,6 @@ const loading = ref(true)
 const page = ref(1)
 const totalPages = ref(1)
 
-const photoEdits = reactive({})
-const savingPhoto = ref(null)
 const expanded = ref(null)
 const masterServices = reactive({})
 const newService = reactive({})
@@ -144,16 +137,13 @@ async function load() {
   }
 }
 
-async function savePhoto(master) {
-  savingPhoto.value = master.id
+async function updatePhoto(master, url) {
   try {
-    await adminApi.updateMasterPhoto(master.id, photoEdits[master.id] ?? master.photo_url ?? '')
-    master.photo_url = photoEdits[master.id]
-    toast.success('Фото обновлено')
+    await adminApi.updateMasterPhoto(master.id, url)
+    master.photo_url = url
+    toast.success(url ? 'Фото обновлено' : 'Фото убрано')
   } catch (err) {
     toast.error(extractErrorMessage(err))
-  } finally {
-    savingPhoto.value = null
   }
 }
 
