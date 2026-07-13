@@ -1,5 +1,5 @@
 <template>
-  <div class="-m-4 sm:-m-6">
+  <div>
     <Skeleton v-if="loading" height="h-96" class="m-6" />
 
     <template v-else>
@@ -11,6 +11,15 @@
     <!-- floating editor toolbar -->
     <div v-if="!loading" class="sticky bottom-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur">
       <div class="relative mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+        <router-link
+          :to="{ name: 'admin-stats' }"
+          class="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-ink-600 hover:text-brand-700"
+        >
+          <ArrowLeftIcon class="h-3.5 w-3.5" aria-hidden="true" /> Админка
+        </router-link>
+
+        <div class="h-6 w-px bg-stone-200" />
+
         <div class="flex flex-wrap items-center gap-1.5">
           <button
             v-for="v in heroVariants" :key="v.value" type="button"
@@ -77,6 +86,7 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import { settingsApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { useSiteContentStore } from '../../stores/siteContent'

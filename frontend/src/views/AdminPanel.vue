@@ -31,7 +31,6 @@ const titles = {
   'admin-reviews': 'Отзывы',
   'admin-reports': 'Отчёты',
   'admin-settings': 'Настройки',
-  'admin-settings-live': 'Редактор главной',
 }
 const pageTitle = computed(() => titles[route.name] ?? 'Админ-панель')
 </script>

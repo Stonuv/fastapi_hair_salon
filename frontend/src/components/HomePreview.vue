@@ -45,10 +45,7 @@
             <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
             <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
           </div>
-          <EditableText
-            v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
-            class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
-          />
+          <HeroPhotoUpload v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" />
         </div>
       </div>
     </section>
@@ -74,10 +71,7 @@
             <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
             <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
           </div>
-          <EditableText
-            v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
-            class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
-          />
+          <HeroPhotoUpload v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" />
         </div>
         <div class="mt-8 flex w-full flex-col items-center justify-between gap-6 sm:flex-row sm:text-left">
           <EditableText v-model="content.hero.subtitle" :editable="editable" multiline tag="p" class="max-w-md text-base leading-relaxed text-ink-600" />
@@ -121,10 +115,7 @@
               <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('photo')" @click="content.hero.media_type = 'photo'">Фото</button>
               <button type="button" class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow" :class="mediaTypeBtnClass('3d')" @click="content.hero.media_type = '3d'">3D</button>
             </div>
-            <EditableText
-              v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" editable placeholder="URL фото"
-              class="absolute inset-x-3 bottom-3 rounded bg-white/90 px-2.5 py-1.5 font-mono text-[11px] text-ink-900 shadow"
-            />
+            <HeroPhotoUpload v-if="editable && content.hero.media_type !== '3d'" v-model="content.hero.photo_url" />
           </div>
           <div class="mt-6 space-y-2 font-mono text-[11px] uppercase tracking-[0.06em] text-white/70">
             <div>{{ avgDurationLabel }} · средняя стрижка</div>
@@ -237,6 +228,7 @@ import Skeleton from './ui/Skeleton.vue'
 import EmptyState from './ui/EmptyState.vue'
 import EditableText from './ui/EditableText.vue'
 import EditableLink from './ui/EditableLink.vue'
+import HeroPhotoUpload from './ui/HeroPhotoUpload.vue'
 import MasterCard from './MasterCard.vue'
 
 // three.js — тяжёлая зависимость, нужна только когда hero.media_type === '3d',
