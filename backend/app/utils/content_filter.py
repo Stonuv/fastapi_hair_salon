@@ -18,6 +18,10 @@ _PROFANITY_ROOTS = (
     "залуп",
     "шлюх",
     "fuck", "shit", "bitch", "asshole", "cunt",
+    "dick", "pussy", "whore", "slut", "bastard", "twat", "wanker", "douche",
+    # Составные слова, где бранный корень не в начале (тот же приём, что
+    # для "долбоеб" выше) — "fuck"/"shit" сами по себе не префикс этих слов.
+    "motherfuck", "bullshit", "jackass", "dumbass",
 )
 
 _LATIN_TO_CYRILLIC = str.maketrans({
@@ -26,7 +30,12 @@ _LATIN_TO_CYRILLIC = str.maketrans({
 })
 
 _NON_LETTER = re.compile(r"[^a-zа-яёA-ZА-ЯЁ]+")
-_REPEATED_LETTER = re.compile(r"(.)\1{1,}")
+# {2,} (3+ подряд одинаковых букв), а не {1,} — иначе схлопывались бы и
+# обычные двойные буквы английских слов ("pussy" -> "pusy", "bullshit" ->
+# "bulshit", "asshole" -> "ashole"), из-за чего эти корни никогда не
+# совпадали бы с реальным написанием слова. Настоящий обход фильтра растягивает
+# буквы на 3+ ("хууй", "сууука"), двух подряд достаточно для нормального слова.
+_REPEATED_LETTER = re.compile(r"(.)\1{2,}")
 
 
 def _clean_word(word: str) -> str:
