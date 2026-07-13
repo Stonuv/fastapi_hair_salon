@@ -105,6 +105,16 @@
             <span class="text-ink-900">{{ formatDate(selectedSlot.start_time) }}, {{ formatTime(selectedSlot.start_time) }}</span>
           </div>
           <div class="flex justify-between py-3 text-base font-semibold"><span class="text-ink-900">Итого</span><span class="font-mono text-ink-900">{{ selectedService.final_price }} ₽</span></div>
+          <div v-if="!auth.user?.email" class="py-3">
+            <BaseInput
+              v-model="emailInput"
+              type="email"
+              label="Email"
+              required
+              placeholder="you@example.com"
+              hint="Нужен для подтверждения записи и напоминаний"
+            />
+          </div>
           <BaseButton variant="accent" class="mt-4 w-full" :loading="bookingLoading" @click="book">Записаться</BaseButton>
         </BaseCard>
       </section>
@@ -143,6 +153,7 @@ import { useToastStore } from '../stores/toast'
 import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import BaseInput from '../components/ui/BaseInput.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import StepTitle from '../components/ui/StepTitle.vue'
@@ -246,6 +257,9 @@ async function selectDate(iso) {
 const selectedSlot = ref(null)
 const bookingLoading = ref(false)
 const booked = ref(false)
+// Только для клиентов, зарегистрированных через VK без email (VK ID не
+// всегда его отдаёт) — просим указать его здесь, перед первой записью.
+const emailInput = ref('')
 
 function selectSlot(slot) {
   selectedSlot.value = slot
@@ -253,8 +267,15 @@ function selectSlot(slot) {
 }
 
 async function book() {
+  if (!auth.user?.email && !emailInput.value) {
+    toast.error('Укажите email, чтобы оформить запись')
+    return
+  }
   bookingLoading.value = true
   try {
+    if (!auth.user?.email) {
+      await auth.updateMe({ email: emailInput.value })
+    }
     await appointmentsApi.create({
       master_id: route.params.id,
       service_id: selectedService.value.service.id,

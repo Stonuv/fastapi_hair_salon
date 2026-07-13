@@ -87,11 +87,12 @@ class VkOAuthService:
 
         user = self.user_repo.get_by_vk_id(vk_user_id)
         if user is None:
-            if not email:
-                # Пользователь не привязал email к VK-аккаунту (scope=email не
-                # дал результата) — без email завести локальную запись нечем.
-                raise VkOAuthError("vk_email_required")
-            existing = self.user_repo.get_by_email(email)
+            # Пользователь мог не привязать email к VK-аккаунту (scope=email
+            # не дал результата) — это больше не блокирует регистрацию,
+            # email просто останется NULL до тех пор, пока пользователь не
+            # укажет его сам (см. AuthService.update_profile — например,
+            # при оформлении первой записи, см. routes/appointments.py).
+            existing = self.user_repo.get_by_email(email) if email else None
             if existing is not None:
                 # VK подтверждает владение email — это тот же человек, что уже
                 # зарегистрирован по паролю; просто привязываем VK к аккаунту.

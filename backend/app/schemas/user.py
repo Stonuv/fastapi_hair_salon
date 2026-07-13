@@ -34,6 +34,9 @@ class AdminUserCreate(UserCreate):
 
 
 class UserUpdate(BaseModel):
+    # Актуально для клиентов, зарегистрированных через VK без email (VK ID не
+    # всегда его отдаёт) — просим указать email при оформлении первой записи.
+    email:      Annotated[NormalizedEmailStr | None, Field(default=None)]
     first_name: Annotated[NameStr | None, Field(default=None)]
     last_name:  Annotated[NameStr | None, Field(default=None)]
     phone:      Annotated[PhoneStr | None, Field(default=None)]
@@ -57,7 +60,7 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id:         Annotated[UUID, Field(description="UUID пользователя")]
-    email:      str
+    email:      str | None
     first_name: str
     last_name:  str
     phone:      str | None

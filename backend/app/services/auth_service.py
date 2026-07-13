@@ -151,20 +151,37 @@ class AuthService:
         return build_token_response(user)
 
     def update_profile(self, user: User, data: UserUpdate) -> UserResponse:
+        # email отдельно от остальных полей: он может ещё не быть задан у
+        # VK-пользователя (см. vk_oauth_service) и требует проверки на
+        # уникальность, как при регистрации/в админке (см. admin_service.update_user).
+        if data.email is not None and data.email != user.email:
+            if self.user_repo.email_exists(data.email):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Пользователь с таким email уже существует")
+            try:
+                user = self.user_repo.set_email(user, data.email)
+            except IntegrityError:
+                self.db.rollback()
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Пользователь с таким email уже существует")
+
         if (data.phone is not None and data.phone != user.phone
                 and self.user_repo.phone_exists(data.phone)):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Пользователь с таким номером телефона уже существует",
             )
-        try:
-            user = self.user_repo.update(user, data)
-        except IntegrityError:
-            self.db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Пользователь с таким номером телефона уже существует",
-            )
+
+        other_fields = data.model_dump(exclude_unset=True, exclude={"email"})
+        if other_fields:
+            try:
+                user = self.user_repo.update(user, UserUpdate(**other_fields))
+            except IntegrityError:
+                self.db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Пользователь с таким номером телефона уже существует",
+                )
         return UserResponse.model_validate(user)
 
     def login(self, email: str, password: str, ip_address: str | None = None) -> TokenResponse:

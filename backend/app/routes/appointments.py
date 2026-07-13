@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -30,6 +30,12 @@ def create_appointment(
     Создать запись к мастеру.
     Доступно клиентам и администраторам.
     """
+    # Клиент, зарегистрированный через VK без email (VK ID не всегда его
+    # отдаёт, см. vk_oauth_service), обязан указать его перед первой записью —
+    # это единственный канал связи для писем-подтверждений/напоминаний.
+    if not current_user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Укажите email в профиле, чтобы оформить запись")
     return AppointmentService(db).create(current_user.id, data)
 
 

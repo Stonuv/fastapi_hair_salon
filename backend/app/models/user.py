@@ -32,7 +32,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         Index("ix_users_role", "role"),
     )
 
-    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    # NULL — VK ID не отдал email при регистрации; такой клиент указывает его
+    # позже, при оформлении первой записи (см. routes/appointments.py).
+    email: Mapped[str | None] = mapped_column(String(255))
     # NULL — аккаунт создан через VK ID (OAuth), пароля никогда не было;
     # такие аккаунты не проходят обычный login() по email/паролю (см. auth_service).
     password_hash: Mapped[str | None] = mapped_column(String(255))

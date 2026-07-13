@@ -134,13 +134,14 @@ class TestHandleCallback:
         assert svc._calls["create"]["email"] == "new@example.com"
         assert res.user.email == "new@example.com"
 
-    def test_raises_when_vk_account_has_no_email(self, monkeypatch):
+    def test_creates_user_without_email_when_vk_has_none(self, monkeypatch):
+        created = make_fake_user(vk_user_id="vk-4", email=None)
         patch_http(monkeypatch, token_payload={"access_token": "tok", "user_id": "vk-4"},
                   user_payload={"first_name": "Без", "last_name": "Почты"})
-        svc = make_service(by_vk_id=None, by_email=None)
-        with pytest.raises(VkOAuthError) as exc:
-            svc.handle_callback(code="c", code_verifier="v", device_id="d")
-        assert exc.value.error_code == "vk_email_required"
+        svc = make_service(by_vk_id=None, by_email=None, created=created)
+        res = svc.handle_callback(code="c", code_verifier="v", device_id="d")
+        assert svc._calls["create"]["email"] is None
+        assert res.user.email is None
 
     def test_raises_when_token_response_missing_fields(self, monkeypatch):
         patch_http(monkeypatch, token_payload={}, user_payload={})

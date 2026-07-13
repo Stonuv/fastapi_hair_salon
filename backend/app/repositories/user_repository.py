@@ -89,10 +89,12 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
-    def create_vk_oauth_user(self, *, email: str, first_name: str, last_name: str,
+    def create_vk_oauth_user(self, *, email: str | None, first_name: str, last_name: str,
                              vk_user_id: str) -> User:
-        """Первый вход через VK ID для email, не найденного среди существующих
-        пользователей — регистрация без пароля (см. User.password_hash)."""
+        """Первый вход через VK ID. email может быть None — VK ID не всегда
+        его отдаёт; пользователь укажет его позже (см. AuthService.update_profile),
+        например при оформлении первой записи. Регистрация без пароля
+        (см. User.password_hash)."""
         user = User(
             email=email,
             password_hash=None,

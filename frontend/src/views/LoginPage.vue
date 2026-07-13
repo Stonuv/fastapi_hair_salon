@@ -70,7 +70,6 @@ const VK_ERROR_MESSAGES = {
   vk_auth_failed: 'Не удалось войти через VK. Попробуйте ещё раз',
   vk_token_exchange_failed: 'Не удалось войти через VK. Попробуйте ещё раз',
   vk_user_info_failed: 'Не удалось получить данные профиля VK',
-  vk_email_required: 'К вашему аккаунту VK не привязан email — вход невозможен',
   account_blocked: 'Аккаунт заблокирован. Обратитесь к администратору',
 }
 

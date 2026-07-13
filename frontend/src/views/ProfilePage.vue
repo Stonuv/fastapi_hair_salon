@@ -7,7 +7,7 @@
       <div class="flex-1">
         <p class="font-mono text-[11px] font-medium uppercase tracking-wide text-brand-700">Личный кабинет</p>
         <h1 class="font-display text-2xl font-bold text-ink-900">{{ auth.user?.first_name }} {{ auth.user?.last_name }}</h1>
-        <p class="text-sm text-ink-600">{{ auth.user?.email }}</p>
+        <p class="text-sm text-ink-600">{{ auth.user?.email || 'Email не указан' }}</p>
       </div>
       <BaseButton variant="ghost" size="sm" @click="editOpen = !editOpen">
         {{ editOpen ? 'Закрыть' : 'Редактировать' }}
