@@ -61,7 +61,7 @@ class TestRateLimitWiring:
         assert res.json() == {"detail": "Слишком много запросов. Попробуйте позже."}
 
     def test_different_ips_have_independent_limits(self, client):
-        # _client_ip (см. utils/rate_limit.py) — лимит по IP, не глобальный:
+        # client_ip (см. utils/client_ip.py) — лимит по IP, не глобальный:
         # разные клиенты не должны блокировать друг друга.
         client.get("/limited", headers={"X-Forwarded-For": "1.1.1.1"})
         client.get("/limited", headers={"X-Forwarded-For": "1.1.1.1"})

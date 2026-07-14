@@ -20,6 +20,7 @@ from ..services.vk_oauth_service import (COOKIE_MAX_AGE, COOKIE_PATH,
                                          VkOAuthError, VkOAuthService,
                                          build_authorize_url, generate_pkce,
                                          is_enabled)
+from ..utils.client_ip import client_ip
 from ..utils.rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -38,8 +39,7 @@ def register(request: Request, data: UserCreate, response: Response, db: Session
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, response: Response,
           db: Session = Depends(get_db)):
-    ip_address = request.client.host if request.client else None
-    token_response = AuthService(db).login(data.email, data.password, ip_address)
+    token_response = AuthService(db).login(data.email, data.password, client_ip(request))
     set_auth_cookie(response, token_response.access_token)
     set_refresh_cookie(response, create_session(db, token_response.user.id))
     return token_response
