@@ -204,6 +204,24 @@
         </div>
       </BaseCard>
 
+      <BaseCard v-if="form.seo">
+        <StepTitle n="10" title="SEO" />
+        <p class="mb-4 text-sm text-ink-600">
+          Заголовок вкладки браузера, описание в поисковой выдаче и иконка сайта (favicon).
+          Не путать с «Шапка сайта» (п. 1) — та надпись видна рядом с логотипом на самом сайте,
+          это же — служебные метаданные для браузера/поисковика/соцсетей.
+        </p>
+        <div class="space-y-4">
+          <BaseInput v-model="form.seo.title" label="Заголовок вкладки (&lt;title&gt;)" required />
+          <BaseInput v-model="form.seo.description" as="textarea" :rows="2" label="Описание для поисковиков" />
+          <div>
+            <p class="mb-1.5 block text-sm font-medium text-ink-900">Иконка сайта (favicon)</p>
+            <ImageUpload v-model="form.seo.favicon_url" />
+            <p class="mt-1 text-sm text-ink-600/80">Если не загружена — используется стандартная иконка сайта</p>
+          </div>
+        </div>
+      </BaseCard>
+
         <div class="flex justify-end">
           <BaseButton type="submit" :loading="saving">Сохранить все изменения</BaseButton>
         </div>
@@ -229,6 +247,7 @@ import { useSiteContentStore } from '../../stores/siteContent'
 import { extractErrorMessage } from '../../utils/errors'
 import { applyTheme, THEME_PRESETS, THEME_TOKENS } from '../../theme/presets'
 import { applyFont, FONT_PRESETS } from '../../theme/fonts'
+import { applySeo } from '../../theme/seo'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -271,11 +290,15 @@ onMounted(async () => {
   // при уходе со страницы без сохранения возвращаем сохранённую тему (см. ниже).
   watch(() => form.theme?.colors, (colors) => applyTheme(colors), { deep: true })
   watch(() => form.theme?.font, (font) => applyFont(font))
+  // <title>/favicon — та же логика: правишь поле, вкладка браузера сразу
+  // меняется, не сохранил и ушёл со страницы — откатывается обратно.
+  watch(() => form.seo, (seo) => applySeo(seo), { deep: true })
 })
 
 onBeforeUnmount(() => {
   applyTheme(siteContentStore.content.theme?.colors)
   applyFont(siteContentStore.content.theme?.font)
+  applySeo(siteContentStore.content.seo)
 })
 
 function selectThemePreset(name) {

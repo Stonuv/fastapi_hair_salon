@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Барбершоп Сайтама</title>
+    <!-- Статичные дефолты для самого первого рендера/краулера без JS —
+         дальше настоящие значения из настроек сайта (Админка → SEO)
+         применяются поверх через JS, см. src/theme/seo.js. id="site-favicon"
+         совпадает с тем, что ищет applySeo(), чтобы не плодить вторую
+         <link rel="icon">, а обновлять эту же. -->
+    <title>Барбершоп «Сайтама»</title>
+    <meta name="description" content="Барбершоп «Сайтама» — стрижки, оформление бороды и горячее бритьё. Запись онлайн с точностью до минуты." />
+    <link id="site-favicon" rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

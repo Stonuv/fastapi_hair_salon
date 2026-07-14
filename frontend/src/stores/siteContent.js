@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { settingsApi } from '../api'
 import { applyTheme, THEME_PRESETS } from '../theme/presets'
 import { applyFont } from '../theme/fonts'
+import { applySeo } from '../theme/seo'
 
 /**
  * Контент сайта, редактируемый через /admin/settings (CMS).
@@ -12,6 +13,11 @@ import { applyFont } from '../theme/fonts'
 function defaultContent() {
   return {
     header: { brand_name: 'Сайтама', brand_tagline: 'Барбершоп' },
+    seo: {
+      title: 'Барбершоп «Сайтама»',
+      description: 'Барбершоп «Сайтама» — стрижки, оформление бороды и горячее бритьё. Запись онлайн с точностью до минуты.',
+      favicon_url: null,
+    },
     hero: {
       variant: 'split',
       eyebrow: 'С 2019 года — современное барберство',
@@ -66,6 +72,7 @@ export const useSiteContentStore = defineStore('siteContent', () => {
   const loaded = ref(false)
   applyTheme(content.value.theme.colors)
   applyFont(content.value.theme.font)
+  applySeo(content.value.seo)
 
   async function load(force = false) {
     if (loaded.value && !force) return
@@ -74,6 +81,7 @@ export const useSiteContentStore = defineStore('siteContent', () => {
       content.value = data
       applyTheme(data.theme?.colors)
       applyFont(data.theme?.font)
+      applySeo(data.seo)
     } finally {
       loaded.value = true
     }
@@ -83,6 +91,7 @@ export const useSiteContentStore = defineStore('siteContent', () => {
     content.value = data
     applyTheme(data.theme?.colors)
     applyFont(data.theme?.font)
+    applySeo(data.seo)
   }
 
   return { content, loaded, load, set }

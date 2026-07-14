@@ -16,6 +16,21 @@ class HeaderContent(BaseModel):
     brand_tagline: Annotated[str, Field(min_length=1, max_length=60)] = "Барбершоп"
 
 
+# ── SEO: <title>, meta description, favicon ────────────────────────
+# В отличие от header.brand_name (короткая надпись рядом с логотипом) —
+# title/description видны в поиске и при расшаривании ссылки, обычно
+# длиннее и с ключевыми словами. Применяются на фронтенде через JS после
+# загрузки настроек (см. frontend/src/theme/seo.js) — index.html хранит
+# статичный дефолт на случай самого первого рендера/краулера без JS.
+class SeoContent(BaseModel):
+    title:       Annotated[str, Field(min_length=1, max_length=70)] = "Барбершоп «Сайтама»"
+    description: Annotated[str, Field(max_length=200)] = (
+        "Барбершоп «Сайтама» — стрижки, оформление бороды и горячее бритьё. "
+        "Запись онлайн с точностью до минуты."
+    )
+    favicon_url: Annotated[str | None, Field(default=None, max_length=2048)]
+
+
 HeroVariant = Literal["split", "poster", "dark"]
 # Медиа в правом/верхнем блоке главного экрана: статичное фото или
 # интерактивная 3D-модель зала (вращается за курсором на фронтенде).
@@ -150,6 +165,7 @@ class SiteContent(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     header:   HeaderContent   = Field(default_factory=HeaderContent)
+    seo:      SeoContent      = Field(default_factory=SeoContent)
     hero:     HeroContent     = Field(default_factory=HeroContent)
     features: FeaturesContent = Field(default_factory=FeaturesContent)
     services: ServicesContent = Field(default_factory=ServicesContent)
