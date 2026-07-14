@@ -1,6 +1,9 @@
 for_my_eyes_only.txt
 backend/*.env
 backend/uploads/
+# Дампы БД (docker-compose.yml: backup-local/backup-s3) — реальные данные
+# пользователей, никогда не в git.
+backups/
 __pycache__/
 *.pyc
 node_modules/
