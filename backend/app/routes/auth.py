@@ -20,13 +20,15 @@ from ..services.vk_oauth_service import (COOKIE_MAX_AGE, COOKIE_PATH,
                                          VkOAuthError, VkOAuthService,
                                          build_authorize_url, generate_pkce,
                                          is_enabled)
+from ..utils.rate_limit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse,
              status_code=status.HTTP_201_CREATED)
-def register(data: UserCreate, response: Response, db: Session = Depends(get_db)):
+@limiter.limit(settings.rate_limit_register)
+def register(request: Request, data: UserCreate, response: Response, db: Session = Depends(get_db)):
     token_response = AuthService(db).register(data)
     set_auth_cookie(response, token_response.access_token)
     set_refresh_cookie(response, create_session(db, token_response.user.id))

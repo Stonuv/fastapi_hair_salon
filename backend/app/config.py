@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     email_verification_token_expire_minutes: int = 60 * 24
     email_verification_max_requests_per_hour: int = 3
 
+    # ── Rate limiting (регистрация/запись/отзывы) ──────────────────
+    # По IP (см. utils/rate_limit.py) — вход уже защищён отдельно, своим
+    # механизмом через login_attempts (там же аудит-лог). Строки в формате
+    # slowapi/limits: "<число>/<second|minute|hour|day>".
+    rate_limit_register: str = "5/hour"
+    rate_limit_booking:  str = "20/minute"
+    rate_limit_review:   str = "10/hour"
+
     # ── Загрузка изображений (фото мастеров, hero-картинка) ────────
     # Файлы лежат на диске backend-контейнера (см. docker-compose.yml —
     # именованный volume, переживает пересоздание контейнера) и отдаются

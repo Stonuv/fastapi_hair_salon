@@ -1,21 +1,25 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import get_db
 from ..models.user import User
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.review import ReviewCreate, ReviewModerate, ReviewResponse
 from ..services.auth_service import get_current_admin, get_current_client
 from ..services.review_service import ReviewService
+from ..utils.rate_limit import limiter
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
 
 @router.post("", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.rate_limit_review)
 def create_review(
+    request: Request,
     data: ReviewCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_client),

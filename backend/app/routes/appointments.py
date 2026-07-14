@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import get_db
 from ..models.enums import AppointmentStatus
 from ..models.user import User
@@ -15,13 +16,16 @@ from ..schemas.pagination import PageParams, PageResponse
 from ..services.appointment_service import AppointmentService
 from ..services.auth_service import (get_current_admin, get_current_client,
                                       get_current_master, get_current_user)
+from ..utils.rate_limit import limiter
 
 router = APIRouter(prefix="/api/appointments", tags=["appointments"])
 
 
 @router.post("", response_model=AppointmentResponse,
              status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.rate_limit_booking)
 def create_appointment(
+    request: Request,
     data: AppointmentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_client),

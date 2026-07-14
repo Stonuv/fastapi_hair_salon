@@ -1,15 +1,18 @@
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
 
 from .config import settings
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
                      reviews_router, site_settings_router, setup_router)
 from .scheduler import lifespan
+from .utils.rate_limit import limiter
 
 # uvicorn настраивает только свои собственные логгеры (uvicorn.*) —
 # без этого вызова логгеры приложения (например, auth_service при
@@ -31,6 +34,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    # Свой хендлер вместо slowapi._rate_limit_exceeded_handler — тот отдаёт
+    # {"error": "..."} по-английски, здесь нужен {"detail": "..."} по-русски,
+    # как и остальные ошибки в проекте (friendlyValidationError на фронтенде
+    # читает именно detail).
+    return JSONResponse(
+        {"detail": "Слишком много запросов. Попробуйте позже."},
+        status_code=429,
+    )
 
 app.include_router(setup_router)
 app.include_router(auth_router)
