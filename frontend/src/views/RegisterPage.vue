@@ -49,10 +49,19 @@
           @blur="validatePassword"
         />
 
+        <BaseCheckbox v-model="consent">
+          <span class="text-xs text-ink-600">
+            Я согласен(а) с
+            <router-link :to="{ name: 'privacy-policy' }" target="_blank" class="text-brand-900 hover:underline">
+              политикой обработки персональных данных
+            </router-link>
+          </span>
+        </BaseCheckbox>
+
         <BaseButton type="submit" class="w-full" :loading="loading">Зарегистрироваться</BaseButton>
       </form>
 
-      <VkLoginButton />
+      <VkLoginButton :require-consent="true" :consented="consent" />
 
       <p class="mt-4 text-center text-sm text-ink-600">
         Уже есть аккаунт?
@@ -72,6 +81,7 @@ import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import BaseCheckbox from '../components/ui/BaseCheckbox.vue'
 import VkLoginButton from '../components/ui/VkLoginButton.vue'
 
 const router = useRouter()
@@ -80,6 +90,7 @@ const toast = useToastStore()
 const { errors, setError, clearError, setFromResponse } = useFormErrors()
 
 const form = reactive({ first_name: '', last_name: '', email: '', phone: '', password: '' })
+const consent = ref(false)
 const loading = ref(false)
 
 function validateField(field, value, message) {
@@ -108,6 +119,10 @@ function validateAll() {
 
 async function submit() {
   if (!validateAll()) return
+  if (!consent.value) {
+    toast.error('Подтвердите согласие на обработку персональных данных')
+    return
+  }
 
   loading.value = true
   try {

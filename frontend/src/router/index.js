@@ -10,6 +10,7 @@ const routes = [
   { path: '/login', name: 'login', component: () => import('../views/LoginPage.vue'), meta: { guestOnly: true } },
   { path: '/register', name: 'register', component: () => import('../views/RegisterPage.vue'), meta: { guestOnly: true } },
   { path: '/password-reset', name: 'password-reset', component: () => import('../views/PasswordResetPage.vue'), meta: { guestOnly: true } },
+  { path: '/privacy', name: 'privacy-policy', component: () => import('../views/PrivacyPolicyPage.vue') },
   { path: '/profile', name: 'profile', component: () => import('../views/ProfilePage.vue'), meta: { requiresAuth: true } },
   {
     path: '/dashboard',

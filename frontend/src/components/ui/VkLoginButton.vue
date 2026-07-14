@@ -15,9 +15,20 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { authApi } from '../../api'
+import { useToastStore } from '../../stores/toast'
 import BaseButton from './BaseButton.vue'
 
+// requireConsent/consented — на /register нужно согласие на обработку ПДн
+// до ухода на VK (клик сразу же уводит браузер на id.vk.com, отдельного
+// шага подтверждения внутри приложения после этого уже не будет). На
+// /login эти пропсы не передаются — там это не первичный сбор данных.
+const props = defineProps({
+  requireConsent: { type: Boolean, default: false },
+  consented: { type: Boolean, default: true },
+})
+
 const enabled = ref(false)
+const toast = useToastStore()
 
 onMounted(async () => {
   try {
@@ -29,6 +40,10 @@ onMounted(async () => {
 })
 
 function goToVk() {
+  if (props.requireConsent && !props.consented) {
+    toast.error('Подтвердите согласие на обработку персональных данных')
+    return
+  }
   // Полная навигация, а не axios-запрос: серверу нужно поставить httpOnly
   // cookie (state/verifier) и сделать редирект на id.vk.com — это должен
   // делать сам браузер, а не fetch/XHR.

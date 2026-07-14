@@ -46,7 +46,10 @@
         </div>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2 pt-6 font-mono text-[11px] uppercase tracking-wide text-white/40">
-        <span>© {{ year }} {{ content.header.brand_tagline }} «{{ content.header.brand_name }}»</span>
+        <span class="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span>© {{ year }} {{ content.header.brand_tagline }} «{{ content.header.brand_name }}»</span>
+          <router-link :to="{ name: 'privacy-policy' }" class="hover:text-white">Обработка персональных данных</router-link>
+        </span>
         <EditableText v-model="content.footer.bottom_note" :editable="editable" />
       </div>
     </div>
