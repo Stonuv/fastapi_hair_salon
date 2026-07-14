@@ -16,6 +16,7 @@ from ..config import settings
 from ..database import get_db
 from ..models.enums import UserRole
 from ..models.user import User
+from ..repositories.email_verification_token_repository import EmailVerificationTokenRepository
 from ..repositories.login_attempt_repository import LoginAttemptRepository
 from ..repositories.password_reset_token_repository import PasswordResetTokenRepository
 from ..repositories.session_repository import SessionRepository
@@ -122,6 +123,7 @@ class AuthService:
         self.user_repo = UserRepository(db)
         self.login_attempt_repo = LoginAttemptRepository(db)
         self.reset_token_repo = PasswordResetTokenRepository(db)
+        self.verification_token_repo = EmailVerificationTokenRepository(db)
         self.session_repo = SessionRepository(db)
 
     def register(self, data: UserCreate) -> TokenResponse:
@@ -148,6 +150,7 @@ class AuthService:
                 else "Пользователь с таким email уже существует"
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+        self.send_verification_email(user)
         return build_token_response(user)
 
     def update_profile(self, user: User, data: UserUpdate) -> UserResponse:
@@ -164,6 +167,10 @@ class AuthService:
                 self.db.rollback()
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                     detail="Пользователь с таким email уже существует")
+            # Новый email не доказан (в отличие от email, отданного VK OAuth
+            # напрямую при создании аккаунта) — требует подтверждения так же,
+            # как при обычной регистрации.
+            self.send_verification_email(user)
 
         if (data.phone is not None and data.phone != user.phone
                 and self.user_repo.phone_exists(data.phone)):
@@ -311,6 +318,91 @@ class AuthService:
         self.user_repo.bump_token_version(user)
         self.session_repo.delete_all_for_user(user.id)
         self.reset_token_repo.mark_used(token)
+
+    def send_verification_email(self, user: User) -> None:
+        """Отправляет письмо со ссылкой подтверждения email — после
+        регистрации и при смене email в профиле. "Мягкий" гейт (ISSUES):
+        неподтверждённый email не мешает войти и пользоваться сайтом,
+        поэтому в отличие от request_password_reset здесь нет смысла
+        маскировать некоторые случаи под "успех" — вызывающая сторона уже
+        знает, что у неё есть аккаунт с этим email (аноним так не вызывает
+        этот метод). Тихо ничего не делает, если email не задан (VK-аккаунт
+        без email) или лимит отправок исчерпан — не должно ронять
+        register()/update_profile() из-за проблем с почтой."""
+        if not user.email:
+            return
+        hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        if (self.verification_token_repo.count_created_since(user.id, hour_ago)
+                >= settings.email_verification_max_requests_per_hour):
+            logger.warning("Email verification rate limit hit for %s", user.email)
+            return
+        self._issue_verification_token_and_send(user)
+
+    def resend_verification_email(self, user: User) -> None:
+        """Повторная отправка по явному запросу пользователя (кнопка «отправить
+        письмо ещё раз») — в отличие от send_verification_email, тут вызывающая
+        сторона уже авторизована как этот самый пользователь, так что можно
+        (и нужно) явно сказать, почему запрос отклонён, а не тихо промолчать."""
+        if not user.email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Сначала укажите email в профиле")
+        if user.email_verified:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Email уже подтверждён")
+        hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        if (self.verification_token_repo.count_created_since(user.id, hour_ago)
+                >= settings.email_verification_max_requests_per_hour):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                                detail="Слишком много запросов. Попробуйте позже.")
+        self._issue_verification_token_and_send(user)
+
+    def _issue_verification_token_and_send(self, user: User) -> None:
+        self.verification_token_repo.invalidate_all_for_user(user.id)
+
+        raw_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.email_verification_token_expire_minutes
+        )
+        self.verification_token_repo.create(user.id, _hash_token(raw_token), expires_at)
+
+        verify_link = f"{settings.frontend_base_url}/verify-email?token={raw_token}"
+        logger.debug(
+            "Email verification requested for %s — link: %s (expires %s)",
+            user.email, verify_link, expires_at.isoformat(),
+        )
+        send_email(
+            to=user.email,
+            subject="Подтвердите email — Барбершоп «Сайтама»",
+            text_body=(
+                f"Здравствуйте, {user.first_name}!\n\n"
+                f"Подтвердите свой email, перейдя по ссылке (действует "
+                f"{settings.email_verification_token_expire_minutes // 60} ч):\n{verify_link}\n\n"
+                "Если вы не регистрировались на этом сайте, просто проигнорируйте это письмо."
+            ),
+            html_body=(
+                f"<p>Здравствуйте, {user.first_name}!</p>"
+                f"<p>Подтвердите свой email, перейдя по ссылке (действует "
+                f"{settings.email_verification_token_expire_minutes // 60} ч):</p>"
+                f'<p><a href="{verify_link}">{verify_link}</a></p>'
+                "<p>Если вы не регистрировались на этом сайте, просто проигнорируйте это письмо.</p>"
+            ),
+        )
+
+    def confirm_email_verification(self, raw_token: str) -> None:
+        token = self.verification_token_repo.get_valid_by_hash(_hash_token(raw_token))
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Токен подтверждения email недействителен или просрочен",
+            )
+        user = self.user_repo.get_by_id(token.user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пользователь не найден",
+            )
+        self.user_repo.set_email_verified_at(user, datetime.now(timezone.utc))
+        self.verification_token_repo.mark_used(token)
 
     def logout(self, raw_refresh_token: str | None) -> None:
         """Удаляет ровно текущую сессию (устройство) — не трогает остальные.

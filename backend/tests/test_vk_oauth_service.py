@@ -28,15 +28,17 @@ def make_fake_user(**overrides):
     defaults = dict(
         id=uuid.uuid4(), email="client@example.com", first_name="Иван", last_name="Иванов",
         phone=None, role="client", vk_user_id=None, is_blocked=False, token_version=0,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc), email_verified_at=None,
     )
     defaults.update(overrides)
-    return SimpleNamespace(**defaults)
+    user = SimpleNamespace(**defaults)
+    user.email_verified = user.email_verified_at is not None
+    return user
 
 
 def make_service(*, by_vk_id=None, by_email=None, created=None, linked=None):
     svc = VkOAuthService.__new__(VkOAuthService)
-    calls = {"create": None, "link": None}
+    calls = {"create": None, "link": None, "verified": None}
 
     def create_vk_oauth_user(**kwargs):
         calls["create"] = kwargs
@@ -46,11 +48,18 @@ def make_service(*, by_vk_id=None, by_email=None, created=None, linked=None):
         calls["link"] = (user, vk_user_id)
         return linked or user
 
+    def set_email_verified_at(user, value):
+        user.email_verified_at = value
+        user.email_verified = value is not None
+        calls["verified"] = (user, value)
+        return user
+
     svc.user_repo = SimpleNamespace(
         get_by_vk_id=lambda vk_id: by_vk_id,
         get_by_email=lambda email: by_email,
         create_vk_oauth_user=create_vk_oauth_user,
         link_vk_id=link_vk_id,
+        set_email_verified_at=set_email_verified_at,
     )
     svc._calls = calls
     return svc
@@ -124,6 +133,21 @@ class TestHandleCallback:
         assert svc._calls["link"] == (existing, "vk-2")
         assert svc._calls["create"] is None
         assert res.user.email == "client@example.com"
+        # VK только что доказал владение этим email — подтверждение не должно
+        # требовать отдельного письма, даже если оно раньше не было подтверждено.
+        assert svc._calls["verified"] == (existing, existing.email_verified_at)
+        assert existing.email_verified_at is not None
+        assert res.user.email_verified is True
+
+    def test_does_not_reverify_already_verified_linked_account(self, monkeypatch):
+        already_verified_at = datetime.now(timezone.utc)
+        existing = make_fake_user(vk_user_id=None, email_verified_at=already_verified_at)
+        patch_http(monkeypatch, token_payload={"access_token": "tok", "user_id": "vk-2"},
+                  user_payload={"email": "client@example.com", "first_name": "Иван", "last_name": "Иванов"})
+        svc = make_service(by_vk_id=None, by_email=existing, linked=existing)
+        svc.handle_callback(code="c", code_verifier="v", device_id="d")
+        assert svc._calls["verified"] is None
+        assert existing.email_verified_at == already_verified_at
 
     def test_creates_new_user_when_no_match(self, monkeypatch):
         created = make_fake_user(vk_user_id="vk-3", email="new@example.com")

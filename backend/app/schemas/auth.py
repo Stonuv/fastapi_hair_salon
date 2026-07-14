@@ -32,3 +32,10 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token:        Annotated[str, Field(description="Токен из ссылки восстановления")]
     new_password: Annotated[PasswordStr, Field(description="Новый пароль (8–72 символа)")]
+
+
+# ── Подтверждение email ──────────────────────────────────────────
+
+
+class EmailVerificationConfirm(BaseModel):
+    token: Annotated[str, Field(description="Токен из ссылки подтверждения email")]

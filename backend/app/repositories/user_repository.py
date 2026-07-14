@@ -94,7 +94,9 @@ class UserRepository:
         """Первый вход через VK ID. email может быть None — VK ID не всегда
         его отдаёт; пользователь укажет его позже (см. AuthService.update_profile),
         например при оформлении первой записи. Регистрация без пароля
-        (см. User.password_hash)."""
+        (см. User.password_hash). Email, полученный от VK, сразу помечается
+        подтверждённым — VK OAuth уже доказал владение этим адресом, повторное
+        подтверждение письмом не нужно (в отличие от email, введённого вручную)."""
         user = User(
             email=email,
             password_hash=None,
@@ -102,6 +104,7 @@ class UserRepository:
             last_name=last_name,
             vk_user_id=vk_user_id,
             role=UserRole.client,
+            email_verified_at=datetime.now(timezone.utc) if email else None,
         )
         self.db.add(user)
         self.db.flush()
@@ -148,7 +151,17 @@ class UserRepository:
         return user
 
     def set_email(self, user: User, email: str) -> User:
+        # Новый email всегда сбрасывает подтверждение — независимо от того,
+        # откуда вызван (правка профиля, email VK-пользователя без email при
+        # первой записи): владение новым адресом ещё не доказано.
         user.email = email
+        user.email_verified_at = None
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
+    def set_email_verified_at(self, user: User, value: datetime | None) -> User:
+        user.email_verified_at = value
         self.db.flush()
         self.db.refresh(user)
         return user

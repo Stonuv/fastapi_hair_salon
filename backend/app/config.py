@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     # ── Восстановление пароля ─────────────────────────────────────
     password_reset_token_expire_minutes: int = 30
 
+    # ── Подтверждение email ─────────────────────────────────────────
+    # Дольше, чем password_reset (30 мин) — это не security-критичная
+    # операция, а обычный "проверьте почту", письмо могут открыть не сразу.
+    email_verification_token_expire_minutes: int = 60 * 24
+    email_verification_max_requests_per_hour: int = 3
+
     # ── Загрузка изображений (фото мастеров, hero-картинка) ────────
     # Файлы лежат на диске backend-контейнера (см. docker-compose.yml —
     # именованный volume, переживает пересоздание контейнера) и отдаются

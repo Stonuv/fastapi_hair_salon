@@ -66,6 +66,7 @@ class UserResponse(BaseModel):
     phone:      str | None
     role:       Annotated[UserRole, Field(description="Роль: client / master / admin")]
     is_blocked: Annotated[bool, Field(default=False, description="Заблокирован ли аккаунт (вход запрещён)")]
+    email_verified: Annotated[bool, Field(default=False, description="Подтверждён ли email (мягкий гейт — на вход не влияет)")]
     created_at: datetime
 
 

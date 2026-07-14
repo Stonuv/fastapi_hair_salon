@@ -48,6 +48,15 @@
           :error="errors.password"
           @blur="validatePassword"
         />
+        <BaseInput
+          v-model="form.password_confirm"
+          label="Повторите пароль"
+          type="password"
+          autocomplete="new-password"
+          required
+          :error="errors.password_confirm"
+          @blur="validatePasswordConfirm"
+        />
 
         <BaseCheckbox v-model="consent">
           <span class="text-xs text-ink-600">
@@ -89,7 +98,7 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const { errors, setError, clearError, setFromResponse } = useFormErrors()
 
-const form = reactive({ first_name: '', last_name: '', email: '', phone: '', password: '' })
+const form = reactive({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirm: '' })
 const consent = ref(false)
 const loading = ref(false)
 
@@ -107,6 +116,15 @@ function validateEmail() {
 function validatePassword() {
   if (form.password.length < 8) return setError('password', 'Минимум 8 символов')
   clearError('password')
+  // Пароль могли поменять уже после того, как заполнили повтор — актуализируем
+  // ошибку совпадения, а не оставляем последний результат прошлой проверки.
+  if (form.password_confirm) validatePasswordConfirm()
+}
+
+function validatePasswordConfirm() {
+  if (!form.password_confirm) return setError('password_confirm', 'Повторите пароль')
+  if (form.password_confirm !== form.password) return setError('password_confirm', 'Пароли не совпадают')
+  clearError('password_confirm')
 }
 
 function validateAll() {
@@ -114,6 +132,7 @@ function validateAll() {
   validateField('last_name', form.last_name, 'Укажите фамилию')
   validateEmail()
   validatePassword()
+  validatePasswordConfirm()
   return !Object.keys(errors).length
 }
 
@@ -126,8 +145,9 @@ async function submit() {
 
   loading.value = true
   try {
-    await auth.register({ ...form, phone: form.phone || null })
-    toast.success('Регистрация прошла успешно!')
+    const { password_confirm, ...payload } = form
+    await auth.register({ ...payload, phone: form.phone || null })
+    toast.success('Регистрация прошла успешно! Проверьте почту, чтобы подтвердить email.')
     router.push('/')
   } catch (err) {
     if (!setFromResponse(err)) {

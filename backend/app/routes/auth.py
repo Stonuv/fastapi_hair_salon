@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..schemas.auth import (LoginRequest, PasswordResetConfirm,
-                            PasswordResetRequest, TokenResponse)
+from ..schemas.auth import (EmailVerificationConfirm, LoginRequest,
+                            PasswordResetConfirm, PasswordResetRequest,
+                            TokenResponse)
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 from ..services.auth_service import (REFRESH_TOKEN_COOKIE, AuthService,
                                      clear_auth_cookie, clear_refresh_cookie,
@@ -103,6 +104,26 @@ def request_password_reset(data: PasswordResetRequest, db: Session = Depends(get
 @router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
 def confirm_password_reset(data: PasswordResetConfirm, db: Session = Depends(get_db)):
     AuthService(db).confirm_password_reset(data.token, data.new_password)
+
+
+# ── Подтверждение email ──────────────────────────────────────────
+#
+# "Мягкий" гейт (см. AuthService.send_verification_email) — неподтверждённый
+# email не мешает войти, поэтому /confirm не требует авторизации (ссылка из
+# письма может быть открыта в другом браузере/устройстве, токен сам себя
+# идентифицирует), а /resend требует — там нет анонимного ввода произвольного
+# email, только "отправь мне ещё раз на мой собственный".
+
+
+@router.post("/email-verification/confirm", status_code=status.HTTP_204_NO_CONTENT)
+def confirm_email_verification(data: EmailVerificationConfirm, db: Session = Depends(get_db)):
+    AuthService(db).confirm_email_verification(data.token)
+
+
+@router.post("/email-verification/resend", status_code=status.HTTP_202_ACCEPTED)
+def resend_email_verification(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    AuthService(db).resend_verification_email(current_user)
+    return {"detail": "Письмо с подтверждением отправлено"}
 
 
 # ── VK ID (OAuth 2.1 + PKCE) ────────────────────────────────────────

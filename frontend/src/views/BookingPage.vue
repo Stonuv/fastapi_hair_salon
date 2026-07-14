@@ -273,7 +273,8 @@ async function book() {
   }
   bookingLoading.value = true
   try {
-    if (!auth.user?.email) {
+    const emailJustAdded = !auth.user?.email
+    if (emailJustAdded) {
       await auth.updateMe({ email: emailInput.value })
     }
     await appointmentsApi.create({
@@ -282,7 +283,11 @@ async function book() {
       start_time: selectedSlot.value.start_time,
     })
     booked.value = true
-    toast.success('Запись успешно создана')
+    toast.success(
+      emailJustAdded
+        ? 'Запись успешно создана. Мы отправили ссылку для подтверждения email'
+        : 'Запись успешно создана'
+    )
   } catch (err) {
     toast.error(extractErrorMessage(err))
   } finally {

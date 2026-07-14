@@ -2,6 +2,7 @@ import base64
 import hashlib
 import logging
 import secrets
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 import httpx
@@ -97,6 +98,10 @@ class VkOAuthService:
                 # VK подтверждает владение email — это тот же человек, что уже
                 # зарегистрирован по паролю; просто привязываем VK к аккаунту.
                 user = self.user_repo.link_vk_id(existing, vk_user_id)
+                # Тот же email мог быть ещё не подтверждён письмом — теперь он
+                # подтверждён косвенно через VK OAuth, повторное письмо не нужно.
+                if not user.email_verified:
+                    user = self.user_repo.set_email_verified_at(user, datetime.now(timezone.utc))
             else:
                 user = self.user_repo.create_vk_oauth_user(
                     email=email, first_name=first_name, last_name=last_name,

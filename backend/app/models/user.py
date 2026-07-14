@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean
+from sqlalchemy import Boolean, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from .login_attempt import LoginAttempt
     from .master import Master
     from .password_reset_token import PasswordResetToken
+    from .email_verification_token import EmailVerificationToken
     from .session import Session
     from .appointment import Appointment
     from .review import Review
@@ -40,6 +42,11 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     # ID пользователя VK ID (user_info.user_id) — привязка OAuth-аккаунта.
     vk_user_id: Mapped[str | None] = mapped_column(String(64))
+    # NULL — email ещё не подтверждён; иначе момент подтверждения. Email,
+    # полученный от VK ID через OAuth, помечается подтверждённым сразу при
+    # создании аккаунта (VK уже доказал владение) — письмо шлётся только
+    # для email, введённого вручную (регистрация, смена в профиле).
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(20))
@@ -68,9 +75,16 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    email_verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     sessions: Mapped[list["Session"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"
