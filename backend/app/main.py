@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,6 +19,17 @@ from .utils.rate_limit import limiter
 # без этого вызова логгеры приложения (например, auth_service при
 # восстановлении пароля) молча проглатываются root-логгером.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+# SENTRY_DSN не задан -> init() не вызывается вообще, мониторинг молча
+# выключен (см. комментарий у settings.sentry_dsn в config.py — TODO
+# завести аккаунт). FastAPI/Starlette-интеграция автоподключается самим
+# sentry-sdk при наличии этих пакетов — руками ничего оборачивать не нужно.
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment="production" if not settings.debug else "development",
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+    )
 
 app = FastAPI(
     title=settings.app_name,

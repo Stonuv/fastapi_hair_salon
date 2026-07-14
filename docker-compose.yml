@@ -57,6 +57,9 @@ services:
       VK_CLIENT_ID: ${VK_CLIENT_ID:-}
       VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
       VK_REDIRECT_URI: ${VK_REDIRECT_URI:-http://localhost/api/auth/vk/callback}
+      # Пусто -> мониторинг ошибок выключен целиком, sentry_sdk.init() не
+      # вызывается (см. TODO у settings.sentry_dsn в backend/app/config.py).
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       # Загруженные фото мастеров/hero-картинка (см. utils/uploads.py) —
       # именованный volume, иначе файлы терялись бы при каждом пересоздании
@@ -67,7 +70,14 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # Build ARG, не environment: — VITE_* запекается в бандл на этапе
+      # `npm run build`, обычная env-переменная контейнера тут бесполезна
+      # (см. Dockerfile). Смена DSN требует `docker compose up --build -d
+      # frontend`, одного restart недостаточно.
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     depends_on:
       - backend

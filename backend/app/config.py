@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     rate_limit_booking:  str = "20/minute"
     rate_limit_review:   str = "10/hour"
 
+    # ── Мониторинг ошибок (Sentry) ───────────────────────────────────
+    # TODO: SENTRY_DSN пока не задан нигде — sentry.io недоступен для
+    # регистрации аккаунта (403) на момент написания. Как только появится
+    # доступ: завести проект на sentry.io (или self-hosted/GlitchTip —
+    # тоже говорят DSN этого же формата), вписать SENTRY_DSN в .env,
+    # `docker compose up -d backend`. До этого момента None -> main.py
+    # просто не вызывает sentry_sdk.init(), мониторинг выключен целиком.
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.0
+
     # ── Загрузка изображений (фото мастеров, hero-картинка) ────────
     # Файлы лежат на диске backend-контейнера (см. docker-compose.yml —
     # именованный volume, переживает пересоздание контейнера) и отдаются

@@ -244,6 +244,26 @@ docker compose start backend
 
 ---
 
+## Мониторинг ошибок (Sentry)
+
+> **TODO:** аккаунт на sentry.io ещё не создан — регистрация была недоступна
+> (403) на момент настройки этой интеграции. Код готов и ждёт DSN.
+
+Код (backend `sentry_sdk.init(...)`, frontend `Sentry.init({ app, ... })` в
+`main.js`) уже подключён, но выключен: без `SENTRY_DSN`/`VITE_SENTRY_DSN` в
+`.env` инициализация просто не вызывается. Когда появится доступ к sentry.io
+(или self-hosted/GlitchTip — DSN того же формата):
+
+1. Завести проект на sentry.io, скопировать DSN.
+2. Вписать в `.env`: `SENTRY_DSN=...` (backend) и `VITE_SENTRY_DSN=...`
+   (frontend — см. комментарий в `.env.example`, значения обычно совпадают).
+3. **Frontend требует пересборки**, не просто рестарта — `VITE_SENTRY_DSN`
+   запекается в бандл на этапе `npm run build` (Vite build ARG, см.
+   `frontend/Dockerfile`), а не читается в рантайме:
+   ```bash
+   docker compose up --build -d
+   ```
+
 ## Первичная настройка
 
 После деплоя в системе нет ни одного пользователя с ролью `admin` — создать
