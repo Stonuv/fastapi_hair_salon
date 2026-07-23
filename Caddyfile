@@ -3,5 +3,28 @@
 # Домен ("your-domain.ru") — Caddy сам получает сертификат Let's Encrypt и
 # редиректит http -> https, конфиг менять не нужно.
 {$SITE_ADDRESS} {
+	# Security-заголовки — Caddy единственная точка входа перед frontend
+	# (SPA) и backend (проксируется frontend'ом дальше на /api), поэтому
+	# заголовки здесь покрывают оба разом. HSTS браузер применяет только к
+	# ответам, реально полученным по HTTPS — на голом HTTP (SITE_ADDRESS
+	# ":80", без домена) заголовок просто игнорируется, ничего не ломает.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		# script-src без 'unsafe-inline': единственный инлайн-скрипт
+		# (Яндекс.Метрика) вынесен в frontend/public/metrika.js. style-src с
+		# 'unsafe-inline' — Vue :style-биндинги рендерятся как настоящий
+		# style="" атрибут; убрать эту поблажку можно только вместе с
+		# nonce-инфраструктурой в сборке (отдельная задача).
+		# ВАЖНО: как только появится SENTRY_DSN — добавить домен приёма
+		# ошибок Sentry (обычно https://*.ingest.sentry.io или
+		# регион-специфичный, см. сам DSN) в connect-src, иначе отчёты об
+		# ошибках будут тихо блокироваться этим CSP.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://mc.yandex.ru; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+		-Server
+	}
 	reverse_proxy frontend:80
 }
