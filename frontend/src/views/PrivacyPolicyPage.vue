@@ -6,6 +6,16 @@
     </h1>
     <p class="mt-2 text-sm text-ink-600">Действует с {{ effectiveDate }}</p>
 
+    <div class="mt-6 rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 p-4">
+      <p class="font-mono text-xs font-bold uppercase tracking-wide text-amber-800">Сайт в разработке</p>
+      <p class="mt-2 text-sm text-amber-900">
+        «{{ brandName }}» — демонстрационный проект: юридическое лицо (ИП/ООО) пока не зарегистрировано.
+        Эта Политика не имеет юридической силы по 152-ФЗ «О персональных данных», пока раздел 2 не заполнен
+        действующими реквизитами оператора, и не может рассматриваться как реальное обязательство. Сайт пока
+        не готов к сбору персональных данных на реальных условиях — не оставляйте здесь настоящие личные данные.
+      </p>
+    </div>
+
     <div class="mt-8 space-y-8 text-sm leading-relaxed text-ink-700">
       <section>
         <h2 class="mb-2 font-display text-lg font-bold text-ink-900">1. Общие положения</h2>
