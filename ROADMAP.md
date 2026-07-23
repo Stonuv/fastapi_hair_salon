@@ -79,8 +79,8 @@ Rate limiting (`slowapi`, `backend/app/utils/rate_limit.py`) — in-memory, бе
 **#11. Нет сканирования зависимостей и уязвимостей.**
 Ни `pip-audit`, ни `npm audit`, ни Dependabot, ни CodeQL, ни какой-либо image-скан (Trivy/Grype) не настроены в `.github/`.
 
-**#12. Непоследовательная обработка SQL LIKE-паттернов.**
-`backend/app/repositories/user_repository.py` и `master_repository.py` экранируют wildcard-символы поиска через `escape_like()` (`repositories/_query_utils.py`), а `service_repository.py` (поиск услуг) — нет. Не критичная уязвимость (параметризованные запросы защищают от инъекций), но пользователь может получить неожиданные результаты поиска через `%`/`_`.
+**#12. ~~Непоследовательная обработка SQL LIKE-паттернов~~ — ложное срабатывание, перепроверено.**
+Первоначальный аудит утверждал, что `service_repository.py` не экранирует wildcard-символы поиска через `escape_like()`, в отличие от `user_repository.py`/`master_repository.py`. При прямом чтении файла перед реализацией фикса (Фаза 1) выяснилось, что `service_repository.py:40-42` уже вызывает `escape_like()` точно так же, как остальные два репозитория — исходное утверждение было ошибкой при первичном исследовании кода, не отражало реальное состояние. Действие не требуется, пункт снят.
 
 **#13. Нет линтеров и форматтеров.**
 Ни ruff/black/mypy на бэкенде, ни eslint/prettier на фронтенде не сконфигурированы — подтверждено отсутствием конфигов в обеих частях проекта.
@@ -105,6 +105,8 @@ Rate limiting (`slowapi`, `backend/app/utils/rate_limit.py`) — in-memory, бе
 
 **#22.** Нет регрессионного тестирования доступности (axe-core/Lighthouse CI) — ручная проверка была разовой (см. `notes/ISSUES.md §8.7`), не защищена от повторного появления тех же проблем.
 
+**#23. (найдено при реализации Фазы 1) Vite/esbuild dev-server уязвимости, требуют мажорного апгрейда.** `npm audit` показывает 3 находки на связке `vite`/`esbuild` (path traversal в обработке `.map` при `vite optimize`, обход `server.fs.deny`, утечка NTLMv2-хэша через `launch-editor` на Windows) — все специфичны для **dev-сервера** (`npm run dev`), не затрагивают собранную статику, которая реально деплоится. Чистый фикс — `vite@8.x` (сейчас `^5.2.11`), мажорный breaking-change апгрейд через 3 версии, требует отдельного прохода с полной проверкой сборки/дев-сервера, не сделан в рамках Фазы 1.
+
 ---
 
 ## 3. План доработки для продакшена
@@ -119,14 +121,16 @@ Rate limiting (`slowapi`, `backend/app/utils/rate_limit.py`) — in-memory, бе
 - [ ] Sentry — отложено пользователем. Требует регистрации аккаунта (sentry.io/self-hosted) — внешнее действие, вернуться к этому вопросу позже.
 - [x] **Security-заголовки в `Caddyfile`** — добавлен глобальный блок `header`: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `Content-Security-Policy` (с точным списком внешних доменов — Google Fonts, Яндекс.Метрика — и явным TODO-комментарием добавить домен приёма ошибок Sentry, когда появится DSN), убран `Server`-заголовок. Попутно инлайн-скрипт Яндекс.Метрики вынесен из `index.html` в `frontend/public/metrika.js`, чтобы `script-src` мог обойтись без `'unsafe-inline'`. Проверено вживую: собранный фронтенд поднят за тестовым Caddy-контейнером с теми же заголовками, открыт в браузере — все заголовки присутствуют в ответе (`curl -I`), консоль не показала ни одной CSP-ошибки, шрифты и `metrika.js` реально загрузились (200/304 в сетевых запросах), скриншот подтвердил корректный рендер.
 
-### Фаза 1 — харденинг
+### Фаза 1 — харденинг ✅ выполнено
 *(закрывает #7–#12)*
-- [ ] Вынести `pytest` и связанные dev-зависимости в `backend/requirements-dev.txt`, прод-`Dockerfile` ставит только `requirements.txt`.
-- [ ] Добавить `HEALTHCHECK`/compose `healthcheck:` для `backend` (`GET /health`), `frontend` (nginx `/`), `caddy`.
-- [ ] Добавить непривилегированного `USER` в `backend/Dockerfile` и `frontend/Dockerfile`.
-- [ ] Явно задать `CORS_ORIGINS` в `docker-compose.yml` под `backend.environment` (даже если совпадает с дефолтом) — чтобы смена топологии не была тихим сюрпризом.
-- [ ] Добавить `pip-audit` и `npm audit --audit-level=high` шагами в CI; включить Dependabot (`*.github/dependabot.yml`) хотя бы для `pip`/`npm`/`docker`/`github-actions` экосистем.
-- [ ] Поправить `service_repository.py` — вызвать `escape_like()` по аналогии с `user_repository.py`/`master_repository.py`.
+- [x] `pytest` вынесен в `backend/requirements-dev.txt` (включает `-r requirements.txt` + сам `pytest`); прод-`Dockerfile` ставит только `requirements.txt`, CI ставит `requirements-dev.txt`. 166 тестов проходят.
+- [x] `healthcheck:` добавлен для `backend` (`GET /health` через `python -c` — curl/wget нет в `python:3.14-slim`), `frontend` (nginx, `wget --spider`), `caddy` (admin API `:2019/config/`, топологически-независимо от домена/HTTPS). `depends_on` для `db→backend→frontend→caddy` обновлён на `condition: service_healthy` по всей цепочке. Все три — на `127.0.0.1`, не `localhost` (см. следующий пункт, почему).
+- [x] Непривилегированный `USER` в обоих `Dockerfile`. Бэкенд: свой `appuser`, `/app/uploads` заранее создан и передан во владение (важно для именованного volume'а — Docker инициализирует НОВЫЙ volume правами того, что уже есть в этом пути образа; на уже существующем volume'е при обновлении деплоя владение поправить один раз вручную, команда — в комментарии в Dockerfile). Фронтенд: встроенный в `nginx:alpine` пользователь `nginx`, порт перенесён на 8080 (бинд <1024 требует root), `Caddyfile` обновлён на `reverse_proxy frontend:8080`. **Найдено и исправлено вживую**: healthcheck на `localhost` резолвился в IPv6 (`::1`) и получал connection refused, хотя сервис реально слушал только IPv4 — non-root entrypoint nginx-образа не может переписать root-owned конфиг, чтобы добавить IPv6-listener. Все три healthcheck'а используют `127.0.0.1` явно.
+- [x] `CORS_ORIGINS` явно задан в `docker-compose.yml` (тем же значением, что дефолт в `config.py` — без смены поведения). Проверено: `docker compose config` разворачивает корректно, `pydantic-settings` парсит JSON-массив из env верно.
+- [x] `pip-audit` (блокирующий, с одним документированным исключением — см. ниже) и `npm audit --audit-level=high` (пока `continue-on-error`, см. ниже) — в CI. `.github/dependabot.yml` — `pip`/`npm`/`docker` (×2, отдельно для `backend` и `frontend`)/`github-actions`. Заодно **исправлены найденные уязвимости**: `pyasn1` 0.6.3→0.6.4, `pydantic-settings` 2.14.1→2.14.2 (обе — патч-версии, тесты по-прежнему зелёные), `axios` пропатчен через `npm audit fix` (только `package-lock.json`, `package.json` не менялся). Осталось два документированных исключения: `ecdsa` (PYSEC-2026-1325, фикса от апстрима нет, но код недостижим — приложение подписывает JWT только HS256, ecdsa нужен `python-jose` только для RSA/EC-алгоритмов) — исключён явно (`--ignore-vuln`) с комментарием в `ci.yml`; `vite`/`esbuild` (см. #23) — dev-server-only, `continue-on-error` до отдельного мажорного апгрейда.
+- [x] ~~Поправить `service_repository.py`~~ — не требуется, см. #12: при проверке выяснилось, что `escape_like()` там уже вызывается.
+
+**Проверено end-to-end**: полный `docker-compose` стек (изолированный тестовый проект, не трогая реально запущенный) собран и поднят — все контейнеры healthy, оба (backend/frontend) подтверждённо работают не под root, Caddy корректно проксирует на новый `frontend:8080`, `/api` реально доходит до backend+Postgres, мастер настройки открывается и рендерится корректно в браузере против настоящей (не заглушечной) БД.
 
 ### Фаза 2 — тесты и качество кода
 *(закрывает #5, #13)*
@@ -407,13 +411,13 @@ if role in (UserRole.admin, UserRole.owner) and requesting_user.role != UserRole
 - [ ] Sentry DSN и активация мониторинга — отложено пользователем, требует внешней регистрации аккаунта (#3)
 - [x] Security-заголовки в Caddy (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) — реализовано и проверено вживую в браузере (#4)
 
-**Продакшен — фаза 1 (харденинг):**
-- [ ] `requirements-dev.txt`, чистый прод-образ (#7)
-- [ ] Healthcheck для backend/frontend/caddy (#8)
-- [ ] Непривилегированный `USER` в Dockerfile'ах (#8)
-- [ ] Явный `CORS_ORIGINS` в проде (#10)
-- [ ] `pip-audit`/`npm audit`/Dependabot в CI (#11)
-- [ ] `escape_like()` в `service_repository.py` (#12)
+**Продакшен — фаза 1 (харденинг):** ✅ выполнено
+- [x] `requirements-dev.txt`, чистый прод-образ (#7)
+- [x] Healthcheck для backend/frontend/caddy, `depends_on: condition: service_healthy` по всей цепочке (#8)
+- [x] Непривилегированный `USER` в Dockerfile'ах, порт фронтенда перенесён на 8080 (#8)
+- [x] Явный `CORS_ORIGINS` в проде (#10)
+- [x] `pip-audit` (блокирующий) + `npm audit` (пока информационный) + Dependabot в CI; попутно исправлены `pyasn1`/`pydantic-settings`/`axios`, задокументированы `ecdsa` (недостижим) и `vite`/`esbuild` (новый пункт #23, dev-only, нужен мажорный апгрейд) (#11)
+- [x] ~~`escape_like()` в `service_repository.py`~~ — ложное срабатывание при первичном аудите, уже вызывается (#12)
 
 **Продакшен — фаза 2 (тесты и качество):**
 - [ ] Интеграционные тесты на реальном Postgres, приоритет — `EXCLUDE USING gist` (#5)
