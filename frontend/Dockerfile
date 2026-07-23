@@ -23,4 +23,14 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+# nginx:alpine уже включает непривилегированного пользователя nginx
+# (uid/gid 101) — отдаём ему то, во что процесс реально пишет в рантайме
+# (кэш, pid-файл); статику из /usr/share/nginx/html только читает, владение
+# там менять не нужно. `user nginx;` в базовом /etc/nginx/nginx.conf (не
+# наш файл, часть образа) при старте не от root просто игнорируется nginx'ом
+# с safe-варнингом в лог — на поведение не влияет.
+RUN chown -R nginx:nginx /var/cache/nginx /run
+
+USER nginx
+
+EXPOSE 8080
