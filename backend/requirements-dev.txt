@@ -1,0 +1,5 @@
+# Зависимости для разработки/CI поверх прод-набора (requirements.txt) —
+# прод-образ (Dockerfile) ставит только requirements.txt, тестовый фреймворк
+# в него не попадает.
+-r requirements.txt
+pytest==9.1.1

@@ -19,15 +19,26 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-dev.txt
 
       # Тесты — чистые unit-тесты без БД (сервисы вызываются напрямую,
       # с фейковыми репозиториями, см. tests/*.py) — ни Postgres, ни .env
       # тут не нужны, settings() падает на fail-fast только при DEBUG=false
       # (дефолт — true, когда переменные окружения не заданы).
       - run: pytest -q
+
+      # PYSEC-2026-1325 (ecdsa) — единственное известное на сейчас исключение,
+      # без доступного фикса апстрима. Не эксплуатируемо в этом приложении:
+      # ecdsa — транзитивная зависимость python-jose для RSA/EC-алгоритмов,
+      # а JWT здесь подписываются только HS256 (симметричный HMAC, settings.
+      # algorithm в config.py — единственное используемое значение), код
+      # ecdsa в рантайме не вызывается ни при каких условиях.
+      - run: pip install pip-audit
+      - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -48,6 +59,17 @@ jobs:
       # синтаксические ошибки/битые импорты, то же самое, что происходит
       # при реальном docker compose build.
       - run: npm run build
+
+      # continue-on-error: единственные текущие high/moderate-находки —
+      # esbuild/vite (path traversal и т.п. в dev-сервере vite) — актуальны
+      # только для `npm run dev`, не для собранной статики, которая реально
+      # деплоится. Чистый фикс — мажорный апгрейд vite 5→8 (breaking change,
+      # nужен отдельный проход с проверкой), не тянуть сюда попутно. Шаг
+      # оставлен видимым (не убран совсем), чтобы не пропустить НОВую
+      # high/critical-находку поверх уже известных — снять continue-on-error,
+      # когда vite будет обновлён.
+      - run: npm audit --audit-level=high
+        continue-on-error: true
 
   compose-validate:
     runs-on: ubuntu-latest
