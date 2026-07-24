@@ -33,7 +33,6 @@ const routes = [
       { path: 'services', name: 'admin-services', component: () => import('../views/admin/AdminServices.vue') },
       { path: 'masters', name: 'admin-masters', component: () => import('../views/admin/AdminMasters.vue') },
       { path: 'reviews', name: 'admin-reviews', component: () => import('../views/admin/AdminReviews.vue') },
-      { path: 'settings', name: 'admin-settings', component: () => import('../views/admin/AdminSettings.vue') },
       { path: 'reports', name: 'admin-reports', component: () => import('../views/admin/AdminReports.vue') },
     ],
   },
@@ -41,10 +40,10 @@ const routes = [
     // Вне DashboardLayout (сайдбар + шапка админки) намеренно — эта страница
     // должна пиксель-в-пиксель повторять реальную главную (та же ширина,
     // тот же AppHeader/AppFooter), а не жить в узкой колонке рядом с
-    // сайдбаром админки. Путь /admin/settings-live сохранён ради пункта
-    // меню в сайдбаре (SidebarLink просто ссылается на него по имени).
-    path: '/admin/settings-live',
-    name: 'admin-settings-live',
+    // сайдбаром админки. Путь сохранён ради пункта меню в сайдбаре
+    // (SidebarLink просто ссылается на него по имени).
+    path: '/admin/settings',
+    name: 'admin-settings',
     component: () => import('../views/admin/AdminSettingsLive.vue'),
     meta: { requiresAuth: true, roles: ['admin'], hideHeader: true },
   },

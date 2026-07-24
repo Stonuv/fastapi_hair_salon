@@ -32,10 +32,9 @@ import { adminApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 
-// Оверлей поверх фото в hero-блоке /admin/settings-live — та же загрузка
-// файла на сервер, что и в ImageUpload.vue (обычные «Настройки»), вместо
-// текстового поля с URL, которое было тут раньше (ISSUES #29б делал это
-// только для AdminSettings/AdminMasters, HomePreview остался забыт).
+// Оверлей поверх фото в hero-блоке /admin/settings — та же загрузка
+// файла на сервер, что и в ImageUpload.vue, вместо текстового поля с URL,
+// которое было тут раньше.
 defineProps({ modelValue: String })
 const emit = defineEmits(['update:modelValue'])
 
