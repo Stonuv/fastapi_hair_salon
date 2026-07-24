@@ -2,13 +2,17 @@ import logging
 from pathlib import Path
 
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from .config import settings
+from .database import get_db
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
                      reviews_router, site_settings_router, setup_router)
@@ -83,5 +87,15 @@ def root():
 
 
 @app.get("/health")
-def health():
+def health(db: Session = Depends(get_db)):
+    # SELECT 1, не просто "процесс жив" — docker-compose/оркестратор должны
+    # узнать о недоступности БД (падение Postgres, исчерпанный пул и т.п.)
+    # тем же способом, что и о падении самого процесса: non-2xx здесь валит
+    # urllib.request.urlopen в healthcheck (docker-compose.yml) с ненулевым
+    # кодом, ровно как рассчитан этот healthcheck. 503, а не необработанные
+    # 500 — явный сигнал "зависимость недоступна", а не "баг в коде".
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
     return {"status": "ok"}
