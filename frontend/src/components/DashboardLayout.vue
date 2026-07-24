@@ -70,8 +70,12 @@ const auth = useAuthStore()
 const router = useRouter()
 const { content } = storeToRefs(useSiteContentStore())
 
-function handleLogout() {
-  auth.logout()
+async function handleLogout() {
+  // await обязателен: guestOnly-guard роутера смотрит на auth.isLoggedIn
+  // синхронно в момент навигации — если не дождаться clearSession()
+  // (внутри auth.logout()), /login увидит пользователя ещё залогиненным
+  // и молча отобьёт редиректом на home.
+  await auth.logout()
   router.push('/login')
 }
 </script>

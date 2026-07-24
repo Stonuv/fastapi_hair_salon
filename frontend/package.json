@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint src tests playwright.config.js vite.config.js",
     "format": "prettier --write src",
     "format:check": "prettier --check src"
   },
@@ -20,16 +22,21 @@
     "vue-router": "^4.3.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.19.0",
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-vue": "^5.0.4",
+    "@vue/test-utils": "^2.4.11",
     "autoprefixer": "^10.5.1",
     "eslint": "^9.19.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-vue": "^9.32.0",
     "globals": "^15.14.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.19",
-    "vite": "^5.2.11"
+    "vite": "^5.2.11",
+    "vitest": "^4.1.10"
   }
 }

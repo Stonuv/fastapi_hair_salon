@@ -90,8 +90,9 @@ const router = useRouter()
 const { content: storeContent } = storeToRefs(useSiteContentStore())
 const localContent = computed(() => props.content ?? storeContent.value)
 
-function handleLogout() {
-  auth.logout()
+async function handleLogout() {
+  // await обязателен — см. тот же fix и комментарий в DashboardLayout.vue.
+  await auth.logout()
   router.push('/login')
 }
 </script>

@@ -39,4 +39,12 @@ export default [
       'vue/no-mutating-props': 'off',
     },
   },
+  {
+    // Конфиги инструментов и тесты (Vitest/Playwright) выполняются в Node,
+    // не в браузере — им нужен process/__dirname и т.п., которых нет в src.
+    files: ['*.config.js', 'tests/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ]

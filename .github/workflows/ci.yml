@@ -116,9 +116,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
-      # Своего набора тестов у фронтенда нет — сборка (vite build) ловит
-      # синтаксические ошибки/битые импорты, то же самое, что происходит
-      # при реальном docker compose build.
+      # Юнит-тесты (Vitest) — отдельная джоба frontend-unit-tests ниже.
+      # Здесь только сборка — ловит синтаксические ошибки/битые импорты,
+      # то же самое, что происходит при реальном docker compose build.
       - run: npm run build
 
       # continue-on-error: единственные текущие high/moderate-находки —
@@ -131,6 +131,105 @@ jobs:
       # когда vite будет обновлён.
       - run: npm audit --audit-level=high
         continue-on-error: true
+
+  frontend-unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      # Стор/composable-уровень (Vitest) — pinia-сторы с замоканным API-слоем
+      # и чистые утилиты. Компонентных/e2e-тестов тут нет, см. frontend-e2e.
+      - run: npm run test:unit
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    # Сквозные сценарии (Playwright) поверх настоящего backend + Postgres —
+    # ловят то, что unit/integration-тесты в принципе не видят: реальные
+    # HTTP-редиректы, race conditions между router-guard'ом и async
+    # изменением стора и т.п. (именно так на этапе написания этих тестов
+    # нашлись и были исправлены два бага — SetupWizard не проставлял
+    # auth.ready, DashboardLayout/AppHeader не дожидались auth.logout()
+    # перед редиректом на /login). См. module-докстринг
+    # frontend/tests/e2e/core-flows.spec.js.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: barbershop
+          POSTGRES_PASSWORD: barbershop
+          POSTGRES_DB: barbershop_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U barbershop -d barbershop_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+        working-directory: backend
+
+      - name: Migrate database
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://barbershop:barbershop@localhost:5432/barbershop_e2e
+        run: alembic upgrade head
+
+      - name: Start backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://barbershop:barbershop@localhost:5432/barbershop_e2e
+        run: |
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/health && exit 0
+            sleep 1
+          done
+          echo "backend did not become healthy in time"; cat /tmp/backend.log; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - run: npx playwright test
+        working-directory: frontend
+        env:
+          E2E_API_URL: http://127.0.0.1:8000/api
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/test-results/
+          retention-days: 7
 
   frontend-lint:
     runs-on: ubuntu-latest

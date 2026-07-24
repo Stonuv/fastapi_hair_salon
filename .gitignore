@@ -8,6 +8,9 @@ __pycache__/
 *.pyc
 node_modules/
 dist/
+# Playwright — трейсы/скриншоты падений, пересоздаются при каждом прогоне
+test-results/
+playwright-report/
 # Рабочие заметки и дизайн-артефакты — не часть кодовой базы
 claude_design_examples/
 Saitama Barbershop.dc.html

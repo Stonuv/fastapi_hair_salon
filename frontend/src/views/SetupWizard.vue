@@ -217,6 +217,17 @@ async function finish() {
       setup_token: setupToken.value || null,
     })
     auth.user = res.data.user
+    // ready=true — избегаем лишнего fetchMe() в router-guard сразу после этого:
+    // /setup — единственный флоу, где guard ещё ни разу не трогал auth.fetchMe()
+    // (его собственная ветка про !setup.completed возвращается раньше), поэтому
+    // ready тут всё ещё false. Без этой строки следующая же навигация (на
+    // admin-stats) дёргает GET /auth/me, а он гоняется с тем же коммитом,
+    // что и сам /api/setup (pg_advisory_xact_lock) — маленькое, но полностью
+    // воспроизводимое окно 401 "Пользователь не найден" сразу после успешной
+    // настройки. У login()/register() та же проблема отсутствует только
+    // потому, что ready уже true к моменту их вызова (fetchMe() при самой
+    // первой загрузке SPA).
+    auth.ready = true
     setup.markCompleted()
     toast.success('Настройка завершена — добро пожаловать!')
     router.push({ name: 'admin-stats' })
