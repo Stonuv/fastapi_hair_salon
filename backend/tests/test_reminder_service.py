@@ -9,13 +9,13 @@ from app.services.reminder_service import ReminderService
 
 def make_appointment(**overrides):
     client = SimpleNamespace(first_name="Иван", email="client@example.com")
-    defaults = dict(
-        id=uuid.uuid4(),
-        client=client,
-        service_name="Стрижка",
-        master_name="Пётр Петров",
-        start_time=datetime.now(timezone.utc) + timedelta(hours=20),
-    )
+    defaults = {
+        "id": uuid.uuid4(),
+        "client": client,
+        "service_name": "Стрижка",
+        "master_name": "Пётр Петров",
+        "start_time": datetime.now(timezone.utc) + timedelta(hours=20),
+    }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
 

@@ -117,10 +117,10 @@ class AppointmentService:
             appointment = self.appointment_repo.create(
                 client_id, data, end_time, final_price
             )
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Выбранное время уже занято")
+                                detail="Выбранное время уже занято") from exc
         return AppointmentResponse.model_validate(
             self.appointment_repo.get_by_id(appointment.id)
         )
@@ -297,10 +297,10 @@ class AppointmentService:
             appointment = self.appointment_repo.update_schedule(
                 appointment, new_start_time, new_end_time
             )
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Выбранное время уже занято")
+                                detail="Выбранное время уже занято") from exc
 
         self._notify_client_of_reschedule(appointment, old_start_time)
         return AppointmentResponse.model_validate(appointment)

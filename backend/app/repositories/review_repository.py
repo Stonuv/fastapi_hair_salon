@@ -1,5 +1,5 @@
 import uuid
-from typing import Literal, Optional
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -15,12 +15,12 @@ class ReviewRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, review_id: uuid.UUID) -> Optional[Review]:
+    def get_by_id(self, review_id: uuid.UUID) -> Review | None:
         return self.db.execute(
             select(Review).where(Review.id == review_id)
         ).scalar_one_or_none()
 
-    def get_by_appointment(self, appointment_id: uuid.UUID) -> Optional[Review]:
+    def get_by_appointment(self, appointment_id: uuid.UUID) -> Review | None:
         return self.db.execute(
             select(Review).where(Review.appointment_id == appointment_id)
         ).scalar_one_or_none()

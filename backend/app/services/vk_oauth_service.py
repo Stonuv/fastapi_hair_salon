@@ -128,9 +128,9 @@ class VkOAuthService:
             resp = httpx.post(_TOKEN_URL, data=payload, timeout=10)
             resp.raise_for_status()
             return resp.json()
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             logger.exception("VK ID: обмен кода на токен не удался")
-            raise VkOAuthError("vk_token_exchange_failed")
+            raise VkOAuthError("vk_token_exchange_failed") from exc
 
     def _fetch_user_info(self, access_token: str) -> dict:
         try:
@@ -141,6 +141,6 @@ class VkOAuthService:
             )
             resp.raise_for_status()
             return resp.json().get("user", {})
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             logger.exception("VK ID: получение профиля не удалось")
-            raise VkOAuthError("vk_user_info_failed")
+            raise VkOAuthError("vk_user_info_failed") from exc

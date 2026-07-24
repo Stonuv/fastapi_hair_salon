@@ -2,7 +2,6 @@ import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import UUID
 
 import bcrypt
@@ -149,7 +148,7 @@ class AuthService:
                 if constraint_name(exc) == "uq_users_phone_active"
                 else "Пользователь с таким email уже существует"
             )
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
         self.send_verification_email(user)
         return build_token_response(user)
 
@@ -163,10 +162,10 @@ class AuthService:
                                     detail="Пользователь с таким email уже существует")
             try:
                 user = self.user_repo.set_email(user, data.email)
-            except IntegrityError:
+            except IntegrityError as exc:
                 self.db.rollback()
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                    detail="Пользователь с таким email уже существует")
+                                    detail="Пользователь с таким email уже существует") from exc
             # Новый email не доказан (в отличие от email, отданного VK OAuth
             # напрямую при создании аккаунта) — требует подтверждения так же,
             # как при обычной регистрации.
@@ -183,12 +182,12 @@ class AuthService:
         if other_fields:
             try:
                 user = self.user_repo.update(user, UserUpdate(**other_fields))
-            except IntegrityError:
+            except IntegrityError as exc:
                 self.db.rollback()
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Пользователь с таким номером телефона уже существует",
-                )
+                ) from exc
         return UserResponse.model_validate(user)
 
     def login(self, email: str, password: str, ip_address: str | None = None) -> TokenResponse:
@@ -455,7 +454,7 @@ def _create_access_token(user: User) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def _decode_token(token: str) -> Optional[tuple[UUID, int]]:
+def _decode_token(token: str) -> tuple[UUID, int] | None:
     try:
         payload = jwt.decode(
             token, settings.secret_key, algorithms=[settings.algorithm]
@@ -471,8 +470,8 @@ def _decode_token(token: str) -> Optional[tuple[UUID, int]]:
 
 def _token_from_request(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials],
-) -> Optional[str]:
+    credentials: HTTPAuthorizationCredentials | None,
+) -> str | None:
     # Cookie — основной путь для SPA (см. ACCESS_TOKEN_COOKIE); заголовок
     # Authorization остаётся рабочим для Swagger "Authorize" и внешних
     # API-клиентов, которым httpOnly-cookie недоступна.
@@ -486,7 +485,7 @@ def _token_from_request(
 
 def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme_optional),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme_optional),
     db: Session = Depends(get_db),
 ) -> User:
     token = _token_from_request(request, credentials)
@@ -527,9 +526,9 @@ def get_current_user(
 
 def get_current_user_optional(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme_optional),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme_optional),
     db: Session = Depends(get_db),
-) -> Optional[User]:
+) -> User | None:
     """Пользователь, если запрос авторизован, иначе None — для публичных
     эндпоинтов, которые показывают админу больше (например, скрытые услуги)."""
     token = _token_from_request(request, credentials)

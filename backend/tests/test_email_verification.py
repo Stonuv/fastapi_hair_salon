@@ -15,12 +15,12 @@ from app.services.auth_service import AuthService, _hash_token
 def make_user(**overrides):
     # Полный набор полей UserResponse — register()/update_profile() в конце
     # прогоняют пользователя через build_token_response -> UserResponse.model_validate.
-    defaults = dict(
-        id=uuid.uuid4(), email="client@example.com", first_name="Иван",
-        last_name="Иванов", phone=None, role=UserRole.client, is_blocked=False,
-        token_version=0, created_at=_dt.datetime.now(_dt.timezone.utc),
-        email_verified_at=None,
-    )
+    defaults = {
+        "id": uuid.uuid4(), "email": "client@example.com", "first_name": "Иван",
+        "last_name": "Иванов", "phone": None, "role": UserRole.client, "is_blocked": False,
+        "token_version": 0, "created_at": _dt.datetime.now(_dt.timezone.utc),
+        "email_verified_at": None,
+    }
     defaults.update(overrides)
     user = SimpleNamespace(**defaults)
     # email_verified — @property на реальной модели User; на SimpleNamespace

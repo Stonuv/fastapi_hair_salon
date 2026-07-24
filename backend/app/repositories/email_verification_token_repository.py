@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -12,7 +11,7 @@ class EmailVerificationTokenRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_valid_by_hash(self, token_hash: str) -> Optional[EmailVerificationToken]:
+    def get_valid_by_hash(self, token_hash: str) -> EmailVerificationToken | None:
         """Токен валиден если не использован и не просрочен."""
         now = datetime.now(timezone.utc)
         stmt = select(EmailVerificationToken).where(

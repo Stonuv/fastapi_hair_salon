@@ -25,11 +25,12 @@ class FakeResponse:
 
 
 def make_fake_user(**overrides):
-    defaults = dict(
-        id=uuid.uuid4(), email="client@example.com", first_name="Иван", last_name="Иванов",
-        phone=None, role="client", vk_user_id=None, is_blocked=False, token_version=0,
-        created_at=datetime.now(timezone.utc), email_verified_at=None,
-    )
+    defaults = {
+        "id": uuid.uuid4(), "email": "client@example.com", "first_name": "Иван",
+        "last_name": "Иванов", "phone": None, "role": "client", "vk_user_id": None,
+        "is_blocked": False, "token_version": 0,
+        "created_at": datetime.now(timezone.utc), "email_verified_at": None,
+    }
     defaults.update(overrides)
     user = SimpleNamespace(**defaults)
     user.email_verified = user.email_verified_at is not None

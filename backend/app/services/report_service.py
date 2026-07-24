@@ -110,7 +110,7 @@ class ReportService:
                 round(row.avg_check, 2),
                 row.avg_rating if row.avg_rating is not None else "—",
             ])
-        for col_letter, width in zip(["A", "B", "C", "D", "E"], [25, 10, 16, 18, 10]):
+        for col_letter, width in zip(["A", "B", "C", "D", "E"], [25, 10, 16, 18, 10], strict=True):
             ws4.column_dimensions[col_letter].width = width
 
         buf = BytesIO()

@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
@@ -19,7 +18,7 @@ class SessionRepository:
         self.db.refresh(session)
         return session
 
-    def get_valid_by_hash(self, token_hash: str) -> Optional[Session]:
+    def get_valid_by_hash(self, token_hash: str) -> Session | None:
         """Сессия валидна, если ещё не истёк срок её refresh-токена."""
         now = datetime.now(timezone.utc)
         stmt = select(Session).where(

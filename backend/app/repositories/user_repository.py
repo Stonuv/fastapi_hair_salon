@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -17,21 +17,21 @@ class UserRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, user_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[User]:
+    def get_by_id(self, user_id: uuid.UUID, *, include_deleted: bool = False) -> User | None:
         stmt = select(User).where(User.id == user_id)
         if not include_deleted:
             stmt = stmt.where(User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_by_email(self, email: str) -> Optional[User]:
+    def get_by_email(self, email: str) -> User | None:
         stmt = select(User).where(User.email == email, User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_by_phone(self, phone: str) -> Optional[User]:
+    def get_by_phone(self, phone: str) -> User | None:
         stmt = select(User).where(User.phone == phone, User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_by_vk_id(self, vk_user_id: str) -> Optional[User]:
+    def get_by_vk_id(self, vk_user_id: str) -> User | None:
         stmt = select(User).where(User.vk_user_id == vk_user_id, User.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 

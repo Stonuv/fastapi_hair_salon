@@ -135,10 +135,11 @@ def make_fake_appointment(**overrides):
                              specialization=None, photo_url=None, coefficient=Decimal("1.00"))
     service = SimpleNamespace(id=SERVICE_ID, name="Стрижка", description=None,
                               price=Decimal("1000.00"), duration_min=90, is_active=True)
-    defaults = dict(
-        id=uuid.uuid4(), client=client, master=master, service=service,
-        status="pending", final_price=Decimal("1000.00"), created_at=datetime.now(timezone.utc),
-    )
+    defaults = {
+        "id": uuid.uuid4(), "client": client, "master": master, "service": service,
+        "status": "pending", "final_price": Decimal("1000.00"),
+        "created_at": datetime.now(timezone.utc),
+    }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
 

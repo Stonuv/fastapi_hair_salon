@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -19,7 +19,7 @@ class AppointmentRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, appointment_id: uuid.UUID) -> Optional[Appointment]:
+    def get_by_id(self, appointment_id: uuid.UUID) -> Appointment | None:
         """Загружает запись со всеми связями для детальной страницы."""
         stmt = (
             select(Appointment)
@@ -100,7 +100,7 @@ class AppointmentRepository:
     def get_overlapping(self, master_id: uuid.UUID,
                         start_time: datetime,
                         end_time: datetime,
-                        exclude_id: uuid.UUID | None = None) -> Optional[Appointment]:
+                        exclude_id: uuid.UUID | None = None) -> Appointment | None:
         """
         Ищет пересекающиеся записи у мастера в заданном диапазоне времени.
         Нужно для проверки двойного бронирования на уровне сервиса —

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ class ServiceRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, service_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[Service]:
+    def get_by_id(self, service_id: uuid.UUID, *, include_deleted: bool = False) -> Service | None:
         stmt = select(Service).where(Service.id == service_id)
         if not include_deleted:
             stmt = stmt.where(Service.deleted_at.is_(None))

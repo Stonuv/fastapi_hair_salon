@@ -62,7 +62,7 @@ class AdminService:
                 if constraint_name(exc) == "uq_users_phone_active"
                 else "Пользователь с таким email уже существует"
             )
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
         return UserResponse.model_validate(user)
 
     def update_user(self, user_id: UUID, data: AdminUserUpdate) -> UserResponse:
@@ -77,24 +77,24 @@ class AdminService:
                                     detail="Пользователь с таким email уже существует")
             try:
                 user = self.user_repo.set_email(user, data.email)
-            except IntegrityError:
+            except IntegrityError as exc:
                 self.db.rollback()
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                    detail="Пользователь с таким email уже существует")
+                                    detail="Пользователь с таким email уже существует") from exc
 
-        if data.phone is not None and data.phone != user.phone:
-            if self.user_repo.phone_exists(data.phone):
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                    detail="Пользователь с таким номером телефона уже существует")
+        if (data.phone is not None and data.phone != user.phone
+                and self.user_repo.phone_exists(data.phone)):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Пользователь с таким номером телефона уже существует")
 
         name_fields = data.model_dump(exclude_unset=True, exclude={"email", "new_password"})
         if name_fields:
             try:
                 user = self.user_repo.update(user, UserUpdate(**name_fields))
-            except IntegrityError:
+            except IntegrityError as exc:
                 self.db.rollback()
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                    detail="Пользователь с таким номером телефона уже существует")
+                                    detail="Пользователь с таким номером телефона уже существует") from exc
 
         if data.new_password:
             self.user_repo.set_password(user, hash_password(data.new_password))

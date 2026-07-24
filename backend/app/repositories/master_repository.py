@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -19,14 +19,14 @@ class MasterRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, master_id: uuid.UUID, *, include_deleted: bool = False) -> Optional[Master]:
+    def get_by_id(self, master_id: uuid.UUID, *, include_deleted: bool = False) -> Master | None:
         """Загружает мастера вместе с профилем пользователя."""
         stmt = select(Master).options(joinedload(Master.user)).where(Master.id == master_id)
         if not include_deleted:
             stmt = stmt.where(Master.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
 
-    def get_by_user_id(self, user_id: uuid.UUID) -> Optional[Master]:
+    def get_by_user_id(self, user_id: uuid.UUID) -> Master | None:
         stmt = (
             select(Master)
             .options(joinedload(Master.user))
@@ -77,7 +77,7 @@ class MasterRepository:
 
         return paginated(self.db, stmt, page=page, page_size=page_size)
 
-    def get_with_services(self, master_id: uuid.UUID) -> Optional[Master]:
+    def get_with_services(self, master_id: uuid.UUID) -> Master | None:
         """Загружает мастера вместе с его услугами и базовыми ценами."""
         stmt = (
             select(Master)
@@ -150,7 +150,7 @@ class MasterRepository:
         return True
 
     def get_master_service(self, master_id: uuid.UUID,
-                           service_id: uuid.UUID) -> Optional[MasterService]:
+                           service_id: uuid.UUID) -> MasterService | None:
         stmt = select(MasterService).where(
             MasterService.master_id == master_id,
             MasterService.service_id == service_id,

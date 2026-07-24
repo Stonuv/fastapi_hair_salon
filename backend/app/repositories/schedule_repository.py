@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,7 +13,7 @@ class ScheduleRepository:
 
     # ── Чтение ───────────────────────────────────────────────────
 
-    def get_by_id(self, schedule_id: uuid.UUID) -> Optional[Schedule]:
+    def get_by_id(self, schedule_id: uuid.UUID) -> Schedule | None:
         return self.db.execute(
             select(Schedule).where(Schedule.id == schedule_id)
         ).scalar_one_or_none()
@@ -29,7 +28,7 @@ class ScheduleRepository:
         return list(self.db.execute(stmt).scalars().all())
 
     def get_by_master_and_day(self, master_id: uuid.UUID,
-                              day_of_week: int) -> Optional[Schedule]:
+                              day_of_week: int) -> Schedule | None:
         """Расписание мастера на конкретный день недели."""
         stmt = select(Schedule).where(
             Schedule.master_id == master_id,

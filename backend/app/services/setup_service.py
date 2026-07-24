@@ -46,14 +46,14 @@ class SetupService:
         return bool(settings.setup_token)
 
     def complete(self, data: SetupRequest) -> TokenResponse:
-        if settings.setup_token:
-            # compare_digest — сравнение за постоянное время, не даёт
-            # угадывать код побайтово по времени ответа.
-            if not data.setup_token or not secrets.compare_digest(
-                data.setup_token, settings.setup_token,
-            ):
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                    detail="Неверный код настройки (SETUP_TOKEN)")
+        # compare_digest — сравнение за постоянное время, не даёт угадывать
+        # код побайтово по времени ответа.
+        if settings.setup_token and (
+            not data.setup_token
+            or not secrets.compare_digest(data.setup_token, settings.setup_token)
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Неверный код настройки (SETUP_TOKEN)")
         self.db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _SETUP_LOCK_KEY})
         if self.is_completed():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -67,10 +67,10 @@ class SetupService:
         try:
             user = self.user_repo.create(data.admin, hash_password(data.admin.password),
                                          role=UserRole.admin)
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Пользователь с таким email уже существует")
+                                detail="Пользователь с таким email уже существует") from exc
 
         if data.site_content is not None:
             SiteSettingsService(self.db).update(data.site_content)

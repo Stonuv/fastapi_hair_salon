@@ -40,6 +40,67 @@ jobs:
       - run: pip install pip-audit
       - run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
 
+  backend-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+      # Только check, без format — см. pyproject.toml, почему ruff format
+      # (Black-стиль) здесь осознанно не применяется.
+      - run: ruff check app tests
+
+  backend-integration-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    # Реальный Postgres — EXCLUDE USING gist (защита от двойного бронирования),
+    # partial unique indexes (soft-delete освобождает email) и happy path
+    # целиком через HTTP-стек — то, что юнит-тесты выше (фейковые репозитории)
+    # не могут проверить в принципе. См. tests/integration/conftest.py.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: barbershop
+          POSTGRES_PASSWORD: barbershop
+          POSTGRES_DB: barbershop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U barbershop -d barbershop_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - run: pytest -m integration tests/integration -q
+        env:
+          TEST_DATABASE_URL: postgresql://barbershop:barbershop@localhost:5432/barbershop_test
+
   frontend-build:
     runs-on: ubuntu-latest
     defaults:
@@ -70,6 +131,25 @@ jobs:
       # когда vite будет обновлён.
       - run: npm audit --audit-level=high
         continue-on-error: true
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      # Только eslint, без prettier --check — см. eslint.config.js, почему
+      # полное автоформатирование здесь осознанно не форсируется.
+      - run: npm run lint
 
   compose-validate:
     runs-on: ubuntu-latest
