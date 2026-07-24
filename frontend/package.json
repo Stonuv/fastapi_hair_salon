@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
-    "@sentry/vue": "^10.65.0",
+    "@sentry/vue": "^10.67.0",
     "axios": "^1.7.2",
     "pinia": "^2.1.7",
     "three": "^0.185.1",
