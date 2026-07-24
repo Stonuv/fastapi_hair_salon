@@ -13,11 +13,11 @@
     <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div class="mb-8 grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr]">
         <BaseInput v-model="filters.specialization" placeholder="Поиск по специализации…" aria-label="Поиск по специализации" />
-        <BaseSelect v-model="filters.service_id" placeholder="Любая услуга">
+        <BaseSelect v-model="filters.service_id" placeholder="Любая услуга" aria-label="Фильтр по услуге">
           <option v-for="s in services" :key="s.id" :value="s.id">{{ s.name }}</option>
         </BaseSelect>
         <div class="flex gap-3">
-          <BaseSelect v-model="filters.sort_by" class="flex-1">
+          <BaseSelect v-model="filters.sort_by" class="flex-1" aria-label="Сортировка">
             <option value="name">По имени</option>
             <option value="price">По цене</option>
           </BaseSelect>

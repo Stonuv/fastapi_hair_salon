@@ -8,7 +8,7 @@
     </div>
     <div class="p-4">
       <p class="font-mono text-[11px] font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
-      <h3 class="mt-1 font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ master.first_name }}</h3>
+      <h2 class="mt-1 font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ master.first_name }}</h2>
       <p class="mt-3 flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors group-hover:text-brand-700">
         Записаться
         <ArrowRightIcon class="h-4 w-4" aria-hidden="true" />

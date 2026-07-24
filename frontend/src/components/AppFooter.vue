@@ -5,7 +5,7 @@
         <div>
           <div class="flex items-baseline gap-2.5">
             <span class="font-display text-2xl font-black uppercase tracking-tight text-stone-50">{{ content.header.brand_name }}</span>
-            <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">{{ content.header.brand_tagline }}</span>
+            <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">{{ content.header.brand_tagline }}</span>
           </div>
           <EditableText
             v-model="content.footer.tagline" :editable="editable" multiline
@@ -13,21 +13,21 @@
           />
         </div>
         <div>
-          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/40">Адрес</div>
+          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/60">Адрес</div>
           <EditableText
             v-model="content.footer.address" :editable="editable" multiline
             class="whitespace-pre-line text-sm leading-relaxed text-white/70"
           />
         </div>
         <div>
-          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/40">Часы работы</div>
+          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/60">Часы работы</div>
           <EditableText
             v-model="content.footer.hours" :editable="editable" multiline
             class="whitespace-pre-line text-sm leading-relaxed text-white/70"
           />
         </div>
         <div>
-          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/40">Мы в сети</div>
+          <div class="mb-4 font-mono text-[11px] uppercase tracking-wide text-white/60">Мы в сети</div>
           <div class="flex flex-col gap-2.5">
             <template v-if="editable">
               <div v-for="(link, i) in content.footer.social_links" :key="i" class="flex items-center gap-2">
@@ -37,7 +37,7 @@
                 />
                 <EditableText
                   v-model="link.url" editable
-                  class="font-mono text-[11px] text-white/40" placeholder="URL"
+                  class="font-mono text-[11px] text-white/60" placeholder="URL"
                 />
               </div>
             </template>
@@ -45,7 +45,7 @@
           </div>
         </div>
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-6 font-mono text-[11px] uppercase tracking-wide text-white/40">
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-6 font-mono text-[11px] uppercase tracking-wide text-white/60">
         <span class="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span>© {{ year }} {{ content.header.brand_tagline }} «{{ content.header.brand_name }}»</span>
           <router-link :to="{ name: 'privacy-policy' }" class="hover:text-white">Обработка персональных данных</router-link>

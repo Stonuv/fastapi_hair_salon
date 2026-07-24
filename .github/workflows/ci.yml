@@ -153,14 +153,16 @@ jobs:
 
   frontend-e2e:
     runs-on: ubuntu-latest
-    # Сквозные сценарии (Playwright) поверх настоящего backend + Postgres —
-    # ловят то, что unit/integration-тесты в принципе не видят: реальные
+    # Playwright запускает всё из tests/e2e/ разом: core-flows.spec.js
+    # (сквозные сценарии поверх настоящего backend + Postgres — ловят то,
+    # что unit/integration-тесты в принципе не видят: реальные
     # HTTP-редиректы, race conditions между router-guard'ом и async
-    # изменением стора и т.п. (именно так на этапе написания этих тестов
-    # нашлись и были исправлены два бага — SetupWizard не проставлял
-    # auth.ready, DashboardLayout/AppHeader не дожидались auth.logout()
-    # перед редиректом на /login). См. module-докстринг
-    # frontend/tests/e2e/core-flows.spec.js.
+    # изменением стора и т.п.; именно так нашлись и были исправлены два
+    # бага — SetupWizard не проставлял auth.ready, DashboardLayout/
+    # AppHeader не дожидались auth.logout() перед редиректом на /login) и
+    # pages-a11y.spec.js (регрессия доступности, axe-core, на нескольких
+    # ключевых страницах — порядок файлов важен, см. его докстринг). См.
+    # docstring frontend/tests/e2e/core-flows.spec.js.
     services:
       postgres:
         image: postgres:16-alpine

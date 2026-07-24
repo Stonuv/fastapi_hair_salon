@@ -1,7 +1,13 @@
 <template>
   <EmailVerificationBanner />
   <AppHeader v-if="!route.meta.hideHeader" />
-  <router-view />
+  <!-- hideHeader-страницы (setup/dashboard/admin) управляют собственным
+       landmark-разметкой (напр. DashboardLayout.vue уже содержит <main>) —
+       обернуть их ещё раз означало бы вложенные <main>, invalid HTML. -->
+  <main v-if="!route.meta.hideHeader">
+    <router-view />
+  </main>
+  <router-view v-else />
   <AppFooter v-if="!route.meta.hideHeader" />
   <ToastContainer />
 </template>
