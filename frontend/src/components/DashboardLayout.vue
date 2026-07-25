@@ -43,10 +43,15 @@
           </button>
           <h1 class="font-display text-xl font-bold uppercase tracking-tight text-ink-900">{{ title }}</h1>
         </div>
-        <router-link to="/profile" class="flex items-center gap-2 font-mono text-xs uppercase tracking-wide text-ink-900 hover:text-brand-700">
-          <UserCircleIcon class="h-6 w-6 text-ink-900" aria-hidden="true" />
-          <span class="hidden sm:inline">{{ auth.user?.first_name }}</span>
-        </router-link>
+        <div class="flex items-center gap-3 sm:gap-4">
+          <!-- Только в админке: у мастера своего выбора точек нет, его
+               кабинет всегда про него самого. -->
+          <SalonSwitcher v-if="auth.isAdmin" />
+          <router-link to="/profile" class="flex items-center gap-2 font-mono text-xs uppercase tracking-wide text-ink-900 hover:text-brand-700">
+            <UserCircleIcon class="h-6 w-6 text-ink-900" aria-hidden="true" />
+            <span class="hidden sm:inline">{{ auth.user?.first_name }}</span>
+          </router-link>
+        </div>
       </header>
       <main class="flex-1 p-4 sm:p-6">
         <slot />
@@ -62,6 +67,7 @@ import { storeToRefs } from 'pinia'
 import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowLeftOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
 import { useSiteContentStore } from '../stores/siteContent'
+import SalonSwitcher from './SalonSwitcher.vue'
 
 defineProps({ title: String })
 

@@ -90,9 +90,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { UserGroupIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { storeToRefs } from 'pinia'
 import { adminApi, mastersApi, servicesApi } from '../../api'
+import { useAuthStore } from '../../stores/auth'
+import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
@@ -107,6 +110,8 @@ import Skeleton from '../../components/ui/Skeleton.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 
+const auth = useAuthStore()
+const { viewingSalonId } = storeToRefs(useSalonStore())
 const toast = useToastStore()
 
 const masters = ref([])
@@ -128,7 +133,14 @@ const dayLabels = ['Понедельник', 'Вторник', 'Среда', 'Ч
 async function load() {
   loading.value = true
   try {
-    const { data } = await mastersApi.list({ page: page.value, page_size: 10 })
+    // salon_id здесь — обычный публичный фильтр каталога (GET /api/masters не
+    // проходит через resolve_salon_scope, см. ROADMAP.md §4.10 Фаза C):
+    // владелец сужает список сам, администратору точки сузить нечем, поэтому
+    // для него подставляем его собственную точку.
+    const salonId = auth.isOwner ? viewingSalonId.value : auth.salon?.id
+    const { data } = await mastersApi.list({
+      page: page.value, page_size: 10, salon_id: salonId ?? undefined,
+    })
     masters.value = data.items
     totalPages.value = data.total_pages
   } catch (err) {
@@ -225,6 +237,12 @@ async function saveScheduleDay(master, day) {
 }
 
 useDebouncedWatch(page, load, 0)
+// Смена точки в переключателе — начинаем список заново с первой страницы:
+// номер страницы прошлой точки к новой выборке отношения не имеет.
+watch(viewingSalonId, () => {
+  if (page.value !== 1) page.value = 1
+  else load()
+})
 onMounted(async () => {
   load()
   try {

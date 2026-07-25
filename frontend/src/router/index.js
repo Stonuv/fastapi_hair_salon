@@ -33,6 +33,9 @@ const routes = [
       { path: 'users', name: 'admin-users', component: () => import('../views/admin/AdminUsers.vue') },
       { path: 'services', name: 'admin-services', component: () => import('../views/admin/AdminServices.vue') },
       { path: 'masters', name: 'admin-masters', component: () => import('../views/admin/AdminMasters.vue') },
+      // Точками сети управляет только владелец: POST /api/salons owner-only,
+      // а PATCH для admin ограничен его собственной точкой (routes/salons.py).
+      { path: 'salons', name: 'admin-salons', component: () => import('../views/admin/AdminSalons.vue'), meta: { requiresAuth: true, roles: ['owner'], hideHeader: true } },
       { path: 'reviews', name: 'admin-reviews', component: () => import('../views/admin/AdminReviews.vue') },
       { path: 'reports', name: 'admin-reports', component: () => import('../views/admin/AdminReports.vue') },
     ],

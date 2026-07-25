@@ -11,10 +11,22 @@
     </section>
 
     <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div class="mb-8 grid gap-3 sm:grid-cols-[2fr_1.5fr_1fr]">
+      <!-- Четвёртая колонка (сортировка + кнопка направления) шире 1fr:
+           при 4 колонках «По имени» иначе обрезается стрелкой селекта. -->
+      <div class="mb-8 grid gap-3" :class="showSalonFilter ? 'sm:grid-cols-2 lg:grid-cols-[2fr_1.4fr_1.4fr_1.3fr]' : 'sm:grid-cols-[2fr_1.5fr_1fr]'">
         <BaseInput v-model="filters.specialization" placeholder="Поиск по специализации…" aria-label="Поиск по специализации" />
         <BaseSelect v-model="filters.service_id" placeholder="Любая услуга" aria-label="Фильтр по услуге">
           <option v-for="s in services" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </BaseSelect>
+        <!-- Единственную точку фильтровать незачем — показываем, только когда
+             в сети реально несколько салонов. -->
+        <BaseSelect
+          v-if="showSalonFilter"
+          v-model="filters.salon_id"
+          placeholder="Любая точка"
+          aria-label="Фильтр по точке"
+        >
+          <option v-for="s in salonStore.activeSalons" :key="s.id" :value="s.id">{{ s.name }}</option>
         </BaseSelect>
         <div class="flex gap-3">
           <BaseSelect v-model="filters.sort_by" class="flex-1" aria-label="Сортировка">
@@ -59,9 +71,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { UserGroupIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/outline'
 import { mastersApi, servicesApi } from '../api'
+import { useSalonStore } from '../stores/salon'
 import { useToastStore } from '../stores/toast'
 import { extractErrorMessage } from '../utils/errors'
 import { useDebouncedWatch } from '../composables/useDebouncedWatch'
@@ -72,6 +86,9 @@ import Skeleton from '../components/ui/Skeleton.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import Pagination from '../components/ui/Pagination.vue'
 
+const route = useRoute()
+const router = useRouter()
+const salonStore = useSalonStore()
 const toast = useToastStore()
 
 const masters = ref([])
@@ -82,10 +99,15 @@ const totalPages = ref(1)
 
 const filters = reactive({
   specialization: '',
+  // Приходит из ссылок секции «Наши салоны» на главной (/masters?salon_id=…),
+  // поэтому начальное значение берём из query, а не из пустой строки.
+  salon_id: typeof route.query.salon_id === 'string' ? route.query.salon_id : '',
   service_id: '',
   sort_by: 'name',
   sort_order: 'asc',
 })
+
+const showSalonFilter = computed(() => salonStore.activeSalons.length > 1)
 
 async function loadMasters() {
   loading.value = true
@@ -95,6 +117,7 @@ async function loadMasters() {
       page_size: 12,
       specialization: filters.specialization || undefined,
       service_id: filters.service_id || undefined,
+      salon_id: filters.salon_id || undefined,
       sort_by: filters.sort_by,
       sort_order: filters.sort_order,
     })
@@ -117,8 +140,26 @@ async function loadServices() {
 }
 
 useDebouncedWatch(() => filters.specialization, () => { page.value = 1; loadMasters() })
-useDebouncedWatch(() => [filters.service_id, filters.sort_by, filters.sort_order], () => { page.value = 1; loadMasters() }, 0)
+useDebouncedWatch(() => [filters.service_id, filters.salon_id, filters.sort_by, filters.sort_order], () => { page.value = 1; loadMasters() }, 0)
 useDebouncedWatch(page, loadMasters, 0)
+
+// Держим ?salon_id= в адресе в такт с фильтром: ссылка на конкретную точку
+// должна оставаться копируемой, а «назад» из карточки мастера — возвращать
+// к тому же отфильтрованному списку. replace, не push — промежуточные
+// состояния фильтра не должны копиться в истории браузера.
+watch(() => filters.salon_id, (salonId) => {
+  const query = { ...route.query }
+  if (salonId) query.salon_id = salonId
+  else delete query.salon_id
+  router.replace({ query })
+})
+
+// Навигация на /masters?salon_id=… уже находясь на этой странице (переход из
+// секции «Наши салоны») меняет только query — компонент не пересоздаётся.
+watch(() => route.query.salon_id, (salonId) => {
+  const next = typeof salonId === 'string' ? salonId : ''
+  if (next !== filters.salon_id) filters.salon_id = next
+})
 
 onMounted(() => {
   loadMasters()

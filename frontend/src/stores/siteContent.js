@@ -53,9 +53,9 @@ function defaultContent() {
       button_label: 'Записаться',
     },
     footer: {
+      // address/hours здесь нет: подвал берёт их из точек сети (stores/salon.js),
+      // см. ROADMAP.md §4.4 и backend FooterContent.
       tagline: 'Чёткий срез, тихий зал. Современное барберство с точностью до минуты.',
-      address: 'ул. Тверская, 12\nМосква\n+7 (495) 123-45-67',
-      hours: 'Пн–Пт 9:00–20:00\nСб 10:00–18:00\nВс — выходной',
       social_links: [
         { label: 'Instagram ↗', url: '#' },
         { label: 'Google Карты ↗', url: '#' },

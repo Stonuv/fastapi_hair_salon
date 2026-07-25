@@ -20,7 +20,13 @@ import AppFooter from './components/AppFooter.vue'
 import EmailVerificationBanner from './components/EmailVerificationBanner.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import { useSiteContentStore } from './stores/siteContent'
+import { useSalonStore } from './stores/salon'
 
 const route = useRoute()
-onMounted(() => useSiteContentStore().load())
+onMounted(() => {
+  useSiteContentStore().load()
+  // Точки нужны публичным экранам (футер, секция «Наши салоны», фильтр
+  // каталога), поэтому грузятся здесь же, а не только в админке.
+  useSalonStore().load()
+})
 </script>

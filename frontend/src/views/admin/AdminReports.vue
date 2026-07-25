@@ -27,6 +27,10 @@
       </button>
     </div>
 
+    <p v-if="scopeLabel" class="-mt-3 font-mono text-xs uppercase tracking-wide text-ink-600">
+      {{ scopeLabel }}
+    </p>
+
     <!-- Loading -->
     <template v-if="loading">
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -203,7 +207,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -212,7 +216,10 @@ import {
   ReceiptPercentIcon,
 } from '@heroicons/vue/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/vue/24/solid'
+import { storeToRefs } from 'pinia'
 import { adminApi } from '../../api'
+import { useAuthStore } from '../../stores/auth'
+import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import BaseCard from '../../components/ui/BaseCard.vue'
@@ -221,7 +228,16 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 import KpiCard from '../../components/KpiCard.vue'
 
+const auth = useAuthStore()
+const { viewingSalonId, viewingSalon } = storeToRefs(useSalonStore())
 const toast = useToastStore()
+
+// Для admin переключателя нет — бэкенд сузит область до его точки сам,
+// подпись берём из его собственного салона (см. AdminStats.vue).
+const scopeName = computed(() => (auth.isOwner ? viewingSalon.value?.name : auth.salon?.name))
+const scopeLabel = computed(() =>
+  scopeName.value ? `Точка: ${scopeName.value}` : (auth.isOwner ? 'Вся сеть' : null),
+)
 
 // Отчёты режут сутки по UTC (см. report_repository на бэкенде) —
 // дефолтный период строим по UTC-календарю, не смешивая его с локальным.
@@ -240,10 +256,19 @@ const report = ref(null)
 const loading = ref(false)
 const exporting = ref(false)
 
+// Общие параметры отчёта и экспорта — период плюс область (вся сеть или
+// одна точка). undefined, а не null: axios выкидывает undefined из query,
+// а null отправил бы "salon_id=" и сломал разбор UUID на бэкенде.
+const reportParams = () => ({
+  date_from: dateFrom.value,
+  date_to: dateTo.value,
+  salon_id: viewingSalonId.value ?? undefined,
+})
+
 async function loadReport() {
   loading.value = true
   try {
-    const { data } = await adminApi.getReport({ date_from: dateFrom.value, date_to: dateTo.value })
+    const { data } = await adminApi.getReport(reportParams())
     report.value = data
   } catch (err) {
     toast.error(extractErrorMessage(err, 'Не удалось загрузить отчёт'))
@@ -252,14 +277,23 @@ async function loadReport() {
   }
 }
 
+// Отчёт строится по кнопке, а не сам — но уже показанный отчёт после смены
+// точки описывал бы не ту область, что подписана над ним; перестраиваем.
+watch(viewingSalonId, () => {
+  if (report.value) loadReport()
+})
+
 async function exportToExcel() {
   exporting.value = true
   try {
-    const { data } = await adminApi.exportReport({ date_from: dateFrom.value, date_to: dateTo.value })
+    const { data } = await adminApi.exportReport(reportParams())
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url
-    a.download = `report_${dateFrom.value}_${dateTo.value}.xlsx`
+    // Имя файла отражает область — иначе выгрузки по разным точкам за один
+    // период неразличимы в папке загрузок.
+    const scopeSuffix = scopeName.value ? `_${scopeName.value.replace(/\s+/g, '-')}` : ''
+    a.download = `report_${dateFrom.value}_${dateTo.value}${scopeSuffix}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   } catch (err) {

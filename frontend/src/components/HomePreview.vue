@@ -201,6 +201,9 @@
       </div>
     </section>
 
+    <!-- salons -->
+    <SalonsSection :interactive="interactive" />
+
     <!-- CTA -->
     <section class="bg-ink-900 px-4 py-24 text-center sm:px-6">
       <EditableText v-model="content.cta.eyebrow" :editable="editable" class="font-mono text-xs uppercase tracking-[0.2em] text-white/50" />
@@ -230,6 +233,7 @@ import EditableText from './ui/EditableText.vue'
 import EditableLink from './ui/EditableLink.vue'
 import HeroPhotoUpload from './ui/HeroPhotoUpload.vue'
 import MasterCard from './MasterCard.vue'
+import SalonsSection from './SalonsSection.vue'
 
 // three.js — тяжёлая зависимость, нужна только когда hero.media_type === '3d',
 // поэтому грузим отдельным чанком, а не в общий бандл главной страницы.

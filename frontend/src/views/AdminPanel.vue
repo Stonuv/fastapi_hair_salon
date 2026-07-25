@@ -5,6 +5,7 @@
       <SidebarLink :to="{ name: 'admin-users' }" label="Пользователи" :icon="UsersIcon" />
       <SidebarLink :to="{ name: 'admin-services' }" label="Услуги" :icon="ScissorsIcon" />
       <SidebarLink :to="{ name: 'admin-masters' }" label="Мастера" :icon="UserGroupIcon" />
+      <SidebarLink v-if="auth.isOwner" :to="{ name: 'admin-salons' }" label="Точки сети" :icon="BuildingStorefrontIcon" />
       <SidebarLink :to="{ name: 'admin-reviews' }" label="Отзывы" :icon="StarIcon" />
       <SidebarLink :to="{ name: 'admin-reports' }" label="Отчёты" :icon="DocumentChartBarIcon" />
       <!-- Контент сайта — бренд всей сети, PATCH /api/settings owner-only
@@ -18,20 +19,26 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChartBarIcon, UsersIcon, ScissorsIcon, UserGroupIcon, StarIcon, DocumentChartBarIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
+import { BuildingStorefrontIcon, ChartBarIcon, UsersIcon, ScissorsIcon, UserGroupIcon, StarIcon, DocumentChartBarIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import DashboardLayout from '../components/DashboardLayout.vue'
 import SidebarLink from '../components/SidebarLink.vue'
 import { useAuthStore } from '../stores/auth'
+import { useSalonStore } from '../stores/salon'
 
 const auth = useAuthStore()
 const route = useRoute()
+// GET /api/salons отдаёт закрытые точки только admin/owner, а App.vue грузит
+// список ещё до входа — в админке перезапрашиваем под текущими правами,
+// иначе переключатель не покажет закрытые точки (см. stores/salon.js).
+onMounted(() => useSalonStore().load(true))
 const titles = {
   'admin-stats': 'Статистика',
   'admin-users': 'Пользователи',
   'admin-services': 'Услуги',
   'admin-masters': 'Мастера',
+  'admin-salons': 'Точки сети',
   'admin-reviews': 'Отзывы',
   'admin-reports': 'Отчёты',
 }

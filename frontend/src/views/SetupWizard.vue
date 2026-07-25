@@ -119,7 +119,7 @@
               <BaseInput v-model="siteContent.header.brand_tagline" label="Подпись под названием" required />
             </div>
             <p class="text-sm text-ink-600/80">
-              Бренд общий на всю сеть. Адрес и часы в подвале сайта заполнятся из точки, указанной на прошлом шаге;
+              Бренд общий на всю сеть. Адрес и часы на сайте берутся из точек — их не нужно вводить повторно;
               остальной контент можно донастроить позже в «Админ → Редактор главной».
             </p>
           </template>
@@ -268,23 +268,6 @@ async function onSubmitStep() {
   await finish()
 }
 
-function siteContentWithSalonFooter() {
-  // footer.address/hours пока живут в контенте сайта (AppFooter.vue читает
-  // именно их), но фактически описывают точку — спрашивать их вторым
-  // экраном после шага «первая точка» значило бы задать один вопрос дважды.
-  // Заполняем из салона. Когда AppFooter перейдёт на список точек
-  // (ROADMAP.md §4.9), эти два поля уйдут из схемы вместе с ним.
-  if (!siteContent.value) return null
-  return {
-    ...siteContent.value,
-    footer: {
-      ...siteContent.value.footer,
-      address: salon.address,
-      hours: `Ежедневно ${salon.open_time.slice(0, 5)}–${salon.close_time.slice(0, 5)}`,
-    },
-  }
-}
-
 async function finish() {
   loading.value = true
   try {
@@ -303,7 +286,7 @@ async function finish() {
         open_time: salon.open_time,
         close_time: salon.close_time,
       },
-      site_content: siteContentWithSalonFooter(),
+      site_content: siteContent.value,
       setup_token: setupToken.value || null,
     })
     auth.user = res.data.user

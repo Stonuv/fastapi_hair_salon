@@ -7,6 +7,7 @@
           <option value="client">Клиент</option>
           <option value="master">Мастер</option>
           <option value="admin">Администратор</option>
+          <option v-if="auth.isOwner" value="owner">Владелец сети</option>
         </BaseSelect>
         <div class="flex gap-3">
           <BaseSelect v-model="sortBy" class="flex-1">
@@ -43,13 +44,24 @@
             >Заблокирован</span>
           </p>
           <p class="text-sm text-ink-600">{{ u.email }}{{ u.phone ? ` · ${u.phone}` : '' }}</p>
-          <p class="mt-1 text-xs text-ink-600/70">Регистрация: {{ formatDate(u.created_at) }}</p>
+          <p class="mt-1 text-xs text-ink-600/70">
+            Регистрация: {{ formatDate(u.created_at) }}<template v-if="u.salon"> · точка: {{ u.salon.name }}</template>
+          </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <BaseSelect :model-value="u.role" class="w-40" @update:model-value="(v) => changeRole(u, v)">
+          <!-- Владельца сети из быстрого дропдауна не трогаем: передача
+               владения заслуживает отдельного флоу с подтверждением
+               (ROADMAP.md §4.11), а разжалование владельца — открытый вопрос
+               дизайна из Фазы B. Показываем роль, но не даём её менять. -->
+          <p
+            v-if="u.role === 'owner'"
+            class="w-40 rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-base text-ink-600"
+          >Владелец сети</p>
+          <BaseSelect v-else :model-value="u.role" class="w-40" @update:model-value="(v) => changeRole(u, v)">
             <option value="client">Клиент</option>
             <option value="master">Мастер</option>
-            <option value="admin">Администратор</option>
+            <!-- Назначать admin может только owner (бэкенд ответил бы 403) -->
+            <option v-if="auth.isOwner" value="admin">Администратор</option>
           </BaseSelect>
           <BaseButton v-if="u.role === 'master'" variant="ghost" size="sm" @click="createMasterProfile(u)">
             Создать профиль мастера
@@ -79,10 +91,13 @@
             </div>
             <BaseInput v-model="form.email" type="email" label="Email" required />
             <BaseInput v-model="form.phone" label="Телефон" hint="Необязательно" />
+            <!-- Роль admin при создании недоступна намеренно: она требует
+                 salon_id уже в момент вставки (ck_users_admin_requires_salon),
+                 а это отдельный запрос — бэкенд вернул бы понятную 400.
+                 Порядок: создать → назначить точку → повысить роль. -->
             <BaseSelect v-if="!editingId" v-model="form.role" label="Роль">
               <option value="client">Клиент</option>
               <option value="master">Мастер</option>
-              <option value="admin">Администратор</option>
             </BaseSelect>
             <BaseInput
               v-if="!editingId"
@@ -108,6 +123,34 @@
       </div>
     </Teleport>
 
+    <!-- Выбор точки: и для повышения до администратора (точка обязана быть
+         назначена ДО смены роли — ck_users_admin_requires_salon), и для
+         заведения профиля мастера владельцем (своей точки у него нет). -->
+    <Teleport to="body">
+      <div v-if="salonPrompt" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" @click="salonPrompt = null" />
+        <BaseCard class="relative w-full max-w-md">
+          <h2 class="font-display text-lg font-bold uppercase tracking-tight text-ink-900">
+            {{ salonPrompt.action === 'admin-role' ? 'Точка администратора' : 'Точка мастера' }}
+          </h2>
+          <p class="mt-2 text-sm text-ink-600">
+            {{ salonPrompt.action === 'admin-role'
+              ? `${salonPrompt.user.first_name} ${salonPrompt.user.last_name} будет управлять выбранной точкой.`
+              : `В какой точке работает ${salonPrompt.user.first_name} ${salonPrompt.user.last_name}?` }}
+          </p>
+          <BaseSelect v-model="salonPromptId" class="mt-4" label="Точка" placeholder="Выберите точку">
+            <option v-for="s in salonStore.salons" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </BaseSelect>
+          <div class="mt-5 flex justify-end gap-3">
+            <BaseButton variant="ghost" size="sm" type="button" @click="salonPrompt = null">Отмена</BaseButton>
+            <BaseButton size="sm" :loading="salonPromptSaving" :disabled="!salonPromptId" @click="confirmSalonPrompt">
+              Подтвердить
+            </BaseButton>
+          </div>
+        </BaseCard>
+      </div>
+    </Teleport>
+
     <ConfirmDialog
       :open="!!userToDelete"
       title="Удалить пользователя?"
@@ -122,9 +165,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { UsersIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/vue/24/outline'
+import { storeToRefs } from 'pinia'
 import { adminApi } from '../../api'
+import { useAuthStore } from '../../stores/auth'
+import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
@@ -137,6 +183,9 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
+const auth = useAuthStore()
+const salonStore = useSalonStore()
+const { viewingSalonId } = storeToRefs(salonStore)
 const toast = useToastStore()
 
 const users = ref([])
@@ -158,6 +207,9 @@ async function load() {
       page: page.value, page_size: 10,
       search: search.value || undefined,
       role: role.value || undefined,
+      // Клиенты видны без ограничений (аккаунт один на всю сеть), сужаются
+      // только мастера и администраторы — см. UserRepository.list_paginated.
+      salon_id: viewingSalonId.value ?? undefined,
       sort_by: sortBy.value,
       sort_order: sortOrder.value,
     })
@@ -170,10 +222,52 @@ async function load() {
   }
 }
 
-async function changeRole(user, newRole) {
+// ── Выбор точки для двухшаговых операций ──────────────────────────
+// Повышение до admin требует, чтобы точка уже была назначена
+// (ck_users_admin_requires_salon срабатывает в момент смены роли), а это
+// отдельный HTTP-запрос — атомарно в одном не выходит. Заведение профиля
+// мастера владельцем тоже требует явной точки: «домашней» у него нет.
+const salonPrompt = ref(null)
+const salonPromptId = ref('')
+const salonPromptSaving = ref(false)
+
+function askForSalon(user, action) {
+  salonPrompt.value = { user, action }
+  // Если владелец уже смотрит конкретную точку — предлагаем её же.
+  salonPromptId.value = viewingSalonId.value ?? user.salon?.id ?? ''
+}
+
+async function confirmSalonPrompt() {
+  const { user, action } = salonPrompt.value
+  salonPromptSaving.value = true
   try {
-    await adminApi.changeUserRole(user.id, newRole)
-    user.role = newRole
+    if (action === 'admin-role') {
+      await adminApi.assignUserSalon(user.id, salonPromptId.value)
+      const { data } = await adminApi.changeUserRole(user.id, 'admin')
+      Object.assign(user, data)
+      toast.success('Пользователь назначен администратором точки')
+    } else {
+      await adminApi.createMasterProfile(user.id, salonPromptId.value)
+      toast.success('Профиль мастера создан')
+    }
+    salonPrompt.value = null
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось назначить точку'))
+  } finally {
+    salonPromptSaving.value = false
+  }
+}
+
+async function changeRole(user, newRole) {
+  // admin — только через выбор точки (см. askForSalon); остальные роли
+  // ставятся одним запросом, как раньше.
+  if (newRole === 'admin') {
+    askForSalon(user, 'admin-role')
+    return
+  }
+  try {
+    const { data } = await adminApi.changeUserRole(user.id, newRole)
+    Object.assign(user, data)
     toast.success('Роль обновлена')
   } catch (err) {
     toast.error(extractErrorMessage(err))
@@ -191,6 +285,12 @@ async function toggleBlocked(user) {
 }
 
 async function createMasterProfile(user) {
+  // Владелец обязан указать точку явно. Администратору точки указывать
+  // нечего — профиль уйдёт в его собственную (бэкенд подставит).
+  if (auth.isOwner) {
+    askForSalon(user, 'master-profile')
+    return
+  }
   try {
     await adminApi.createMasterProfile(user.id)
     toast.success('Профиль мастера создан')
@@ -285,5 +385,11 @@ function formatDate(iso) {
 useDebouncedWatch(search, () => { page.value = 1; load() })
 useDebouncedWatch([role, sortBy, sortOrder], () => { page.value = 1; load() }, 0)
 useDebouncedWatch(page, load, 0)
+// Смена точки — список начинается заново: номер страницы прошлой выборки
+// к новой отношения не имеет.
+watch(viewingSalonId, () => {
+  if (page.value !== 1) page.value = 1
+  else load()
+})
 onMounted(load)
 </script>

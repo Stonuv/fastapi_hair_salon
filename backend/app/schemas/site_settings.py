@@ -102,10 +102,14 @@ def _default_social_links() -> list[SocialLink]:
     ]
 
 
+# address/hours сюда НЕ входят (ROADMAP.md §4.4): адрес и часы описывают
+# конкретную точку, а не бренд — при двух и более салонах один общий адрес в
+# подвале некорректен по определению. Живут на Salon, подвал берёт их оттуда
+# (frontend/src/components/AppFooter.vue). Старые ключи в уже сохранённом
+# JSONB просто игнорируются model_validate — SiteContent без extra="forbid",
+# отдельная миграция для очистки не нужна.
 class FooterContent(BaseModel):
     tagline:     Annotated[str, Field(max_length=300)] = "Чёткий срез, тихий зал. Современное барберство с точностью до минуты."
-    address:     Annotated[str, Field(max_length=300)] = "ул. Тверская, 12\nМосква\n+7 (495) 123-45-67"
-    hours:       Annotated[str, Field(max_length=300)] = "Пн–Пт 9:00–20:00\nСб 10:00–18:00\nВс — выходной"
     social_links: Annotated[list[SocialLink], Field(max_length=8)] = Field(default_factory=_default_social_links)
     bottom_note: Annotated[str, Field(max_length=200)] = "Запись онлайн · Оплата картой и наличными"
 
