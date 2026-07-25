@@ -67,9 +67,11 @@ from app.models.master import Master  # noqa: E402
 from app.models.service import Service  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.repositories.master_repository import MasterRepository  # noqa: E402
+from app.repositories.salon_repository import SalonRepository  # noqa: E402
 from app.repositories.schedule_repository import ScheduleRepository  # noqa: E402
 from app.repositories.service_repository import ServiceRepository  # noqa: E402
 from app.repositories.user_repository import UserRepository  # noqa: E402
+from app.schemas.salon import SalonCreate  # noqa: E402
 from app.schemas.schedule import ScheduleCreate  # noqa: E402
 from app.schemas.service import ServiceCreate  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
@@ -184,8 +186,18 @@ class BookableSetup:
 
 @pytest.fixture
 def bookable_setup(db_session: Session) -> BookableSetup:
-    """Мастер + услуга + расписание на весь понедельник (09:00–20:00 UTC) —
-    готовая база для тестов бронирования, без завязки на конкретный час."""
+    """Салон + мастер + услуга + расписание на весь понедельник (09:00–20:00
+    UTC) — готовая база для тестов бронирования, без завязки на конкретный
+    час. Салон нужен явно (не полагаемся на бэкфилл миграции 0013) — _cleanup_db
+    truncate'ит все таблицы после каждого теста, включая salons."""
+    # Те же часы (09:00–20:00), что и дефолт BusinessHoursContent/расписание
+    # ниже — Фаза C переносит бэкстоп рабочих часов на Salon, лучше сразу
+    # без искусственного разрыва между ними.
+    salon = SalonRepository(db_session).create(
+        SalonCreate(name="Тестовый салон", address="ул. Тестовая, 1",
+                   open_time=time(9, 0), close_time=time(20, 0)),
+        slug=f"test-salon-{uuid.uuid4().hex[:8]}",
+    )
     email = f"master-{uuid.uuid4().hex}@example.com"
     user_repo = UserRepository(db_session)
     master_user = user_repo.create(
@@ -194,7 +206,7 @@ def bookable_setup(db_session: Session) -> BookableSetup:
         role=UserRole.master,
     )
     master_repo = MasterRepository(db_session)
-    master = master_repo.create(master_user.id)
+    master = master_repo.create(master_user.id, salon.id)
 
     service = ServiceRepository(db_session).create(
         ServiceCreate(name="Стрижка (тест)", price=Decimal("1000.00"), duration_min=60)

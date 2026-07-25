@@ -150,6 +150,12 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def set_salon(self, user: User, salon_id: uuid.UUID) -> User:
+        user.salon_id = salon_id
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
     def set_email(self, user: User, email: str) -> User:
         # Новый email всегда сбрасывает подтверждение — независимо от того,
         # откуда вызван (правка профиля, email VK-пользователя без email при

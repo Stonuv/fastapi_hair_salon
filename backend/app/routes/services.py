@@ -30,7 +30,7 @@ def get_services(
 ):
     """Каталог услуг — поиск + фильтр по цене + сортировка + пагинация (1.4).
     Публичный эндпоинт: снятые с публикации услуги видит только администратор."""
-    if current_user is None or current_user.role != UserRole.admin:
+    if current_user is None or current_user.role not in (UserRole.admin, UserRole.owner):
         is_active = True
     return ServiceService(db).list_paginated(
         page=page_params.page, page_size=page_params.page_size,

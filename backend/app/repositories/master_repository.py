@@ -91,9 +91,9 @@ class MasterRepository:
 
     # ── Создание ─────────────────────────────────────────────────
 
-    def create(self, user_id: uuid.UUID) -> Master:
+    def create(self, user_id: uuid.UUID, salon_id: uuid.UUID) -> Master:
         """Создаёт профиль мастера для существующего пользователя."""
-        master = Master(user_id=user_id)
+        master = Master(user_id=user_id, salon_id=salon_id)
         self.db.add(master)
         self.db.flush()
         self.db.refresh(master)

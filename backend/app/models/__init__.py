@@ -2,6 +2,7 @@
 # видел их при автогенерации миграций.
 
 from .enums import AppointmentStatus, UserRole
+from .salon import Salon
 from .user import User
 from .master import Master, MasterService
 from .service import Service
@@ -16,6 +17,7 @@ from .session import Session
 __all__ = [
     "UserRole",
     "AppointmentStatus",
+    "Salon",
     "User",
     "Master",
     "MasterService",

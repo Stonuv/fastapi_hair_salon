@@ -15,6 +15,7 @@ from .mixins import TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from .master import Master
     from .review import Review
+    from .salon import Salon
     from .service import Service
     from .user import User
 
@@ -45,6 +46,12 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     service_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), nullable=False
     )
+    # Денормализовано из master.salon_id на момент создания (см.
+    # AppointmentRepository.create) — снимок, как final_price: перевод
+    # мастера в другую точку не переносит старые записи задним числом.
+    salon_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT"), nullable=False
+    )
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Цена фиксируется в момент создания записи — не меняется при изменении прайса
@@ -61,6 +68,7 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     client: Mapped["User"] = relationship(back_populates="appointments", foreign_keys=[client_id])
     master: Mapped["Master"] = relationship(back_populates="appointments", foreign_keys=[master_id])
     service: Mapped["Service"] = relationship(back_populates="appointments")
+    salon: Mapped["Salon"] = relationship(back_populates="appointments")
     review: Mapped["Review | None"] = relationship(
         back_populates="appointment", uselist=False, cascade="all, delete-orphan"
     )

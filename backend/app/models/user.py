@@ -1,9 +1,11 @@
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime
+from sqlalchemy import Boolean, CheckConstraint, DateTime
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Index, Integer, String, text
+from sqlalchemy import ForeignKey, Index, Integer, String, text
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
     from .master import Master
     from .password_reset_token import PasswordResetToken
     from .email_verification_token import EmailVerificationToken
+    from .salon import Salon
     from .session import Session
     from .appointment import Appointment
     from .review import Review
@@ -32,6 +35,11 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         Index("uq_users_vk_user_id_active", "vk_user_id", unique=True,
               postgresql_where=text("deleted_at IS NULL AND vk_user_id IS NOT NULL")),
         Index("ix_users_role", "role"),
+        Index("ix_users_salon", "salon_id", postgresql_where=text("salon_id IS NOT NULL")),
+        # Только admin обязан быть привязан к точке — owner видит всю сеть,
+        # у master/client своя привязка (Master.salon_id) или её нет вовсе.
+        CheckConstraint("role <> 'admin' OR salon_id IS NOT NULL",
+                        name="ck_users_admin_requires_salon"),
     )
 
     # NULL — VK ID не отдал email при регистрации; такой клиент указывает его
@@ -53,6 +61,12 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     role: Mapped[UserRole] = mapped_column(
         SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.client
     )
+    # "Домашняя" точка — обязательна для admin (см. ck_users_admin_requires_salon),
+    # NULL для owner (вся сеть) и client. У master своя привязка (Master.salon_id),
+    # не дублируется сюда — иначе два источника истины.
+    salon_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT")
+    )
     # Блокировка (ТЗ 4.2 MIN) — отличается от мягкого удаления: аккаунт и
     # история сохраняются и видны, но вход и действия по токену запрещены.
     is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -60,6 +74,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # уже выданные JWT отзываются без хранения denylist'а (см. auth_service).
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # Домашняя точка (только если role = 'admin')
+    salon: Mapped["Salon | None"] = relationship()
     # Профиль мастера (только если role = 'master')
     master_profile: Mapped["Master | None"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"

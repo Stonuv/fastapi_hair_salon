@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..repositories.master_repository import MasterRepository
 from ..repositories.review_repository import ReviewRepository
+from ..repositories.salon_repository import SalonRepository
 from ..repositories.schedule_repository import ScheduleRepository
 from ..repositories.service_repository import ServiceRepository
 from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
@@ -14,7 +15,6 @@ from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
 from ..schemas.pagination import PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..schemas.service import ServiceResponse
-from .site_settings_service import SiteSettingsService
 
 
 def _final_price(price_override: Decimal | None, base_price: Decimal,
@@ -30,10 +30,10 @@ def _final_price(price_override: Decimal | None, base_price: Decimal,
 class MasterService:
     def __init__(self, db: Session):
         self.master_repo   = MasterRepository(db)
+        self.salon_repo    = SalonRepository(db)
         self.service_repo  = ServiceRepository(db)
         self.schedule_repo = ScheduleRepository(db)
         self.review_repo   = ReviewRepository(db)
-        self.site_settings_service = SiteSettingsService(db)
 
     # ── Каталог мастеров ─────────────────────────────────────────
 
@@ -91,6 +91,9 @@ class MasterService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Мастер {master_id} не найден",
             )
+        if data.salon_id is not None and not self.salon_repo.get_by_id(data.salon_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Салон {data.salon_id} не найден")
         master = self.master_repo.update(master, data)
         return MasterResponse.model_validate(master)
 

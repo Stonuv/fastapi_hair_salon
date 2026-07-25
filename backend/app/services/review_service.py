@@ -86,7 +86,7 @@ class ReviewService:
         review = self.review_repo.get_by_id(review_id)
         if not review:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Отзыв не найден")
-        if (requesting_user.role != UserRole.admin
+        if (requesting_user.role not in (UserRole.admin, UserRole.owner)
                 and review.client_id != requesting_user.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Можно удалить только свой отзыв")

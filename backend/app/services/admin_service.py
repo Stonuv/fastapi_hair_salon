@@ -7,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models.enums import UserRole
+from ..models.user import User
 from ..repositories.master_repository import MasterRepository
+from ..repositories.salon_repository import SalonRepository
 from ..repositories.service_repository import ServiceRepository
 from ..repositories.session_repository import SessionRepository
 from ..repositories.stats_repository import StatsRepository
@@ -20,11 +22,22 @@ from ._errors import constraint_name
 from .auth_service import hash_password
 
 
+def _ensure_can_assign_role(role: UserRole, requesting_user: User) -> None:
+    """До появления owner любой admin мог назначить роль admin кому угодно —
+    плоская иерархия, максимум это грозило самоназначением. С owner тот же
+    непроверенный путь позволил бы salon-admin выдать owner себе или кому
+    угодно — захват всей сети (ROADMAP.md §4.8)."""
+    if role in (UserRole.admin, UserRole.owner) and requesting_user.role != UserRole.owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Назначать роль admin/owner может только владелец сети")
+
+
 class AdminService:
     def __init__(self, db: Session):
         self.db           = db
         self.user_repo    = UserRepository(db)
         self.master_repo  = MasterRepository(db)
+        self.salon_repo   = SalonRepository(db)
         self.service_repo = ServiceRepository(db)
         self.session_repo = SessionRepository(db)
         self.stats_repo   = StatsRepository(db)
@@ -46,7 +59,18 @@ class AdminService:
             total=total, page=page, page_size=page_size,
         )
 
-    def create_user(self, data: AdminUserCreate) -> UserResponse:
+    def create_user(self, data: AdminUserCreate, requesting_user: User) -> UserResponse:
+        _ensure_can_assign_role(data.role, requesting_user)
+        if data.role == UserRole.admin:
+            # salon_id обязателен для role=admin (ck_users_admin_requires_salon),
+            # а AdminUserCreate его не задаёт — точку назначают отдельным вызовом
+            # (PATCH .../salon), см. change_role за той же логикой и объяснением.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=("Нельзя создать пользователя сразу с ролью admin — создайте "
+                       "с другой ролью, назначьте точку (PATCH /users/{id}/salon), "
+                       "затем повысьте роль (PATCH /users/{id}/role)"),
+            )
         if self.user_repo.email_exists(data.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Пользователь с таким email уже существует")
@@ -105,11 +129,17 @@ class AdminService:
 
         return UserResponse.model_validate(user)
 
-    def change_role(self, user_id: UUID, role: UserRole) -> UserResponse:
+    def change_role(self, user_id: UUID, role: UserRole, requesting_user: User) -> UserResponse:
+        _ensure_can_assign_role(role, requesting_user)
         user = self.user_repo.get_by_id(user_id)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Пользователь не найден")
+        if role == UserRole.admin and user.salon_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Сначала назначьте пользователю точку (PATCH /users/{id}/salon)",
+            )
         user = self.user_repo.set_role(user, role)
         if role != UserRole.master:
             master = self.master_repo.get_by_user_id(user_id)
@@ -117,7 +147,8 @@ class AdminService:
                 self.master_repo.deactivate(master)
         return UserResponse.model_validate(user)
 
-    def create_master_profile(self, user_id: UUID) -> MasterResponse:
+    def create_master_profile(self, user_id: UUID, salon_id: UUID | None,
+                              requesting_user: User) -> MasterResponse:
         user = self.user_repo.get_by_id(user_id)
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -137,9 +168,44 @@ class AdminService:
             master = self.master_repo.reactivate(existing)
             master = self.master_repo.get_by_id(master.id)
             return MasterResponse.model_validate(master)
-        master = self.master_repo.create(user_id)
+
+        # salon_id (ROADMAP.md §4.10, Фаза B): owner обязан указать точку явно
+        # (у него самого нет "домашней" — не с чем дефолтиться); admin может
+        # либо промолчать (уходит в его собственную точку), либо повторить
+        # свою же — но не указать чужую, иначе salon-admin мог бы заселять
+        # мастерами точки за пределами своих полномочий.
+        if requesting_user.role == UserRole.owner:
+            if salon_id is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Владелец сети обязан указать точку (salon_id)")
+            if not self.salon_repo.get_by_id(salon_id):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                    detail=f"Салон {salon_id} не найден")
+        else:
+            if salon_id is not None and salon_id != requesting_user.salon_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Можно создавать мастеров только в своей точке")
+            salon_id = requesting_user.salon_id
+
+        master = self.master_repo.create(user_id, salon_id)
         master = self.master_repo.get_by_id(master.id)
         return MasterResponse.model_validate(master)
+
+    def assign_salon(self, user_id: UUID, salon_id: UUID) -> UserResponse:
+        """Назначить/сменить домашнюю точку пользователя — обычно перед
+        повышением до admin (ck_users_admin_requires_salon требует salon_id
+        уже в момент смены роли на admin, см. change_role) или чтобы
+        перевести существующего admin в другую точку. Не ограничено ролью
+        admin — иначе новый admin не мог бы получить точку ДО повышения."""
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Пользователь не найден")
+        if not self.salon_repo.get_by_id(salon_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Салон {salon_id} не найден")
+        user = self.user_repo.set_salon(user, salon_id)
+        return UserResponse.model_validate(user)
 
     def set_blocked(self, user_id: UUID, is_blocked: bool,
                     requesting_admin_id: UUID) -> UserResponse:

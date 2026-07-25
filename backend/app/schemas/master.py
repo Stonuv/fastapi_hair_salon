@@ -80,6 +80,9 @@ class MasterUpdate(BaseModel):
     photo_url:      Annotated[str | None, Field(default=None, max_length=500)]
     coefficient:    Annotated[float | None, Field(default=None, gt=0)]
     is_active:      Annotated[bool | None, Field(default=None)]
+    # Перевод между точками — сетевое решение, только владелец сети
+    # (см. routes/masters.py update_master, ROADMAP.md §4.10 Фаза B).
+    salon_id:       Annotated[UUID | None, Field(default=None)]
 
 
 class MasterServiceCreate(BaseModel):

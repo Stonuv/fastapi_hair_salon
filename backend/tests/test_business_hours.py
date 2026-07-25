@@ -149,7 +149,7 @@ def make_appointment_service():
     svc.db = None
     created = {}
 
-    def fake_create(client_id, data, end_time, final_price):
+    def fake_create(client_id, data, end_time, final_price, salon_id):
         created["appointment"] = make_fake_appointment(start_time=data.start_time, end_time=end_time)
         return created["appointment"]
 
@@ -161,7 +161,7 @@ def make_appointment_service():
     )
     svc.master_repo = SimpleNamespace(
         get_by_id=lambda mid: SimpleNamespace(id=mid, user_id=uuid.uuid4(), is_active=True,
-                                              coefficient=Decimal("1.00")),
+                                              coefficient=Decimal("1.00"), salon_id=uuid.uuid4()),
         get_master_service=lambda mid, sid: SimpleNamespace(price_override=None),
     )
     svc.service_repo = SimpleNamespace(

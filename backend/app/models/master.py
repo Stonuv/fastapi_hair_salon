@@ -12,6 +12,7 @@ from .mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from .appointment import Appointment
     from .review import Review
+    from .salon import Salon
     from .schedule import Schedule
     from .service import Service
     from .user import User
@@ -28,6 +29,11 @@ class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    # Мастер физически работает в одной точке (см. ROADMAP.md §4.1) —
+    # мультилокационный мастер вне периметра v1.
+    salon_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT"), nullable=False
+    )
     specialization: Mapped[str | None] = mapped_column(String(200))
     photo_url: Mapped[str | None] = mapped_column(String(500))
     # Финальная цена = services.price * coefficient
@@ -36,6 +42,7 @@ class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     user: Mapped["User"] = relationship(back_populates="master_profile")
+    salon: Mapped["Salon"] = relationship(back_populates="masters")
     services: Mapped[list["MasterService"]] = relationship(
         back_populates="master", cascade="all, delete-orphan"
     )

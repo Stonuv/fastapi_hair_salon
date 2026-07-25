@@ -15,7 +15,8 @@ from .config import settings
 from .database import get_db
 from .routes import (auth_router, services_router,
                      masters_router, appointments_router, admin_router,
-                     reviews_router, site_settings_router, setup_router)
+                     reviews_router, site_settings_router, setup_router,
+                     salons_router)
 from .scheduler import lifespan
 from .utils.rate_limit import limiter
 
@@ -73,6 +74,7 @@ app.include_router(appointments_router)
 app.include_router(admin_router)
 app.include_router(reviews_router)
 app.include_router(site_settings_router)
+app.include_router(salons_router)
 
 # Загруженные изображения (фото мастеров, hero-картинка — см. utils/uploads).
 # Путь /api/uploads проходит через тот же nginx location /api, что и весь

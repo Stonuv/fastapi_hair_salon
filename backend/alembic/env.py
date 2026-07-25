@@ -33,6 +33,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        transaction_per_migration=True,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -48,6 +49,12 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            # Каждая ревизия коммитится отдельно, а не все разом одной
+            # транзакцией на весь `alembic upgrade head`. Обязательно для
+            # 0014_user_role_owner: PostgreSQL запрещает использовать новое
+            # значение enum (ALTER TYPE ... ADD VALUE) в той же транзакции,
+            # где оно добавлено — 0015 обязана видеть 'owner' уже закоммиченным.
+            transaction_per_migration=True,
         )
         with context.begin_transaction():
             context.run_migrations()

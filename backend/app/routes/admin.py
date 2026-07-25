@@ -21,7 +21,7 @@ from ..schemas.service import ServiceResponse, ServiceUpdate
 from ..schemas.upload import ImageUploadResponse
 from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
 from ..services.admin_service import AdminService
-from ..services.auth_service import get_current_admin
+from ..services.auth_service import get_current_admin, get_current_owner
 from ..services.report_service import ReportService
 from ..services.service_service import ServiceService
 from ..utils.uploads import save_uploaded_image
@@ -35,6 +35,17 @@ class ChangeRoleRequest(BaseModel):
 
 class BlockRequest(BaseModel):
     is_blocked: bool
+
+
+class AssignSalonRequest(BaseModel):
+    salon_id: UUID
+
+
+class CreateMasterProfileRequest(BaseModel):
+    # Обязателен для owner (у него нет "домашней" точки, дефолтиться не с
+    # чем); admin может не указывать — уходит в его собственную точку
+    # (см. AdminService.create_master_profile, ROADMAP.md §4.10 Фаза B).
+    salon_id: UUID | None = None
 
 
 def _resolve_report_period(date_from: date_ | None,
@@ -112,10 +123,10 @@ def get_all_users(
 
 
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(data: AdminUserCreate,
-                db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Создать пользователя. Роль задаётся сразу."""
-    return AdminService(db).create_user(data)
+def create_user(data: AdminUserCreate, db: Session = Depends(get_db),
+                current_user: User = Depends(get_current_admin)):
+    """Создать пользователя. Роль задаётся сразу (кроме admin — см. AdminService)."""
+    return AdminService(db).create_user(data, current_user)
 
 
 @router.patch("/users/{user_id}", response_model=UserResponse)
@@ -127,9 +138,19 @@ def update_user(user_id: UUID, data: AdminUserUpdate,
 
 @router.patch("/users/{user_id}/role", response_model=UserResponse)
 def change_user_role(user_id: UUID, data: ChangeRoleRequest,
-                     db: Session = Depends(get_db), _=Depends(get_current_admin)):
+                     db: Session = Depends(get_db),
+                     current_user: User = Depends(get_current_admin)):
     """Сменить роль пользователя."""
-    return AdminService(db).change_role(user_id, data.role)
+    return AdminService(db).change_role(user_id, data.role, current_user)
+
+
+@router.patch("/users/{user_id}/salon", response_model=UserResponse)
+def assign_user_salon(user_id: UUID, data: AssignSalonRequest,
+                      db: Session = Depends(get_db), _=Depends(get_current_owner)):
+    """Назначить/сменить домашнюю точку пользователя. Только владелец сети —
+    обычно перед повышением до admin (нужен salon_id, см. change_role) или
+    чтобы перевести существующего admin в другую точку."""
+    return AdminService(db).assign_salon(user_id, data.salon_id)
 
 
 @router.patch("/users/{user_id}/block", response_model=UserResponse)
@@ -143,10 +164,14 @@ def set_user_blocked(user_id: UUID, data: BlockRequest,
 
 @router.post("/users/{user_id}/master", response_model=MasterResponse,
              status_code=status.HTTP_201_CREATED)
-def create_master_profile(user_id: UUID,
-                          db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Создать профиль мастера."""
-    return AdminService(db).create_master_profile(user_id)
+def create_master_profile(user_id: UUID, data: CreateMasterProfileRequest | None = None,
+                          db: Session = Depends(get_db),
+                          current_user: User = Depends(get_current_admin)):
+    """Создать профиль мастера. salon_id обязателен для владельца сети,
+    для администратора необязателен (уходит в его собственную точку) —
+    тело запроса поэтому тоже необязательно целиком."""
+    salon_id = data.salon_id if data else None
+    return AdminService(db).create_master_profile(user_id, salon_id, current_user)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

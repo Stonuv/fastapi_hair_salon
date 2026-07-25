@@ -115,7 +115,7 @@ class AppointmentService:
         # EXCLUDE-констрейнт no_double_booking, и его нарушение — это 409, не 500.
         try:
             appointment = self.appointment_repo.create(
-                client_id, data, end_time, final_price
+                client_id, data, end_time, final_price, master.salon_id
             )
         except IntegrityError as exc:
             self.db.rollback()
@@ -135,7 +135,7 @@ class AppointmentService:
                                 detail="Запись не найдена")
 
         # Доступ: владелец записи, её мастер или администратор
-        if requesting_user.role != UserRole.admin:
+        if requesting_user.role not in (UserRole.admin, UserRole.owner):
             master = self.master_repo.get_by_user_id(requesting_user.id)
             is_owner  = appointment.client_id == requesting_user.id
             is_master = master and master.id == appointment.master_id
@@ -168,7 +168,7 @@ class AppointmentService:
         Записи конкретного мастера. Мастер может смотреть только свои —
         админ может смотреть любые.
         """
-        if requesting_user.role != UserRole.admin:
+        if requesting_user.role not in (UserRole.admin, UserRole.owner):
             own_master = self.master_repo.get_by_user_id(requesting_user.id)
             if not own_master or own_master.id != master_id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -235,7 +235,7 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Запись не найдена")
 
-        if requesting_user.role != UserRole.admin:
+        if requesting_user.role not in (UserRole.admin, UserRole.owner):
             own_master = self.master_repo.get_by_user_id(requesting_user.id)
             if not own_master or own_master.id != appointment.master_id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -262,7 +262,7 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Запись не найдена")
 
-        if requesting_user.role != UserRole.admin:
+        if requesting_user.role not in (UserRole.admin, UserRole.owner):
             own_master = self.master_repo.get_by_user_id(requesting_user.id)
             if not own_master or own_master.id != appointment.master_id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,

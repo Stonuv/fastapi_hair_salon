@@ -5,6 +5,7 @@ class UserRole(str, enum.Enum):
     client = "client"
     master = "master"
     admin  = "admin"
+    owner  = "owner"
 
 
 class AppointmentStatus(str, enum.Enum):

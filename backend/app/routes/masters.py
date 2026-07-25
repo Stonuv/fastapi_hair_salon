@@ -23,8 +23,10 @@ router = APIRouter(prefix="/api/masters", tags=["masters"])
 
 
 def _ensure_owner_or_admin(master_id: UUID, current_user: User, db: Session) -> None:
-    """Мастер может управлять только своим профилем/расписанием — админ может всеми."""
-    if current_user.role == UserRole.admin:
+    """Мастер может управлять только своим профилем/расписанием — админ может всеми.
+    TODO(ROADMAP.md §4.8, Фаза C): переименовать в _ensure_can_manage_master
+    и добавить salon-scoping (admin — только мастеров своей точки)."""
+    if current_user.role in (UserRole.admin, UserRole.owner):
         return
     own_master = MasterRepository(db).get_by_user_id(current_user.id)
     if not own_master or own_master.id != master_id:
@@ -76,8 +78,12 @@ def get_master(master_id: UUID, db: Session = Depends(get_db)):
 def update_master(master_id: UUID, data: MasterUpdate,
                   db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_master)):
-    """Обновить профиль мастера. Сам мастер или администратор."""
+    """Обновить профиль мастера. Сам мастер или администратор.
+    salon_id (перевод в другую точку) — сетевое решение, только владелец."""
     _ensure_owner_or_admin(master_id, current_user, db)
+    if data.salon_id is not None and current_user.role != UserRole.owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Перевести мастера в другую точку может только владелец сети")
     return MasterService(db).update(master_id, data)
 
 

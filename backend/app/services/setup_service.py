@@ -40,7 +40,13 @@ class SetupService:
         self.user_repo = UserRepository(db)
 
     def is_completed(self) -> bool:
-        return self.user_repo.has_role(UserRole.admin)
+        # UserRole.owner тоже считается "настройка выполнена" — начиная с
+        # ROADMAP.md §4 миграция 0015 повышает существующих admin до owner,
+        # так что на реальной (уже настроенной) инсталляции ни одного admin
+        # может не остаться вовсе. Без этой строки is_completed() после той
+        # миграции ушёл бы обратно в False, и /api/setup стал бы публично
+        # вызываемым заново на уже работающем сайте.
+        return self.user_repo.has_role(UserRole.admin) or self.user_repo.has_role(UserRole.owner)
 
     def requires_token(self) -> bool:
         return bool(settings.setup_token)

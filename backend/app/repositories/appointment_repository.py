@@ -121,15 +121,17 @@ class AppointmentRepository:
     # ── Создание ─────────────────────────────────────────────────
 
     def create(self, client_id: uuid.UUID, data: AppointmentCreate,
-               end_time: datetime, final_price: Decimal) -> Appointment:
+               end_time: datetime, final_price: Decimal, salon_id: uuid.UUID) -> Appointment:
         """
-        end_time и final_price вычисляются в сервисе и передаются сюда готовыми.
-        Репозиторий только сохраняет — без логики.
+        end_time, final_price и salon_id вычисляются в сервисе (последний —
+        снимок master.salon_id на момент брони, см. ROADMAP.md §4.3) и
+        передаются сюда готовыми. Репозиторий только сохраняет — без логики.
         """
         appointment = Appointment(
             client_id=client_id,
             master_id=data.master_id,
             service_id=data.service_id,
+            salon_id=salon_id,
             start_time=data.start_time,
             end_time=end_time,
             final_price=final_price,

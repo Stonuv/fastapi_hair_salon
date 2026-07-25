@@ -555,6 +555,7 @@ def require_role(*roles: UserRole):
     return dependency
 
 
-get_current_client = require_role(UserRole.client, UserRole.admin)
-get_current_master = require_role(UserRole.master, UserRole.admin)
-get_current_admin  = require_role(UserRole.admin)
+get_current_client = require_role(UserRole.client, UserRole.admin, UserRole.owner)
+get_current_master = require_role(UserRole.master, UserRole.admin, UserRole.owner)
+get_current_admin  = require_role(UserRole.admin, UserRole.owner)  # owner неявно включён
+get_current_owner  = require_role(UserRole.owner)

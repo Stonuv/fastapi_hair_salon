@@ -52,7 +52,7 @@ def test_exclusion_constraint_rejects_overlapping_appointment(db_session, bookab
             service_id=bookable_setup.service.id,
             start_time=start,
         ),
-        end, bookable_setup.service.price,
+        end, bookable_setup.service.price, bookable_setup.master.salon_id,
     )
     db_session.commit()
 
@@ -69,7 +69,7 @@ def test_exclusion_constraint_rejects_overlapping_appointment(db_session, bookab
                 service_id=bookable_setup.service.id,
                 start_time=overlap_start,
             ),
-            overlap_end, bookable_setup.service.price,
+            overlap_end, bookable_setup.service.price, bookable_setup.master.salon_id,
         )
     db_session.rollback()
 
