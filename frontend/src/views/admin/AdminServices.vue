@@ -8,7 +8,11 @@
           <option value="false">Неактивные</option>
         </BaseSelect>
       </div>
-      <BaseButton @click="openCreate">Создать услугу</BaseButton>
+      <!-- Каталог услуг — общий актив сети, запись owner-only (ROADMAP.md
+           §4.8): администратору точки список доступен только на чтение,
+           локальная вариативность цены остаётся ему через price_override
+           на мастере. -->
+      <BaseButton v-if="auth.isOwner" @click="openCreate">Создать услугу</BaseButton>
     </div>
 
     <div v-if="loading" class="space-y-3">
@@ -28,7 +32,7 @@
           </div>
           <p class="text-sm text-ink-600">{{ s.duration_min }} мин · {{ s.price }} ₽</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div v-if="auth.isOwner" class="flex items-center gap-2">
           <BaseButton variant="ghost" size="sm" @click="openEdit(s)">Редактировать</BaseButton>
           <BaseButton variant="danger" size="sm" @click="serviceToDelete = s">Удалить</BaseButton>
         </div>
@@ -78,6 +82,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ScissorsIcon } from '@heroicons/vue/24/outline'
 import { adminApi, servicesApi } from '../../api'
+import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
@@ -91,6 +96,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
+const auth = useAuthStore()
 const toast = useToastStore()
 
 const services = ref([])

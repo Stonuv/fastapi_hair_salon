@@ -1,20 +1,24 @@
-"""Первичная настройка (создание первого админа) — без БД, фейковый репозиторий."""
+"""Первичная настройка (создание владельца сети + первой точки) — без БД,
+фейковый репозиторий. Сам факт, что на реальной схеме это не падает на
+ck_users_admin_requires_salon, проверяется отдельно и обязательно на
+настоящем Postgres — см. tests/integration/test_fresh_install_setup.py."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
 from app.models.enums import UserRole
+from app.schemas.salon import SalonCreate
 from app.schemas.setup import SetupRequest
 from app.schemas.user import UserCreate
 from app.services import setup_service as setup_service_module
 from app.services.setup_service import SetupService
 
 
-def make_service(*, admin_exists=False, email_exists=False, phone_exists=False,
-                 create_result=None, executed=None):
+def make_service(*, owner_exists=False, email_exists=False, phone_exists=False,
+                 create_result=None, executed=None, salons=None):
     svc = SetupService.__new__(SetupService)
     svc.db = SimpleNamespace(
         execute=lambda *args, **kwargs: executed.append(args) if executed is not None else None
@@ -26,10 +30,13 @@ def make_service(*, admin_exists=False, email_exists=False, phone_exists=False,
         return create_result
 
     svc.user_repo = SimpleNamespace(
-        has_role=lambda role: admin_exists,
+        has_role=lambda role: owner_exists,
         email_exists=lambda email: email_exists,
         phone_exists=lambda phone: phone_exists,
         create=create,
+    )
+    svc.salon_service = SimpleNamespace(
+        ensure_primary=lambda data: salons.append(data) if salons is not None else None
     )
     return svc
 
@@ -37,57 +44,76 @@ def make_service(*, admin_exists=False, email_exists=False, phone_exists=False,
 def make_fake_user():
     return SimpleNamespace(
         id=uuid.uuid4(), email="owner@example.com", first_name="Иван", last_name="Иванов",
-        phone=None, role=UserRole.admin, is_blocked=False, token_version=0,
-        created_at=datetime.now(timezone.utc),
+        phone=None, role=UserRole.owner, is_blocked=False, token_version=0,
+        created_at=datetime.now(timezone.utc), salon=None,
     )
 
 
 def make_request(phone=None, setup_token=None):
-    return SetupRequest(admin=UserCreate(
-        email="owner@example.com", first_name="Иван", last_name="Иванов",
-        phone=phone, password="supersecret",
-    ), setup_token=setup_token)
+    return SetupRequest(
+        owner=UserCreate(
+            email="owner@example.com", first_name="Иван", last_name="Иванов",
+            phone=phone, password="supersecret",
+        ),
+        salon=SalonCreate(
+            name="Салон на Тверской", address="ул. Тверская, 12",
+            open_time=time(9, 0), close_time=time(20, 0),
+        ),
+        setup_token=setup_token,
+    )
 
 
 class TestIsCompleted:
     def test_reflects_has_role(self):
-        assert make_service(admin_exists=True).is_completed() is True
-        assert make_service(admin_exists=False).is_completed() is False
+        assert make_service(owner_exists=True).is_completed() is True
+        assert make_service(owner_exists=False).is_completed() is False
 
 
 class TestComplete:
-    def test_rejects_when_admin_already_exists(self):
+    def test_rejects_when_owner_already_exists(self):
         # 404, не 409 — эндпоинт должен выглядеть закрытым для внешнего
         # наблюдателя, а не просто "занятым" (ISSUES #28).
-        svc = make_service(admin_exists=True)
+        svc = make_service(owner_exists=True)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request())
         assert exc.value.status_code == 404
 
     def test_rejects_duplicate_email(self):
-        svc = make_service(admin_exists=False, email_exists=True)
+        svc = make_service(owner_exists=False, email_exists=True)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request())
         assert exc.value.status_code == 409
 
     def test_rejects_duplicate_phone(self):
-        svc = make_service(admin_exists=False, phone_exists=True)
+        svc = make_service(owner_exists=False, phone_exists=True)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request(phone="+7 999 123-45-67"))
         assert exc.value.status_code == 409
 
-    def test_succeeds_and_returns_token_when_no_admin_yet(self):
-        svc = make_service(admin_exists=False, create_result=make_fake_user())
+    def test_creates_owner_not_admin(self):
+        """Regression (ROADMAP.md §4.10 Фаза D): роль admin salon-scoped и
+        требует salon_id (ck_users_admin_requires_salon) — на первом запуске
+        его взять неоткуда, поэтому первый аккаунт обязан быть owner."""
+        svc = make_service(owner_exists=False, create_result=make_fake_user())
         res = svc.complete(make_request())
-        assert res.user.role == UserRole.admin
+        assert res.user.role == UserRole.owner
         assert res.access_token
 
-    def test_acquires_advisory_lock_before_checking_admin_exists(self):
+    def test_creates_primary_salon(self):
+        """Мастера и записи ссылаются на salons.id (NOT NULL) — без точки
+        инсталляция нерабочая, поэтому setup обязан её завести."""
+        salons = []
+        svc = make_service(owner_exists=False, create_result=make_fake_user(), salons=salons)
+        svc.complete(make_request())
+        assert len(salons) == 1
+        assert salons[0].name == "Салон на Тверской"
+
+    def test_acquires_advisory_lock_before_checking_owner_exists(self):
         """Regression test: complete() must serialize concurrent callers via
         pg_advisory_xact_lock before is_completed(), otherwise two racing
-        requests can both pass the check and both create an admin."""
+        requests can both pass the check and both create an owner."""
         executed = []
-        svc = make_service(admin_exists=True, executed=executed)
+        svc = make_service(owner_exists=True, executed=executed)
         with pytest.raises(HTTPException):
             svc.complete(make_request())
         assert any("pg_advisory_xact_lock" in str(call[0]) for call in executed)
@@ -95,7 +121,7 @@ class TestComplete:
 
 class TestSetupTokenGate:
     """SETUP_TOKEN (config.py) закрывает публичный /api/setup вне debug —
-    без него первый, кто откроет /setup после деплоя, становится админом."""
+    без него первый, кто откроет /setup после деплоя, становится владельцем."""
 
     def test_requires_token_false_when_not_configured(self, monkeypatch):
         monkeypatch.setattr(setup_service_module.settings, "setup_token", None)
@@ -107,26 +133,26 @@ class TestSetupTokenGate:
 
     def test_rejects_missing_token_when_configured(self, monkeypatch):
         monkeypatch.setattr(setup_service_module.settings, "setup_token", "s3cr3t")
-        svc = make_service(admin_exists=False)
+        svc = make_service(owner_exists=False)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request(setup_token=None))
         assert exc.value.status_code == 403
 
     def test_rejects_wrong_token_when_configured(self, monkeypatch):
         monkeypatch.setattr(setup_service_module.settings, "setup_token", "s3cr3t")
-        svc = make_service(admin_exists=False)
+        svc = make_service(owner_exists=False)
         with pytest.raises(HTTPException) as exc:
             svc.complete(make_request(setup_token="wrong"))
         assert exc.value.status_code == 403
 
     def test_accepts_correct_token(self, monkeypatch):
         monkeypatch.setattr(setup_service_module.settings, "setup_token", "s3cr3t")
-        svc = make_service(admin_exists=False, create_result=make_fake_user())
+        svc = make_service(owner_exists=False, create_result=make_fake_user())
         res = svc.complete(make_request(setup_token="s3cr3t"))
         assert res.access_token
 
     def test_token_not_required_when_not_configured(self, monkeypatch):
         monkeypatch.setattr(setup_service_module.settings, "setup_token", None)
-        svc = make_service(admin_exists=False, create_result=make_fake_user())
+        svc = make_service(owner_exists=False, create_result=make_fake_user())
         res = svc.complete(make_request(setup_token=None))
         assert res.access_token

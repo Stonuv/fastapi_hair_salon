@@ -24,11 +24,31 @@ class SalonService:
         return SalonResponse.model_validate(salon)
 
     def create(self, data: SalonCreate) -> SalonResponse:
-        slug = generate_unique_slug(
-            data.name, exists=lambda s: self.salon_repo.get_by_slug(s) is not None
-        )
-        salon = self.salon_repo.create(data, slug)
+        salon = self.salon_repo.create(data, self._slug_for(data.name))
         return SalonResponse.model_validate(salon)
+
+    def ensure_primary(self, data: SalonCreate) -> SalonResponse:
+        """Первая точка сети при первичной настройке (/api/setup).
+
+        Миграция 0013 всегда оставляет ровно одну строку-заглушку («Салон №1»
+        с адресом «Адрес не указан»), поэтому здесь её нужно ЗАПОЛНИТЬ
+        реальными данными, а не создавать вторую точку рядом — иначе свежая
+        инсталляция стартовала бы с двумя салонами, один из которых мусорный.
+        create() — только на случай БД без этой заглушки."""
+        existing = self.salon_repo.get_first()
+        if existing is None:
+            return self.create(data)
+        slug = self._slug_for(data.name, exclude_id=existing.id)
+        salon = self.salon_repo.replace_details(existing, data, slug)
+        return SalonResponse.model_validate(salon)
+
+    def _slug_for(self, name: str, *, exclude_id: UUID | None = None) -> str:
+        """exclude_id — чтобы точка не считала коллизией собственный slug
+        при переименовании (см. ensure_primary)."""
+        def taken(candidate: str) -> bool:
+            found = self.salon_repo.get_by_slug(candidate)
+            return found is not None and found.id != exclude_id
+        return generate_unique_slug(name, exists=taken)
 
     def update(self, salon_id: UUID, data: SalonUpdate) -> SalonResponse:
         salon = self.salon_repo.get_by_id(salon_id)

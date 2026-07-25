@@ -1,10 +1,11 @@
 // Сквозные сценарии поверх реального backend + Postgres (не мока) — тот же
 // принцип, что backend/tests/integration/, только через настоящий браузер
 // и HTTP. Оба теста идут в одном describe.serial и на одной БД: первый
-// создаёт единственного на инсталляцию admin через /setup (эндпоинт
-// самоблокируется после первого вызова — второй раз его не пройти), второй
-// переиспользует те же учётные данные, чтобы засеять услугу/мастера/
-// расписание через API, прежде чем вести реального клиента через UI.
+// создаёт единственного на инсталляцию владельца сети и первую точку через
+// /setup (эндпоинт самоблокируется после первого вызова — второй раз его не
+// пройти), второй переиспользует те же учётные данные, чтобы засеять
+// услугу/мастера/расписание через API, прежде чем вести реального клиента
+// через UI.
 //
 // Локальный запуск (нужен работающий backend на :8000 с чистой БД,
 // см. README «Быстрый старт» — например docker compose up db backend):
@@ -22,11 +23,17 @@ test.describe.configure({ mode: 'serial' })
 const API_URL = process.env.E2E_API_URL || 'http://localhost:8000/api'
 const RUN_ID = Date.now()
 
-const ADMIN = {
+// Владелец сети, не администратор точки: /setup создаёт именно owner
+// (роль admin salon-scoped и требует salon_id — ROADMAP.md §4.10 Фаза D).
+const OWNER = {
   first_name: 'Игорь',
   last_name: 'Волков',
   email: `owner.e2e.${RUN_ID}@example.com`,
   password: 'SuperSecret123',
+}
+const SALON = {
+  name: `Сайтама Центр ${RUN_ID}`,
+  address: 'ул. Тверская, 12',
 }
 const NEW_BRAND_NAME = `Сайтама E2E ${RUN_ID}`
 
@@ -74,18 +81,24 @@ async function postWithRetry(request, url, options) {
 }
 
 test.describe('Сквозные сценарии', () => {
-  test('первый запуск, вход администратора и изменение настроек сайта', async ({ page }) => {
-    await test.step('/setup создаёт первого администратора', async () => {
+  test('первый запуск, вход владельца сети и изменение настроек сайта', async ({ page }) => {
+    await test.step('/setup создаёт владельца сети и первую точку', async () => {
       await page.goto('/setup')
-      await page.getByLabel('Имя').fill(ADMIN.first_name)
-      await page.getByLabel('Фамилия').fill(ADMIN.last_name)
-      await page.getByLabel('Email').fill(ADMIN.email)
+      await page.getByLabel('Имя').fill(OWNER.first_name)
+      await page.getByLabel('Фамилия').fill(OWNER.last_name)
+      await page.getByLabel('Email').fill(OWNER.email)
       const passwordInputs = page.locator('input[type="password"]')
-      await passwordInputs.nth(0).fill(ADMIN.password)
-      await passwordInputs.nth(1).fill(ADMIN.password)
+      await passwordInputs.nth(0).fill(OWNER.password)
+      await passwordInputs.nth(1).fill(OWNER.password)
       await page.getByRole('button', { name: 'Далее' }).click()
 
-      // Шаг 2 (контент сайта) — значения по умолчанию уже подставлены,
+      // Шаг 2 — первая точка сети (обязательна: masters/appointments
+      // ссылаются на salon_id NOT NULL). Время работы уже 09:00–20:00.
+      await page.getByLabel('Название точки').fill(SALON.name)
+      await page.getByLabel('Адрес').fill(SALON.address)
+      await page.getByRole('button', { name: 'Далее' }).click()
+
+      // Шаг 3 (контент сайта) — значения по умолчанию уже подставлены,
       // ничего менять не нужно для этого сценария.
       await expect(page.getByRole('heading', { name: 'Настройка «Сайтама»' })).toBeVisible()
       await page.getByRole('button', { name: 'Далее' }).click()
@@ -98,8 +111,8 @@ test.describe('Сквозные сценарии', () => {
       await page.getByRole('button', { name: 'Выйти' }).click()
       await expect(page).toHaveURL(/\/login$/)
 
-      await page.getByLabel('Email').fill(ADMIN.email)
-      await page.locator('input[type="password"]').fill(ADMIN.password)
+      await page.getByLabel('Email').fill(OWNER.email)
+      await page.locator('input[type="password"]').fill(OWNER.password)
       await page.getByRole('button', { name: 'Войти' }).click()
       await expect(page).toHaveURL('/')
     })
@@ -123,11 +136,17 @@ test.describe('Сквозные сценарии', () => {
     const serviceName = `Стрижка E2E ${RUN_ID}`
     const masterEmail = `master.e2e.${RUN_ID}@example.com`
 
-    await test.step('сиды через API от имени admin: услуга, мастер, расписание на неделю', async () => {
+    await test.step('сиды через API от имени владельца: услуга, мастер, расписание на неделю', async () => {
       const loginRes = await request.post(`${API_URL}/auth/login`, {
-        data: { email: ADMIN.email, password: ADMIN.password },
+        data: { email: OWNER.email, password: OWNER.password },
       })
       expect(loginRes.ok(), await loginRes.text()).toBeTruthy()
+
+      // Точку владелец обязан указать явно при заведении мастера — у него
+      // самого «домашней» точки нет (ROADMAP.md §4.10 Фаза B).
+      const salonsRes = await request.get(`${API_URL}/salons`)
+      expect(salonsRes.ok(), await salonsRes.text()).toBeTruthy()
+      const salonId = (await salonsRes.json())[0].id
 
       const svcRes = await postWithRetry(request, `${API_URL}/services`, {
         data: { name: serviceName, price: 1500, duration_min: 40 },
@@ -144,7 +163,9 @@ test.describe('Сквозные сценарии', () => {
       expect(userRes.ok(), await userRes.text()).toBeTruthy()
       const masterUser = await userRes.json()
 
-      const masterRes = await postWithRetry(request, `${API_URL}/admin/users/${masterUser.id}/master`)
+      const masterRes = await postWithRetry(request, `${API_URL}/admin/users/${masterUser.id}/master`, {
+        data: { salon_id: salonId },
+      })
       expect(masterRes.ok(), await masterRes.text()).toBeTruthy()
       const master = await masterRes.json()
 

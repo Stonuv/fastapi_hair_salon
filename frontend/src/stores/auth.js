@@ -12,7 +12,14 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!user.value)
   const isClient = computed(() => user.value?.role === 'client')
   const isMaster = computed(() => user.value?.role === 'master')
-  const isAdmin = computed(() => user.value?.role === 'admin')
+  // owner — надмножество admin (ROADMAP.md §4.1): отдельного дерева /owner/*
+  // нет, панель одна. isAdmin отвечает на «пускать ли в админку», isOwner —
+  // на «можно ли трогать сетевые сущности» (настройки сайта, каталог услуг,
+  // список точек), которые с Фазы C доступны только владельцу сети.
+  const isOwner = computed(() => user.value?.role === 'owner')
+  const isAdmin = computed(() => user.value?.role === 'admin' || isOwner.value)
+  // Домашняя точка admin'а; у owner её нет — он видит всю сеть.
+  const salon = computed(() => user.value?.salon ?? null)
 
   async function register(data) {
     const res = await authApi.register(data)
@@ -58,7 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, ready,
-    isLoggedIn, isClient, isMaster, isAdmin,
+    isLoggedIn, isClient, isMaster, isAdmin, isOwner, salon,
     register, login, fetchMe, updateMe, logout, clearSession,
   }
 })

@@ -1,9 +1,9 @@
 <template>
   <div class="flex min-h-screen items-center justify-center px-4 py-12">
     <BaseCard class="w-full max-w-xl">
-      <p class="font-mono text-xs uppercase tracking-widest text-brand-700">Первый запуск · шаг {{ step }} из 3</p>
+      <p class="font-mono text-xs uppercase tracking-widest text-brand-700">Первый запуск · шаг {{ step }} из 4</p>
       <h1 class="mt-1 font-display text-2xl font-black uppercase tracking-tight text-ink-900">Настройка «Сайтама»</h1>
-      <p class="mt-1 text-sm text-ink-600">Создайте аккаунт администратора, чтобы начать работу с панелью управления</p>
+      <p class="mt-1 text-sm text-ink-600">Создайте аккаунт владельца и первую точку, чтобы начать работу с панелью управления</p>
 
       <form class="mt-6 space-y-4" novalidate @submit.prevent="onSubmitStep">
         <!-- Шаг 1: аккаунт администратора -->
@@ -20,23 +20,23 @@
 
           <div class="grid grid-cols-2 gap-3">
             <BaseInput
-              v-model="admin.first_name"
+              v-model="owner.first_name"
               label="Имя"
               required
               :error="errors.first_name"
-              @blur="validateField('first_name', admin.first_name, 'Укажите имя')"
+              @blur="validateField('first_name', owner.first_name, 'Укажите имя')"
             />
             <BaseInput
-              v-model="admin.last_name"
+              v-model="owner.last_name"
               label="Фамилия"
               required
               :error="errors.last_name"
-              @blur="validateField('last_name', admin.last_name, 'Укажите фамилию')"
+              @blur="validateField('last_name', owner.last_name, 'Укажите фамилию')"
             />
           </div>
 
           <BaseInput
-            v-model="admin.email"
+            v-model="owner.email"
             label="Email"
             type="email"
             autocomplete="email"
@@ -45,14 +45,14 @@
             @blur="validateEmail"
           />
           <BaseInput
-            v-model="admin.phone"
+            v-model="owner.phone"
             label="Телефон"
             hint="Необязательно"
             autocomplete="tel"
             :error="errors.phone"
           />
           <BaseInput
-            v-model="admin.password"
+            v-model="owner.password"
             label="Пароль"
             type="password"
             autocomplete="new-password"
@@ -62,7 +62,7 @@
             @blur="validatePassword"
           />
           <BaseInput
-            v-model="admin.confirm_password"
+            v-model="owner.confirm_password"
             label="Повторите пароль"
             type="password"
             autocomplete="new-password"
@@ -72,29 +72,68 @@
           />
         </div>
 
-        <!-- Шаг 2: базовые настройки сайта -->
+        <!-- Шаг 2: первая точка сети -->
         <div v-else-if="step === 2" class="space-y-4">
+          <p class="text-sm text-ink-600">
+            Первая точка сети. Позже владелец может добавить ещё точки и назначить каждой своего администратора.
+          </p>
+          <BaseInput
+            v-model="salon.name"
+            label="Название точки"
+            required
+            hint="Например, «Сайтама на Тверской»"
+            :error="errors.salon_name"
+            @blur="validateField('salon_name', salon.name, 'Укажите название точки')"
+          />
+          <BaseInput
+            v-model="salon.address"
+            label="Адрес"
+            required
+            :error="errors.salon_address"
+            @blur="validateField('salon_address', salon.address, 'Укажите адрес')"
+          />
+          <BaseInput v-model="salon.phone" label="Телефон точки" hint="Необязательно" />
+          <div>
+            <p class="mb-1.5 text-sm font-medium text-ink-900">Время работы</p>
+            <p class="mb-2 text-sm text-ink-600">
+              Жёсткая граница: ни расписание мастера, ни запись клиента не смогут выйти за эти рамки.
+            </p>
+            <div class="flex items-center gap-3">
+              <BaseTimeInput v-model="salon.open_time" />
+              <span class="text-ink-600">—</span>
+              <BaseTimeInput v-model="salon.close_time" />
+            </div>
+            <p v-if="errors.salon_hours" class="mt-1 text-sm text-danger">{{ errors.salon_hours }}</p>
+          </div>
+        </div>
+
+        <!-- Шаг 3: базовые настройки сайта -->
+        <div v-else-if="step === 3" class="space-y-4">
           <Skeleton v-if="settingsLoading" height="h-64" />
           <p v-else-if="!siteContent" class="text-sm text-danger">
-            Не удалось загрузить настройки сайта. Можно продолжить без них — эти поля можно будет заполнить позже в «Админ → Настройки».
+            Не удалось загрузить настройки сайта. Можно продолжить без них — эти поля можно будет заполнить позже в «Админ → Редактор главной».
           </p>
           <template v-else>
             <div class="grid gap-4 sm:grid-cols-2">
               <BaseInput v-model="siteContent.header.brand_name" label="Название бренда" required />
               <BaseInput v-model="siteContent.header.brand_tagline" label="Подпись под названием" required />
             </div>
-            <BaseInput v-model="siteContent.footer.address" as="textarea" :rows="3" label="Адрес" hint="Каждая строка — перенос строки" />
-            <BaseInput v-model="siteContent.footer.hours" as="textarea" :rows="3" label="Часы работы" hint="Каждая строка — перенос строки" />
-            <p class="text-sm text-ink-600/80">Остальной контент сайта можно донастроить позже в «Админ → Настройки».</p>
+            <p class="text-sm text-ink-600/80">
+              Бренд общий на всю сеть. Адрес и часы в подвале сайта заполнятся из точки, указанной на прошлом шаге;
+              остальной контент можно донастроить позже в «Админ → Редактор главной».
+            </p>
           </template>
         </div>
 
-        <!-- Шаг 3: проверка и завершение -->
+        <!-- Шаг 4: проверка и завершение -->
         <div v-else class="space-y-3">
           <p class="text-sm text-ink-600">Проверьте данные перед завершением настройки:</p>
           <dl class="space-y-1.5 rounded-lg border border-stone-200 p-4 text-sm">
-            <div class="flex justify-between gap-4"><dt class="text-ink-600">Администратор</dt><dd class="font-medium text-ink-900">{{ admin.first_name }} {{ admin.last_name }}</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-ink-600">Email</dt><dd class="font-medium text-ink-900">{{ admin.email }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-600">Владелец</dt><dd class="font-medium text-ink-900">{{ owner.first_name }} {{ owner.last_name }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-600">Email</dt><dd class="font-medium text-ink-900">{{ owner.email }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-600">Точка</dt><dd class="font-medium text-ink-900">{{ salon.name }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-600">Адрес</dt><dd class="font-medium text-ink-900">{{ salon.address }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-600">Время работы</dt><dd class="font-medium text-ink-900">{{ salon.open_time }} — {{ salon.close_time }}</dd></div>
             <div class="flex justify-between gap-4"><dt class="text-ink-600">Название бренда</dt><dd class="font-medium text-ink-900">{{ siteContent?.header?.brand_name || '—' }}</dd></div>
           </dl>
         </div>
@@ -102,8 +141,8 @@
         <div class="flex justify-between pt-2">
           <BaseButton v-if="step > 1" type="button" variant="ghost" @click="step -= 1">Назад</BaseButton>
           <span v-else />
-          <BaseButton type="submit" :loading="loading" :disabled="step === 2 && settingsLoading">
-            {{ step < 3 ? 'Далее' : 'Завершить настройку' }}
+          <BaseButton type="submit" :loading="loading" :disabled="step === 3 && settingsLoading">
+            {{ step < 4 ? 'Далее' : 'Завершить настройку' }}
           </BaseButton>
         </div>
       </form>
@@ -123,6 +162,7 @@ import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
+import BaseTimeInput from '../components/ui/BaseTimeInput.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 
 const router = useRouter()
@@ -135,9 +175,17 @@ const step = ref(1)
 const loading = ref(false)
 const settingsLoading = ref(true)
 
-const admin = reactive({
+// Владелец сети, не администратор точки: роль admin с введением сети
+// привязана к конкретному салону, на первом запуске её ставить некуда
+// (см. backend SetupService.complete).
+const owner = reactive({
   first_name: '', last_name: '', email: '', phone: '',
   password: '', confirm_password: '',
+})
+// Дефолты те же, что у заглушки из миграции 0013 — визард её заполняет.
+const salon = reactive({
+  name: '', address: '', phone: '',
+  open_time: '09:00:00', close_time: '20:00:00',
 })
 const setupToken = ref('')
 const siteContent = ref(null)
@@ -159,18 +207,18 @@ function validateField(field, value, message) {
 }
 
 function validateEmail() {
-  if (!admin.email) return setError('email', 'Укажите email')
-  if (!/^\S+@\S+\.\S+$/.test(admin.email)) return setError('email', 'Некорректный email')
+  if (!owner.email) return setError('email', 'Укажите email')
+  if (!/^\S+@\S+\.\S+$/.test(owner.email)) return setError('email', 'Некорректный email')
   clearError('email')
 }
 
 function validatePassword() {
-  if (admin.password.length < 8) return setError('password', 'Минимум 8 символов')
+  if (owner.password.length < 8) return setError('password', 'Минимум 8 символов')
   clearError('password')
 }
 
 function validateConfirmPassword() {
-  if (admin.confirm_password !== admin.password) return setError('confirm_password', 'Пароли не совпадают')
+  if (owner.confirm_password !== owner.password) return setError('confirm_password', 'Пароли не совпадают')
   clearError('confirm_password')
 }
 
@@ -180,12 +228,25 @@ function validateSetupToken() {
 }
 
 function validateStep1() {
-  validateField('first_name', admin.first_name, 'Укажите имя')
-  validateField('last_name', admin.last_name, 'Укажите фамилию')
+  validateField('first_name', owner.first_name, 'Укажите имя')
+  validateField('last_name', owner.last_name, 'Укажите фамилию')
   validateEmail()
   validatePassword()
   validateConfirmPassword()
   validateSetupToken()
+  return !Object.keys(errors).length
+}
+
+function validateStep2() {
+  validateField('salon_name', salon.name, 'Укажите название точки')
+  validateField('salon_address', salon.address, 'Укажите адрес')
+  // Та же граница, что и CHECK ck_salons_close_after_open на бэкенде —
+  // ловим до запроса, чтобы показать поле, а не общий тост.
+  if (salon.close_time <= salon.open_time) {
+    setError('salon_hours', 'Время закрытия должно быть позже времени открытия')
+  } else {
+    clearError('salon_hours')
+  }
   return !Object.keys(errors).length
 }
 
@@ -196,24 +257,53 @@ async function onSubmitStep() {
     return
   }
   if (step.value === 2) {
+    if (!validateStep2()) return
     step.value = 3
     return
   }
+  if (step.value === 3) {
+    step.value = 4
+    return
+  }
   await finish()
+}
+
+function siteContentWithSalonFooter() {
+  // footer.address/hours пока живут в контенте сайта (AppFooter.vue читает
+  // именно их), но фактически описывают точку — спрашивать их вторым
+  // экраном после шага «первая точка» значило бы задать один вопрос дважды.
+  // Заполняем из салона. Когда AppFooter перейдёт на список точек
+  // (ROADMAP.md §4.9), эти два поля уйдут из схемы вместе с ним.
+  if (!siteContent.value) return null
+  return {
+    ...siteContent.value,
+    footer: {
+      ...siteContent.value.footer,
+      address: salon.address,
+      hours: `Ежедневно ${salon.open_time.slice(0, 5)}–${salon.close_time.slice(0, 5)}`,
+    },
+  }
 }
 
 async function finish() {
   loading.value = true
   try {
     const res = await setupApi.complete({
-      admin: {
-        first_name: admin.first_name,
-        last_name: admin.last_name,
-        email: admin.email,
-        phone: admin.phone || null,
-        password: admin.password,
+      owner: {
+        first_name: owner.first_name,
+        last_name: owner.last_name,
+        email: owner.email,
+        phone: owner.phone || null,
+        password: owner.password,
       },
-      site_content: siteContent.value,
+      salon: {
+        name: salon.name,
+        address: salon.address,
+        phone: salon.phone || null,
+        open_time: salon.open_time,
+        close_time: salon.close_time,
+      },
+      site_content: siteContentWithSalonFooter(),
       setup_token: setupToken.value || null,
     })
     auth.user = res.data.user
@@ -246,8 +336,12 @@ async function finish() {
     }
     clearAll()
     if (setFromResponse(err)) {
-      if ('email' in errors || 'password' in errors || 'first_name' in errors || 'last_name' in errors || 'phone' in errors) {
+      // Вернуть пользователя на тот шаг, где лежит поле с ошибкой, иначе он
+      // видит подсветку на экране, который сейчас не показан.
+      if (['email', 'password', 'first_name', 'last_name', 'phone'].some((f) => f in errors)) {
         step.value = 1
+      } else if (['name', 'address', 'open_time', 'close_time'].some((f) => f in errors)) {
+        step.value = 2
       }
     } else {
       toast.error(extractErrorMessage(err, 'Не удалось завершить настройку'))

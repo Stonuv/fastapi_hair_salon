@@ -26,7 +26,8 @@ const routes = [
   {
     path: '/admin',
     component: () => import('../views/AdminPanel.vue'),
-    meta: { requiresAuth: true, roles: ['admin'], hideHeader: true },
+    // owner — надмножество admin, отдельного дерева /owner/* нет (ROADMAP.md §4.9).
+    meta: { requiresAuth: true, roles: ['admin', 'owner'], hideHeader: true },
     children: [
       { path: '', name: 'admin-stats', component: () => import('../views/admin/AdminStats.vue') },
       { path: 'users', name: 'admin-users', component: () => import('../views/admin/AdminUsers.vue') },
@@ -45,7 +46,9 @@ const routes = [
     path: '/admin/settings',
     name: 'admin-settings',
     component: () => import('../views/admin/AdminSettingsLive.vue'),
-    meta: { requiresAuth: true, roles: ['admin'], hideHeader: true },
+    // Только owner: PATCH /api/settings — управление брендом всей сети,
+    // с Фазы C недоступен salon-admin'у (тот получил бы 403 при сохранении).
+    meta: { requiresAuth: true, roles: ['owner'], hideHeader: true },
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundPage.vue') },
 ]

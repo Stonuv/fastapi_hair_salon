@@ -10,7 +10,9 @@ from ..models.enums import UserRole
 from ..repositories.user_repository import UserRepository
 from ..schemas.auth import TokenResponse
 from ..schemas.setup import SetupRequest
+from ._errors import constraint_name
 from .auth_service import build_token_response, hash_password
+from .salon_service import SalonService
 from .site_settings_service import SiteSettingsService
 
 
@@ -22,31 +24,34 @@ _SETUP_LOCK_KEY = 727271
 
 
 class SetupService:
-    """Первичная настройка после развёртывания: создание первого админа
-    (и опционально базовых полей контента сайта) одним запросом от визарда
-    на фронтенде. Как только хотя бы один admin существует, эндпоинт
-    навсегда возвращает 404 — выглядит как несуществующий, а не просто
-    запрещённый (ISSUES #28: 409 подтверждал бы факт установки анонимному
-    пробующему запросу; GET /api/setup/status при этом остаётся 200 как и
-    был — на нём завязан общий router-guard фронтенда на каждой навигации).
+    """Первичная настройка после развёртывания: создание владельца сети,
+    первой точки (и опционально базовых полей контента сайта) одним запросом
+    от визарда на фронтенде. Как только управляющий аккаунт существует,
+    эндпоинт навсегда возвращает 404 — выглядит как несуществующий, а не
+    просто запрещённый (ISSUES #28: 409 подтверждал бы факт установки
+    анонимному пробующему запросу; GET /api/setup/status при этом остаётся
+    200 как и был — на нём завязан общий router-guard фронтенда на каждой
+    навигации).
 
-    До появления админа /api/setup неизбежно публичен — если задан
+    До появления владельца /api/setup неизбежно публичен — если задан
     SETUP_TOKEN (обязателен вне debug, см. config.py), запрос обязан
-    предъявить его, иначе первым админом станет тот, кто быстрее найдёт
+    предъявить его, иначе владельцем станет тот, кто быстрее найдёт
     /setup после деплоя, а не тот, у кого есть доступ к серверу."""
 
     def __init__(self, db: Session):
         self.db = db
         self.user_repo = UserRepository(db)
+        self.salon_service = SalonService(db)
 
     def is_completed(self) -> bool:
-        # UserRole.owner тоже считается "настройка выполнена" — начиная с
-        # ROADMAP.md §4 миграция 0015 повышает существующих admin до owner,
-        # так что на реальной (уже настроенной) инсталляции ни одного admin
-        # может не остаться вовсе. Без этой строки is_completed() после той
-        # миграции ушёл бы обратно в False, и /api/setup стал бы публично
-        # вызываемым заново на уже работающем сайте.
-        return self.user_repo.has_role(UserRole.admin) or self.user_repo.has_role(UserRole.owner)
+        # Штатный признак — наличие owner (его и создаёт complete() ниже).
+        # UserRole.admin проверяется вдобавок сознательно, как страховка: это
+        # вопрос "можно ли снова открыть /api/setup публично", и ошибиться тут
+        # безопаснее в сторону "нельзя". Любой существующий управляющий
+        # аккаунт — достаточная причина считать инсталляцию настроенной, даже
+        # если owner когда-либо будет удалён/разжалован (ROADMAP.md §4.10
+        # Фаза B отмечает разжалование как отдельный нерешённый вопрос).
+        return self.user_repo.has_role(UserRole.owner) or self.user_repo.has_role(UserRole.admin)
 
     def requires_token(self) -> bool:
         return bool(settings.setup_token)
@@ -64,19 +69,37 @@ class SetupService:
         if self.is_completed():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Настройка уже выполнена")
-        if self.user_repo.email_exists(data.admin.email):
+        if self.user_repo.email_exists(data.owner.email):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Пользователь с таким email уже существует")
-        if data.admin.phone and self.user_repo.phone_exists(data.admin.phone):
+        if data.owner.phone and self.user_repo.phone_exists(data.owner.phone):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                                 detail="Пользователь с таким номером телефона уже существует")
         try:
-            user = self.user_repo.create(data.admin, hash_password(data.admin.password),
-                                         role=UserRole.admin)
+            # Именно owner: роль admin с введением сети salon-scoped и требует
+            # salon_id (ck_users_admin_requires_salon), которого на первом
+            # запуске взять неоткуда — попытка создать здесь admin валила
+            # /api/setup нарушением этого констрейнта.
+            user = self.user_repo.create(data.owner, hash_password(data.owner.password),
+                                         role=UserRole.owner)
         except IntegrityError as exc:
             self.db.rollback()
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Пользователь с таким email уже существует") from exc
+            # Раньше здесь безусловно возвращалось "email уже существует" — и
+            # нарушение постороннего констрейнта выглядело как дубликат email
+            # на заведомо пустой БД, что маскировало настоящую причину.
+            # Сверяемся с именем констрейнта, как в остальных сервисах.
+            name = constraint_name(exc)
+            if name == "uq_users_phone_active":
+                detail = "Пользователь с таким номером телефона уже существует"
+            elif name == "uq_users_email_active":
+                detail = "Пользователь с таким email уже существует"
+            else:
+                raise
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
+
+        # Первая точка сети — до записи контента сайта: masters/appointments
+        # ссылаются на salons.id (NOT NULL), без неё инсталляция нерабочая.
+        self.salon_service.ensure_primary(data.salon)
 
         if data.site_content is not None:
             SiteSettingsService(self.db).update(data.site_content)

@@ -51,3 +51,15 @@ class SalonRepository:
         self.db.flush()
         self.db.refresh(salon)
         return salon
+
+    def replace_details(self, salon: Salon, data: SalonCreate, slug: str) -> Salon:
+        """Полная замена данных точки — в отличие от update() перезаписывает и
+        slug (он производен от name). Нужна первичной настройке: миграция
+        0013 оставляет строку-заглушку, которую /api/setup заполняет
+        реальными данными, а не дублирует второй точкой."""
+        for field, value in data.model_dump().items():
+            setattr(salon, field, value)
+        salon.slug = slug
+        self.db.flush()
+        self.db.refresh(salon)
+        return salon
