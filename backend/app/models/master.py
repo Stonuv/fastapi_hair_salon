@@ -65,6 +65,12 @@ class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     def last_name(self) -> str:
         return self.user.last_name
 
+    # Аналогично first_name/last_name — MasterPublicResponse.salon_name
+    # (ROADMAP.md §4.8) не раскрывает полный SalonBriefResponse наружу.
+    @property
+    def salon_name(self) -> str:
+        return self.salon.name
+
     def __repr__(self) -> str:
         return f"<Master(id={self.id}, user_id={self.user_id}, active={self.is_active})>"
 

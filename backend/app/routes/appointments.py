@@ -13,6 +13,7 @@ from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
                                    AppointmentReschedule, AppointmentResponse,
                                    AppointmentStatusUpdate)
 from ..schemas.pagination import PageParams, PageResponse
+from ..services._salon_scope import resolve_salon_scope
 from ..services.appointment_service import AppointmentService
 from ..services.auth_service import (get_current_admin, get_current_client,
                                       get_current_master, get_current_user)
@@ -85,19 +86,23 @@ def get_master_appointments(
 def get_all_appointments(
     *,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
     page_params: Annotated[PageParams, Depends()],
     client_id: UUID | None = None,
     master_id: UUID | None = None,
     status_filter: AppointmentStatus | None = None,
     date_from: datetime | None = None,
     date_to:   datetime | None = None,
+    salon_id:  UUID | None = None,
 ):
-    """Все записи системы — для администратора. Фильтр + пагинация (1.4)."""
+    """Все записи системы — для администратора. Фильтр + пагинация (1.4).
+    salon_id — owner видит всю сеть или выбранную точку, admin всегда только
+    свою (ROADMAP.md §4.8 Фаза C)."""
+    scope = resolve_salon_scope(current_user, salon_id)
     return AppointmentService(db).list_all(
         page=page_params.page, page_size=page_params.page_size,
         client_id=client_id, master_id=master_id, status_filter=status_filter,
-        date_from=date_from, date_to=date_to,
+        date_from=date_from, date_to=date_to, salon_id=scope,
     )
 
 

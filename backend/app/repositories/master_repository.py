@@ -20,8 +20,13 @@ class MasterRepository:
     # ── Чтение ───────────────────────────────────────────────────
 
     def get_by_id(self, master_id: uuid.UUID, *, include_deleted: bool = False) -> Master | None:
-        """Загружает мастера вместе с профилем пользователя."""
-        stmt = select(Master).options(joinedload(Master.user)).where(Master.id == master_id)
+        """Загружает мастера вместе с профилем пользователя и точкой сети
+        (MasterResponse/MasterPublicResponse.salon_name, ROADMAP.md §4.8)."""
+        stmt = (
+            select(Master)
+            .options(joinedload(Master.user), joinedload(Master.salon))
+            .where(Master.id == master_id)
+        )
         if not include_deleted:
             stmt = stmt.where(Master.deleted_at.is_(None))
         return self.db.execute(stmt).scalar_one_or_none()
@@ -29,7 +34,7 @@ class MasterRepository:
     def get_by_user_id(self, user_id: uuid.UUID) -> Master | None:
         stmt = (
             select(Master)
-            .options(joinedload(Master.user))
+            .options(joinedload(Master.user), joinedload(Master.salon))
             .where(Master.user_id == user_id, Master.deleted_at.is_(None))
         )
         return self.db.execute(stmt).scalar_one_or_none()
@@ -41,16 +46,25 @@ class MasterRepository:
         page_size: int,
         specialization: str | None = None,
         service_id: uuid.UUID | None = None,
+        salon_id: uuid.UUID | None = None,
+        is_active: bool | None = True,
         sort_by: Literal["name", "price"] = "name",
         sort_order: Literal["asc", "desc"] = "asc",
     ) -> tuple[list[Master], int]:
-        """Каталог активных мастеров — фильтр по специализации и/или оказываемой услуге."""
+        """Каталог мастеров — фильтр по специализации/оказываемой услуге/точке.
+
+        is_active=True (по умолчанию) — публичный каталог; is_active=None —
+        админ/owner видят и деактивированных (ROADMAP.md §4.8, Фаза C)."""
         stmt = (
             select(Master)
             .join(Master.user)
             .options(joinedload(Master.user))
-            .where(Master.deleted_at.is_(None), Master.is_active.is_(True))
+            .where(Master.deleted_at.is_(None))
         )
+        if is_active is not None:
+            stmt = stmt.where(Master.is_active.is_(is_active))
+        if salon_id is not None:
+            stmt = stmt.where(Master.salon_id == salon_id)
         if specialization:
             stmt = stmt.where(Master.specialization.ilike(
                 f"%{escape_like(specialization)}%", escape=LIKE_ESCAPE_CHAR

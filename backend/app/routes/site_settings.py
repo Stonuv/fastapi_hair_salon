@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..schemas.site_settings import SiteContent
-from ..services.auth_service import get_current_admin
+from ..services.auth_service import get_current_owner
 from ..services.site_settings_service import SiteSettingsService
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -17,6 +17,7 @@ def get_settings(db: Session = Depends(get_db)):
 
 @router.patch("", response_model=SiteContent)
 def update_settings(data: SiteContent,
-                    db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить контент сайта. Только для администратора."""
+                    db: Session = Depends(get_db), _=Depends(get_current_owner)):
+    """Обновить контент сайта. Только владелец сети — это управление брендом
+    всей сети (ROADMAP.md §4.4/§4.8 Фаза C), не отдельной точки."""
     return SiteSettingsService(db).update(data)

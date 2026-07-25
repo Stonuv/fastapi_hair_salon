@@ -12,13 +12,13 @@ from ..models.enums import AppointmentStatus, UserRole
 from ..models.user import User
 from ..repositories.appointment_repository import AppointmentRepository
 from ..repositories.master_repository import MasterRepository
+from ..repositories.salon_repository import SalonRepository
 from ..repositories.schedule_repository import ScheduleRepository
 from ..repositories.service_repository import ServiceRepository
 from ..schemas.appointment import (AppointmentBriefResponse, AppointmentCreate,
                                    AppointmentResponse, SlotListResponse, SlotResponse)
 from ..schemas.pagination import PageResponse
 from ..utils.email import send_email
-from .site_settings_service import SiteSettingsService
 
 # Допустимые переходы статуса записи (1.5 — машина состояний).
 # pending -> confirmed -> done — основной путь, cancelled достижим из pending/confirmed.
@@ -42,9 +42,9 @@ class AppointmentService:
         self.db = db
         self.appointment_repo = AppointmentRepository(db)
         self.master_repo      = MasterRepository(db)
+        self.salon_repo       = SalonRepository(db)
         self.service_repo     = ServiceRepository(db)
         self.schedule_repo    = ScheduleRepository(db)
-        self.site_settings_service = SiteSettingsService(db)
 
     # ── Создание записи ──────────────────────────────────────────
 
@@ -100,7 +100,7 @@ class AppointmentService:
         )
 
         # 4. Попадает ли слот в рабочее расписание?
-        self._validate_within_schedule(data.master_id, data.start_time, end_time)
+        self._validate_within_schedule(data.master_id, master.salon_id, data.start_time, end_time)
 
         # 5. Нет ли пересечения с другой записью?
         overlap = self.appointment_repo.get_overlapping(
@@ -134,8 +134,13 @@ class AppointmentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Запись не найдена")
 
-        # Доступ: владелец записи, её мастер или администратор
-        if requesting_user.role not in (UserRole.admin, UserRole.owner):
+        # Доступ: владелец записи, её мастер, owner или admin своей точки
+        # (ROADMAP.md §4.8 Фаза C — раньше admin видел любую запись сети).
+        if requesting_user.role == UserRole.admin:
+            if appointment.salon_id != requesting_user.salon_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Нет доступа к этой записи")
+        elif requesting_user.role != UserRole.owner:
             master = self.master_repo.get_by_user_id(requesting_user.id)
             is_owner  = appointment.client_id == requesting_user.id
             is_master = master and master.id == appointment.master_id
@@ -189,11 +194,13 @@ class AppointmentService:
                 status_filter: AppointmentStatus | None = None,
                 date_from: datetime | None = None,
                 date_to: datetime | None = None,
+                salon_id: UUID | None = None,
                 ) -> PageResponse[AppointmentBriefResponse]:
-        """Все записи системы — для администратора (1.4: фильтр + пагинация)."""
+        """Все записи системы — для администратора (1.4: фильтр + пагинация).
+        salon_id (ROADMAP.md §4.8, Фаза C) — None означает всю сеть (owner)."""
         appointments, total = self.appointment_repo.list_paginated(
             page=page, page_size=page_size, client_id=client_id, master_id=master_id,
-            status=status_filter, date_from=date_from, date_to=date_to,
+            status=status_filter, date_from=date_from, date_to=date_to, salon_id=salon_id,
         )
         return PageResponse[AppointmentBriefResponse](
             items=[AppointmentBriefResponse.model_validate(a) for a in appointments],
@@ -283,7 +290,9 @@ class AppointmentService:
         # а не заново из service.duration_min (та же величина, но без лишнего запроса).
         new_end_time = new_start_time + (appointment.end_time - appointment.start_time)
 
-        self._validate_within_schedule(appointment.master_id, new_start_time, new_end_time)
+        self._validate_within_schedule(
+            appointment.master_id, appointment.salon_id, new_start_time, new_end_time
+        )
 
         overlap = self.appointment_repo.get_overlapping(
             appointment.master_id, new_start_time, new_end_time,
@@ -422,7 +431,7 @@ class AppointmentService:
 
     # ── Вспомогательное ──────────────────────────────────────────
 
-    def _validate_within_schedule(self, master_id: UUID,
+    def _validate_within_schedule(self, master_id: UUID, salon_id: UUID,
                                   start_time: datetime,
                                   end_time: datetime) -> None:
         """Проверяет что запись попадает в рабочие часы мастера.
@@ -462,12 +471,14 @@ class AppointmentService:
         # эта проверка защищает и записи по расписаниям, заведённым до
         # появления настройки, и саму запись — на случай длинной услуги,
         # которая укладывается в расписание мастера, но не в часы салона.
-        hours = self.site_settings_service.get().business_hours
-        salon_open = datetime.combine(start_time.date(), hours.open_time).replace(tzinfo=timezone.utc)
-        salon_close = datetime.combine(start_time.date(), hours.close_time).replace(tzinfo=timezone.utc)
+        # Часы берутся из Salon, а не SiteSettings (ROADMAP.md §4.4 — общий
+        # на сеть business_hours переехал на конкретную точку).
+        salon = self.salon_repo.get_by_id(salon_id)
+        salon_open = datetime.combine(start_time.date(), salon.open_time).replace(tzinfo=timezone.utc)
+        salon_close = datetime.combine(start_time.date(), salon.close_time).replace(tzinfo=timezone.utc)
         if start_time < salon_open or end_time > salon_close:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Запись выходит за рамки времени работы салона "
-                       f"({hours.open_time.strftime('%H:%M')}–{hours.close_time.strftime('%H:%M')})",
+                       f"({salon.open_time.strftime('%H:%M')}–{salon.close_time.strftime('%H:%M')})",
             )

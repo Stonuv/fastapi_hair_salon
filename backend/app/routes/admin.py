@@ -20,6 +20,7 @@ from ..schemas.report import ReportResponse
 from ..schemas.service import ServiceResponse, ServiceUpdate
 from ..schemas.upload import ImageUploadResponse
 from ..schemas.user import AdminUserCreate, AdminUserUpdate, UserResponse
+from ..services._salon_scope import resolve_salon_scope
 from ..services.admin_service import AdminService
 from ..services.auth_service import get_current_admin, get_current_owner
 from ..services.report_service import ReportService
@@ -65,9 +66,14 @@ def _resolve_report_period(date_from: date_ | None,
 # ── Статистика / дашборд ──────────────────────────────────────────
 
 @router.get("/stats", response_model=AdminStatsResponse)
-def get_stats(db: Session = Depends(get_db), _=Depends(get_current_admin)):
+def get_stats(
+    salon_id: Annotated[UUID | None, Query(description="Точка сети (owner-only; admin всегда видит свою)")] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
+):
     """Счётчики и график регистраций для главной страницы админ-панели (4.4)."""
-    return AdminService(db).get_stats()
+    scope = resolve_salon_scope(current_user, salon_id)
+    return AdminService(db).get_stats(scope)
 
 
 # ── Отчёты ───────────────────────────────────────────────────────
@@ -76,24 +82,28 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_admin)):
 def get_report(
     date_from: Annotated[date_ | None, Query(description="Начало периода (YYYY-MM-DD)")] = None,
     date_to: Annotated[date_ | None, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    salon_id: Annotated[UUID | None, Query(description="Точка сети (owner-only; admin всегда видит свою)")] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
     """Аналитический отчёт за произвольный период."""
     effective_from, effective_to = _resolve_report_period(date_from, date_to)
-    return ReportService(db).get_report(effective_from, effective_to)
+    scope = resolve_salon_scope(current_user, salon_id)
+    return ReportService(db).get_report(effective_from, effective_to, scope)
 
 
 @router.get("/reports/export")
 def export_report(
     date_from: Annotated[date_ | None, Query(description="Начало периода (YYYY-MM-DD)")] = None,
     date_to: Annotated[date_ | None, Query(description="Конец периода (YYYY-MM-DD)")] = None,
+    salon_id: Annotated[UUID | None, Query(description="Точка сети (owner-only; admin всегда видит свою)")] = None,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
     """Скачать отчёт в формате Excel (.xlsx)."""
     effective_from, effective_to = _resolve_report_period(date_from, date_to)
-    data = ReportService(db).export_excel(effective_from, effective_to)
+    scope = resolve_salon_scope(current_user, salon_id)
+    data = ReportService(db).export_excel(effective_from, effective_to, scope)
     filename = f"report_{effective_from}_{effective_to}.xlsx"
     return StreamingResponse(
         BytesIO(data),
@@ -108,17 +118,21 @@ def export_report(
 def get_all_users(
     *,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
     page_params: Annotated[PageParams, Depends()],
     role: UserRole | None = None,
     search: Annotated[str | None, Query(description="Поиск по имени/фамилии/email")] = None,
+    salon_id: Annotated[UUID | None, Query(description="Точка сети (owner-only; admin всегда видит свою)")] = None,
     sort_by: Literal["created_at", "email"] = "created_at",
     sort_order: Literal["asc", "desc"] = "desc",
 ):
-    """Список пользователей — фильтр по роли + поиск + пагинация (1.4)."""
+    """Список пользователей — фильтр по роли + поиск + пагинация (1.4).
+    salon_id — клиенты видны без ограничений, master/admin скоупятся по точке
+    (ROADMAP.md §4.8 Фаза C, см. UserRepository.list_paginated)."""
+    scope = resolve_salon_scope(current_user, salon_id)
     return AdminService(db).list_users(
         page=page_params.page, page_size=page_params.page_size,
-        role=role, search=search, sort_by=sort_by, sort_order=sort_order,
+        role=role, search=search, salon_id=scope, sort_by=sort_by, sort_order=sort_order,
     )
 
 
@@ -185,15 +199,17 @@ def delete_user(user_id: UUID,
 
 @router.patch("/services/{service_id}", response_model=ServiceResponse)
 def update_service(service_id: UUID, data: ServiceUpdate,
-                   db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить услугу."""
+                   db: Session = Depends(get_db), _=Depends(get_current_owner)):
+    """Обновить услугу. Только владелец сети (ROADMAP.md §4.8 Фаза C) —
+    каталог общий актив сети."""
     return ServiceService(db).update(service_id, data)
 
 
 @router.delete("/services/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_service(service_id: UUID,
-                   db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Мягко удалить услугу — скрывается из каталога, история записей сохраняется."""
+                   db: Session = Depends(get_db), _=Depends(get_current_owner)):
+    """Мягко удалить услугу — скрывается из каталога, история записей сохраняется.
+    Только владелец сети."""
     AdminService(db).delete_service(service_id)
 
 

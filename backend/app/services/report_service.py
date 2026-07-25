@@ -1,5 +1,6 @@
 from datetime import date
 from io import BytesIO
+from uuid import UUID
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -24,19 +25,21 @@ class ReportService:
     def __init__(self, db: Session):
         self._repo = ReportRepository(db)
 
-    def get_report(self, date_from: date, date_to: date) -> ReportResponse:
-        count, revenue, avg = self._repo.get_summary(date_from, date_to)
-        repeat_pct = self._repo.get_repeat_clients_pct(date_from, date_to)
+    def get_report(self, date_from: date, date_to: date,
+                   salon_id: UUID | None = None) -> ReportResponse:
+        """salon_id (ROADMAP.md §4.8, Фаза C) — None означает отчёт по всей сети (owner)."""
+        count, revenue, avg = self._repo.get_summary(date_from, date_to, salon_id)
+        repeat_pct = self._repo.get_repeat_clients_pct(date_from, date_to, salon_id)
 
         # Денежные значения из SQL приходят как Decimal и остаются Decimal
         # до самой сериализации (float терял бы точность).
         revenue_by_day = [
             DailyRevenue(date=row.date, revenue=row.revenue)
-            for row in self._repo.get_revenue_by_day(date_from, date_to)
+            for row in self._repo.get_revenue_by_day(date_from, date_to, salon_id)
         ]
         by_service = [
             ServiceReportRow(service_name=row.service_name, appointments=row.appointments)
-            for row in self._repo.get_appointments_by_service(date_from, date_to)
+            for row in self._repo.get_appointments_by_service(date_from, date_to, salon_id)
         ]
         masters = [
             MasterReportRow(
@@ -46,7 +49,7 @@ class ReportService:
                 avg_check=row.avg_check,
                 avg_rating=round(float(row.avg_rating), 2) if row.avg_rating is not None else None,
             )
-            for row in self._repo.get_masters_breakdown(date_from, date_to)
+            for row in self._repo.get_masters_breakdown(date_from, date_to, salon_id)
         ]
         return ReportResponse(
             date_from=date_from,
@@ -60,8 +63,9 @@ class ReportService:
             masters_breakdown=masters,
         )
 
-    def export_excel(self, date_from: date, date_to: date) -> bytes:
-        report = self.get_report(date_from, date_to)
+    def export_excel(self, date_from: date, date_to: date,
+                     salon_id: UUID | None = None) -> bytes:
+        report = self.get_report(date_from, date_to, salon_id)
         wb = openpyxl.Workbook()
 
         # ── Сводка ──────────────────────────────────────────────────────

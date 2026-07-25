@@ -34,16 +34,21 @@ class ReviewRepository:
         service_id: uuid.UUID | None = None,
         min_rating: int | None = None,
         is_published: bool | None = True,
+        salon_id: uuid.UUID | None = None,
         sort_order: Literal["asc", "desc"] = "desc",
     ) -> tuple[list[Review], int]:
         """Отзывы — фильтр по мастеру/услуге/минимальной оценке, с пагинацией.
         is_published=True (по умолчанию) — для публичной выдачи;
-        is_published=None — для модерации админом (видно всё)."""
+        is_published=None — для модерации админом (видно всё). salon_id
+        (ROADMAP.md §4.8, Фаза C) — модерация только своей точки для admin;
+        скоуп достигается join'ом на Master, у Review нет своего salon_id."""
         stmt = select(Review).options(
             joinedload(Review.client),
             joinedload(Review.master).joinedload(Master.user),
             joinedload(Review.service),
         )
+        if salon_id is not None:
+            stmt = stmt.join(Review.master).where(Master.salon_id == salon_id)
         if is_published is not None:
             stmt = stmt.where(Review.is_published.is_(is_published))
         if master_id is not None:

@@ -47,12 +47,13 @@ class AdminService:
     def list_users(self, *, page: int, page_size: int,
                    role: UserRole | None = None,
                    search: str | None = None,
+                   salon_id: UUID | None = None,
                    sort_by: Literal["created_at", "email"] = "created_at",
                    sort_order: Literal["asc", "desc"] = "desc",
                    ) -> PageResponse[UserResponse]:
         users, total = self.user_repo.list_paginated(
             page=page, page_size=page_size, role=role, search=search,
-            sort_by=sort_by, sort_order=sort_order,
+            salon_id=salon_id, sort_by=sort_by, sort_order=sort_order,
         )
         return PageResponse[UserResponse](
             items=[UserResponse.model_validate(u) for u in users],
@@ -253,19 +254,25 @@ class AdminService:
 
     # ── Статистика / дашборд (4.4) ────────────────────────────────
 
-    def get_stats(self) -> AdminStatsResponse:
+    def get_stats(self, salon_id: UUID | None = None) -> AdminStatsResponse:
+        """salon_id (ROADMAP.md §4.8, Фаза C) — None означает всю сеть (owner).
+        total_users/registrations_last_30_days/total_services остаются
+        сетевыми всегда — только total_masters/appointments_this_month/
+        revenue_this_month скоупятся по точке."""
         by_role = self.stats_repo.count_users_by_role()
         now = datetime.now(timezone.utc)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         thirty_days_ago = now - timedelta(days=30)
 
-        appointments_count, revenue = self.stats_repo.appointments_and_revenue_since(month_start)
+        appointments_count, revenue = self.stats_repo.appointments_and_revenue_since(
+            month_start, salon_id=salon_id
+        )
         registrations = self.stats_repo.daily_registrations(thirty_days_ago)
 
         return AdminStatsResponse(
             total_users=sum(by_role.values()),
             total_clients=by_role.get(UserRole.client, 0),
-            total_masters=self.stats_repo.count_active_masters(),
+            total_masters=self.stats_repo.count_active_masters(salon_id=salon_id),
             total_services=self.stats_repo.count_active_services(),
             appointments_this_month=appointments_count,
             revenue_this_month=revenue,

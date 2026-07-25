@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -9,6 +9,7 @@ from ..database import get_db
 from ..models.user import User
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.review import ReviewCreate, ReviewModerate, ReviewResponse
+from ..services._salon_scope import resolve_salon_scope
 from ..services.auth_service import get_current_admin, get_current_client
 from ..services.review_service import ReviewService
 from ..utils.rate_limit import limiter
@@ -47,16 +48,19 @@ def get_master_reviews(
 def get_all_reviews(
     *,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
     page_params: Annotated[PageParams, Depends()],
     master_id: UUID | None = None,
     is_published: bool | None = None,
     min_rating: int | None = None,
+    salon_id: Annotated[UUID | None, Query(description="Точка сети (owner-only; admin всегда видит свою)")] = None,
 ):
     """Все отзывы, включая скрытые — для модерации администратором."""
+    scope = resolve_salon_scope(current_user, salon_id)
     return ReviewService(db).list_all_admin(
         page=page_params.page, page_size=page_params.page_size,
         master_id=master_id, is_published=is_published, min_rating=min_rating,
+        salon_id=scope,
     )
 
 
@@ -65,10 +69,10 @@ def moderate_review(
     review_id: UUID,
     data: ReviewModerate,
     db: Session = Depends(get_db),
-    _=Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
     """Опубликовать / снять с публикации — быстрое действие администратора (4.3)."""
-    return ReviewService(db).moderate(review_id, data.is_published)
+    return ReviewService(db).moderate(review_id, data.is_published, current_user)
 
 
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)

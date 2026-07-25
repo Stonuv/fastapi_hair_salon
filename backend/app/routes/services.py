@@ -9,7 +9,7 @@ from ..models.enums import UserRole
 from ..models.user import User
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
-from ..services.auth_service import get_current_admin, get_current_user_optional
+from ..services.auth_service import get_current_owner, get_current_user_optional
 from ..services.service_service import ServiceService
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -48,13 +48,15 @@ def get_service(service_id: UUID, db: Session = Depends(get_db)):
 @router.post("", response_model=ServiceResponse,
              status_code=status.HTTP_201_CREATED)
 def create_service(data: ServiceCreate, db: Session = Depends(get_db),
-                   _=Depends(get_current_admin)):
-    """Создать услугу. Только для администратора."""
+                   _=Depends(get_current_owner)):
+    """Создать услугу. Только владелец сети — каталог общий актив сети
+    (ROADMAP.md §4.8 Фаза C); локальная вариативность цены остаётся
+    admin-доступной через price_override на мастере."""
     return ServiceService(db).create(data)
 
 
 @router.patch("/{service_id}", response_model=ServiceResponse)
 def update_service(service_id: UUID, data: ServiceUpdate,
-                   db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Обновить услугу. Только для администратора."""
+                   db: Session = Depends(get_db), _=Depends(get_current_owner)):
+    """Обновить услугу. Только владелец сети."""
     return ServiceService(db).update(service_id, data)

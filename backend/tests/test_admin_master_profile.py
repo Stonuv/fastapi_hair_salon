@@ -28,6 +28,7 @@ def make_fake_master(*, is_active):
     return SimpleNamespace(
         id=uuid.uuid4(), user=make_fake_user(), specialization=None,
         photo_url=None, coefficient=1.0, is_active=is_active,
+        salon=SimpleNamespace(id=ADMIN_SALON_ID, name="Салон №1", slug="salon-1"),
     )
 
 

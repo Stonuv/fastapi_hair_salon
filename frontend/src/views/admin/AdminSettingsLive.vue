@@ -93,20 +93,7 @@
         <div class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-stone-200 bg-white p-6 shadow-lg" role="dialog" aria-modal="true">
           <h2 class="font-display text-lg font-bold uppercase tracking-tight text-ink-900">Ещё настройки</h2>
 
-          <div v-if="form.business_hours" class="mt-5">
-            <p class="mb-1.5 text-sm font-medium text-ink-900">Время работы салона</p>
-            <p class="mb-2 text-sm text-ink-600">
-              Жёсткая граница для расписаний мастеров и записей клиентов — ни одно расписание и ни одна запись
-              не могут выходить за эти рамки, даже если мастер укажет для себя более широкие часы.
-            </p>
-            <div class="flex items-center gap-3">
-              <BaseTimeInput v-model="form.business_hours.open_time" />
-              <span class="text-ink-600">—</span>
-              <BaseTimeInput v-model="form.business_hours.close_time" />
-            </div>
-          </div>
-
-          <div v-if="form.seo" class="mt-6 space-y-4 border-t border-stone-200 pt-5">
+          <div v-if="form.seo" class="mt-5 space-y-4">
             <p class="text-sm font-medium text-ink-900">SEO</p>
             <p class="text-sm text-ink-600">
               Заголовок вкладки браузера, описание в поисковой выдаче и иконка сайта (favicon) — служебные
@@ -145,7 +132,6 @@ import AppFooter from '../../components/AppFooter.vue'
 import HomePreview from '../../components/HomePreview.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
-import BaseTimeInput from '../../components/ui/BaseTimeInput.vue'
 import ImageUpload from '../../components/ui/ImageUpload.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
 

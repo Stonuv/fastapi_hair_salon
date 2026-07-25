@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
-from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import Session, joinedload
 
 from ..models.enums import UserRole
+from ..models.master import Master
 from ..models.user import User
 from ..schemas.user import UserCreate, UserUpdate
 from ._query_utils import LIKE_ESCAPE_CHAR, escape_like, paginated
@@ -46,13 +47,31 @@ class UserRepository:
         page_size: int,
         role: UserRole | None = None,
         search: str | None = None,
+        salon_id: uuid.UUID | None = None,
         sort_by: Literal["created_at", "email"] = "created_at",
         sort_order: Literal["asc", "desc"] = "desc",
     ) -> tuple[list[User], int]:
-        """Список пользователей для админ-панели: фильтр по роли + поиск по имени/email."""
-        stmt = select(User).where(User.deleted_at.is_(None))
+        """Список пользователей для админ-панели: фильтр по роли + поиск по имени/email.
+
+        salon_id (ROADMAP.md §4.8, Фаза C) — None означает всю сеть (owner);
+        иначе клиенты видны без ограничений (один аккаунт на всю сеть, см.
+        §4.5), а master/admin — только те, что привязаны к этой точке.
+        owner-аккаунты (salon_id всегда NULL) не входят в scoped-выдачу —
+        это не "сотрудник точки", это управление сетью целиком."""
+        # joinedload(User.salon) — избегает N+1 при сериализации UserResponse.salon
+        # для каждой строки списка (ROADMAP.md §4.8).
+        stmt = select(User).options(joinedload(User.salon)).where(User.deleted_at.is_(None))
         if role is not None:
             stmt = stmt.where(User.role == role)
+        if salon_id is not None:
+            stmt = (
+                stmt.outerjoin(Master, and_(Master.user_id == User.id, Master.deleted_at.is_(None)))
+                    .where(or_(
+                        User.role == UserRole.client,
+                        and_(User.role == UserRole.admin, User.salon_id == salon_id),
+                        and_(User.role == UserRole.master, Master.salon_id == salon_id),
+                    ))
+            )
         if search:
             pattern = f"%{escape_like(search)}%"
             stmt = stmt.where(or_(

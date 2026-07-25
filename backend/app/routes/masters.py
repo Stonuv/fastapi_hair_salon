@@ -16,17 +16,25 @@ from ..schemas.master import (MasterBriefResponse, MasterPublicResponse,
 from ..schemas.pagination import PageParams, PageResponse
 from ..schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from ..services.appointment_service import AppointmentService
-from ..services.auth_service import get_current_admin, get_current_master
+from ..services.auth_service import (get_current_admin, get_current_master,
+                                      get_current_user_optional)
 from ..services.master_service import MasterService
 
 router = APIRouter(prefix="/api/masters", tags=["masters"])
 
 
-def _ensure_owner_or_admin(master_id: UUID, current_user: User, db: Session) -> None:
-    """Мастер может управлять только своим профилем/расписанием — админ может всеми.
-    TODO(ROADMAP.md §4.8, Фаза C): переименовать в _ensure_can_manage_master
-    и добавить salon-scoping (admin — только мастеров своей точки)."""
-    if current_user.role in (UserRole.admin, UserRole.owner):
+def _ensure_can_manage_master(master_id: UUID, current_user: User, db: Session) -> None:
+    """Мастер может управлять только своим профилем/расписанием; admin — только
+    мастерами своей точки; owner — всеми (ROADMAP.md §4.8, Фаза C — переименовано
+    из _ensure_owner_or_admin, то имя конфликтовало с новой ролью 'owner',
+    см. §4.1)."""
+    if current_user.role == UserRole.owner:
+        return
+    if current_user.role == UserRole.admin:
+        master = MasterRepository(db).get_by_id(master_id)
+        if not master or master.salon_id != current_user.salon_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Доступ только к мастерам своей точки")
         return
     own_master = MasterRepository(db).get_by_user_id(current_user.id)
     if not own_master or own_master.id != master_id:
@@ -43,14 +51,20 @@ def get_masters(
     page_params: Annotated[PageParams, Depends()],
     specialization: Annotated[str | None, Query(description="Поиск по специализации")] = None,
     service_id: Annotated[UUID | None, Query(description="Фильтр: оказывает указанную услугу")] = None,
+    salon_id: Annotated[UUID | None, Query(description="Фильтр: точка сети")] = None,
     sort_by: Annotated[Literal["name", "price"], Query()] = "name",
     sort_order: Annotated[Literal["asc", "desc"], Query()] = "asc",
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    """Каталог активных мастеров — фильтр + сортировка + пагинация (1.4). Публичный эндпоинт."""
+    """Каталог мастеров — фильтр + сортировка + пагинация (1.4). Публичный
+    эндпоинт: salon_id — обычный публичный фильтр (как specialization/
+    service_id, без ownership-проверки — см. docstring resolve_salon_scope);
+    деактивированных мастеров видят только admin/owner (ROADMAP.md §4.8 Фаза C)."""
+    is_active = None if (current_user and current_user.role in (UserRole.admin, UserRole.owner)) else True
     return MasterService(db).list_paginated(
         page=page_params.page, page_size=page_params.page_size,
-        specialization=specialization, service_id=service_id,
-        sort_by=sort_by, sort_order=sort_order,
+        specialization=specialization, service_id=service_id, salon_id=salon_id,
+        is_active=is_active, sort_by=sort_by, sort_order=sort_order,
     )
 
 
@@ -80,7 +94,7 @@ def update_master(master_id: UUID, data: MasterUpdate,
                   current_user: User = Depends(get_current_master)):
     """Обновить профиль мастера. Сам мастер или администратор.
     salon_id (перевод в другую точку) — сетевое решение, только владелец."""
-    _ensure_owner_or_admin(master_id, current_user, db)
+    _ensure_can_manage_master(master_id, current_user, db)
     if data.salon_id is not None and current_user.role != UserRole.owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Перевести мастера в другую точку может только владелец сети")
@@ -98,16 +112,21 @@ def get_master_services(master_id: UUID, db: Session = Depends(get_db)):
 @router.post("/{master_id}/services", response_model=MasterServiceResponse,
              status_code=status.HTTP_201_CREATED)
 def add_master_service(master_id: UUID, data: MasterServiceCreate,
-                       db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Добавить услугу мастеру. Только для администратора."""
+                       db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_admin)):
+    """Добавить услугу мастеру. Администратор — только своей точки, owner — любой
+    (ROADMAP.md §4.8 Фаза C — раньше проверки не было вовсе)."""
+    _ensure_can_manage_master(master_id, current_user, db)
     return MasterService(db).add_service(master_id, data.service_id, data.price_override)
 
 
 @router.delete("/{master_id}/services/{service_id}",
                status_code=status.HTTP_204_NO_CONTENT)
 def remove_master_service(master_id: UUID, service_id: UUID,
-                          db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    """Убрать услугу у мастера. Только для администратора."""
+                          db: Session = Depends(get_db),
+                          current_user: User = Depends(get_current_admin)):
+    """Убрать услугу у мастера. Администратор — только своей точки, owner — любой."""
+    _ensure_can_manage_master(master_id, current_user, db)
     MasterService(db).remove_service(master_id, service_id)
 
 
@@ -125,7 +144,7 @@ def set_schedule(master_id: UUID, data: ScheduleCreate,
                  current_user: User = Depends(get_current_master)):
     """Задать расписание на день (upsert: существующий день перезаписывается,
     поэтому 200, а не 201). Сам мастер или администратор."""
-    _ensure_owner_or_admin(master_id, current_user, db)
+    _ensure_can_manage_master(master_id, current_user, db)
     return MasterService(db).set_schedule(master_id, data)
 
 
@@ -136,7 +155,7 @@ def update_schedule(master_id: UUID,
                     db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_master)):
     """Обновить расписание на конкретный день (0=пн … 6=вс). Сам мастер или администратор."""
-    _ensure_owner_or_admin(master_id, current_user, db)
+    _ensure_can_manage_master(master_id, current_user, db)
     return MasterService(db).update_schedule(master_id, day_of_week, data)
 
 

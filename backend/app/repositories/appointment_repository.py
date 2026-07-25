@@ -42,9 +42,12 @@ class AppointmentRepository:
         status: AppointmentStatus | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        salon_id: uuid.UUID | None = None,
         sort_order: Literal["asc", "desc"] = "desc",
     ) -> tuple[list[Appointment], int]:
-        """Список записей с фильтром по клиенту/мастеру/статусу/диапазону дат (1.4)."""
+        """Список записей с фильтром по клиенту/мастеру/статусу/диапазону дат (1.4).
+        salon_id (ROADMAP.md §4.8, Фаза C) — Appointment.salon_id денормализован
+        (снимок на момент брони), фильтр не требует join'а."""
         stmt = select(Appointment).options(
             joinedload(Appointment.review),
             joinedload(Appointment.client),
@@ -55,6 +58,8 @@ class AppointmentRepository:
             stmt = stmt.where(Appointment.client_id == client_id)
         if master_id is not None:
             stmt = stmt.where(Appointment.master_id == master_id)
+        if salon_id is not None:
+            stmt = stmt.where(Appointment.salon_id == salon_id)
         if status is not None:
             stmt = stmt.where(Appointment.status == status)
         if date_from is not None:

@@ -13,17 +13,38 @@ from app.schemas.appointment import AppointmentCreate
 from app.schemas.schedule import ScheduleCreate, ScheduleUpdate
 from app.services.appointment_service import AppointmentService
 from app.services.master_service import MasterService
+from app.repositories.salon_repository import SalonRepository
 
 MASTER_ID = uuid.uuid4()
 SERVICE_ID = uuid.uuid4()
 CLIENT_ID = uuid.uuid4()
+SALON_ID = uuid.uuid4()
 
-BUSINESS_HOURS = SimpleNamespace(open_time=time(9, 0), close_time=time(20, 0))
+SALON_HOURS = SimpleNamespace(id=SALON_ID, open_time=time(9, 0), close_time=time(20, 0))
 
 
-class FakeSiteSettingsService:
-    def get(self):
-        return SimpleNamespace(business_hours=BUSINESS_HOURS)
+class FakeSalonRepo:
+    def __init__(self, salon=SALON_HOURS):
+        self.salon = salon
+
+    def get_by_id(self, salon_id):
+        return self.salon
+
+
+# ── MasterService.__init__ (не через __new__-обход, как ниже) ──────
+
+
+class TestMasterServiceRealInit:
+    def test_real_construction_wires_salon_repo(self):
+        """Regression: business_hours переехал с SiteSettings на Salon
+        (ROADMAP.md §4.4), а __init__ по пути на секунду потерял и саму
+        замену — метод остался ссылаться на self.site_settings_service,
+        которого __init__ уже не создавал. make_master_service() ниже
+        конструирует сервис через MasterService.__new__ и подставляет фейки
+        вручную, поэтому не заметил бы такую рассинхронизацию — только этот
+        тест вызывает настоящий конструктор."""
+        svc = MasterService(db=None)
+        assert isinstance(svc.salon_repo, SalonRepository)
 
 
 # ── MasterService.set_schedule / update_schedule ────────────────────
@@ -54,9 +75,11 @@ class FakeScheduleRepoForMaster:
 
 def make_master_service(*, existing=None):
     svc = MasterService.__new__(MasterService)
-    svc.master_repo = SimpleNamespace(get_by_id=lambda mid: SimpleNamespace(id=mid))
+    svc.master_repo = SimpleNamespace(
+        get_by_id=lambda mid: SimpleNamespace(id=mid, salon_id=SALON_ID)
+    )
+    svc.salon_repo = FakeSalonRepo()
     svc.schedule_repo = FakeScheduleRepoForMaster(existing=existing)
-    svc.site_settings_service = FakeSiteSettingsService()
     return svc
 
 
@@ -169,7 +192,7 @@ def make_appointment_service():
                                               price=Decimal("1000.00")),
     )
     svc.schedule_repo = FakeScheduleRepoForAppointment()
-    svc.site_settings_service = FakeSiteSettingsService()
+    svc.salon_repo = FakeSalonRepo()
     return svc
 
 

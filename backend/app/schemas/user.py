@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.enums import UserRole
 from .fields import NameStr, NormalizedEmailStr, PasswordStr, PhoneStr
+from .salon import SalonBriefResponse
 
 # ── Базовые поля ─────────────────────────────────────────────────
 
@@ -68,6 +69,10 @@ class UserResponse(BaseModel):
     is_blocked: Annotated[bool, Field(default=False, description="Заблокирован ли аккаунт (вход запрещён)")]
     email_verified: Annotated[bool, Field(default=False, description="Подтверждён ли email (мягкий гейт — на вход не влияет)")]
     created_at: datetime
+    # "Домашняя" точка — заполнена только у admin (владелец сети видит всю
+    # сеть, у client/master её нет на User — см. ROADMAP.md §4.8, §4.3).
+    salon: Annotated[SalonBriefResponse | None, Field(
+        default=None, description="Домашняя точка (только для роли admin)")]
 
 
 class UserPublicResponse(BaseModel):

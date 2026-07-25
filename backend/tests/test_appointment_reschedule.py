@@ -14,6 +14,7 @@ from app.services.appointment_service import AppointmentService
 
 MASTER_USER_ID = uuid.uuid4()
 MASTER_ID = uuid.uuid4()
+SALON_ID = uuid.uuid4()
 APPOINTMENT_ID = uuid.uuid4()
 FUTURE = datetime.now(timezone.utc) + timedelta(days=1)
 FUTURE_END = FUTURE + timedelta(minutes=30)
@@ -33,7 +34,7 @@ def make_appointment(*, status=AppointmentStatus.pending, master_id=MASTER_ID,
     service = SimpleNamespace(id=uuid.uuid4(), name="Стрижка", description=None,
                               price=Decimal("1000.00"), duration_min=30, is_active=True)
     return SimpleNamespace(
-        id=APPOINTMENT_ID, master_id=master_id, client=client, master=master,
+        id=APPOINTMENT_ID, master_id=master_id, salon_id=SALON_ID, client=client, master=master,
         service=service, status=status, start_time=start_time, end_time=end_time,
         final_price=Decimal("1000.00"), created_at=datetime.now(timezone.utc),
         service_name="Стрижка", master_name="Пётр Петров",
@@ -72,9 +73,9 @@ class FakeScheduleRepo:
         return SimpleNamespace(start_time=time(0, 0), end_time=time(23, 59), is_working=True)
 
 
-class FakeSiteSettingsService:
-    def get(self):
-        return SimpleNamespace(business_hours=SimpleNamespace(open_time=time(0, 0), close_time=time(23, 59)))
+class FakeSalonRepo:
+    def get_by_id(self, salon_id):
+        return SimpleNamespace(id=salon_id, open_time=time(0, 0), close_time=time(23, 59))
 
 
 def make_service(*, appointment=None, overlap=None, owns_master=True):
@@ -83,7 +84,7 @@ def make_service(*, appointment=None, overlap=None, owns_master=True):
     svc.appointment_repo = FakeAppointmentRepo(appointment or make_appointment(), overlap=overlap)
     svc.master_repo = FakeMasterRepo(owns=owns_master)
     svc.schedule_repo = FakeScheduleRepo()
-    svc.site_settings_service = FakeSiteSettingsService()
+    svc.salon_repo = FakeSalonRepo()
     return svc
 
 

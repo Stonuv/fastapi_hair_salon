@@ -41,12 +41,15 @@ class MasterService:
         self, *, page: int, page_size: int,
         specialization: str | None = None,
         service_id: UUID | None = None,
+        salon_id: UUID | None = None,
+        is_active: bool | None = True,
         sort_by: Literal["name", "price"] = "name",
         sort_order: Literal["asc", "desc"] = "asc",
     ) -> PageResponse[MasterBriefResponse]:
         masters, total = self.master_repo.list_paginated(
             page=page, page_size=page_size, specialization=specialization,
-            service_id=service_id, sort_by=sort_by, sort_order=sort_order,
+            service_id=service_id, salon_id=salon_id, is_active=is_active,
+            sort_by=sort_by, sort_order=sort_order,
         )
         return PageResponse[MasterBriefResponse](
             items=[MasterBriefResponse(
@@ -161,7 +164,7 @@ class MasterService:
                      data: ScheduleCreate) -> ScheduleResponse:
         self._check_master_exists(master_id)
         if data.is_working:
-            self._validate_within_business_hours(data.start_time, data.end_time)
+            self._validate_within_business_hours(master_id, data.start_time, data.end_time)
 
         existing = self.schedule_repo.get_by_master_and_day(
             master_id, data.day_of_week
@@ -196,26 +199,30 @@ class MasterService:
             )
         effective_working = data.is_working if data.is_working is not None else schedule.is_working
         if effective_working:
-            self._validate_within_business_hours(new_start, new_end)
+            self._validate_within_business_hours(master_id, new_start, new_end)
 
         schedule = self.schedule_repo.update(schedule, data)
         return ScheduleResponse.model_validate(schedule)
 
     # ── Вспомогательное ──────────────────────────────────────────
 
-    def _validate_within_business_hours(self, start_time, end_time) -> None:
-        """Расписание мастера не может выходить за общее время работы
-        салона (ISSUES #36) — иначе мастер мог бы "работать" глубокой ночью
+    def _validate_within_business_hours(self, master_id: UUID, start_time, end_time) -> None:
+        """Расписание мастера не может выходить за общее время работы его
+        точки (ISSUES #36) — иначе мастер мог бы "работать" глубокой ночью
         или запись на длинную услугу перед закрытием заходила бы за него
         (см. также AppointmentService._validate_within_schedule — тот же
         бэкстоп на уровне самой записи, на случай расписаний, заведённых
-        до появления этой настройки)."""
-        hours = self.site_settings_service.get().business_hours
-        if start_time < hours.open_time or end_time > hours.close_time:
+        до появления этой настройки). Часы берутся из Salon, а не
+        SiteSettings (ROADMAP.md §4.4 — общий на сеть business_hours
+        переехал на конкретную точку); master_id уже проверен вызывающей
+        стороной (_check_master_exists), поэтому master здесь гарантированно существует."""
+        master = self.master_repo.get_by_id(master_id)
+        salon = self.salon_repo.get_by_id(master.salon_id)
+        if start_time < salon.open_time or end_time > salon.close_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Расписание должно быть в пределах времени работы салона "
-                       f"({hours.open_time.strftime('%H:%M')}–{hours.close_time.strftime('%H:%M')})",
+                       f"({salon.open_time.strftime('%H:%M')}–{salon.close_time.strftime('%H:%M')})",
             )
 
     def _check_master_exists(self, master_id: UUID) -> None:

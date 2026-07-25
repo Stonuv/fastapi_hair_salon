@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from .fields import MoneyOut, PositiveMoney
+from .salon import SalonBriefResponse
 from .service import ServiceResponse
 from .user import UserPublicResponse, UserResponse
 
@@ -53,6 +54,7 @@ class MasterResponse(BaseModel):
     photo_url:      str | None
     coefficient:    float
     is_active:      bool
+    salon:          SalonBriefResponse
 
 
 class MasterPublicResponse(BaseModel):
@@ -67,6 +69,7 @@ class MasterPublicResponse(BaseModel):
     specialization: str | None
     photo_url:      str | None
     coefficient:    float
+    salon_name:     Annotated[str, Field(description="Название точки сети")]
     rating:         Annotated[float | None, Field(
         default=None, description="Средний рейтинг по опубликованным отзывам")]
     reviews_count:  Annotated[int, Field(default=0)]

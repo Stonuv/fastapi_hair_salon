@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -12,7 +13,11 @@ from ..models.user import User
 
 
 class StatsRepository:
-    """Агрегирующие запросы для счётчиков/графиков админ-панели (4.4)."""
+    """Агрегирующие запросы для счётчиков/графиков админ-панели (4.4).
+
+    salon_id (ROADMAP.md §4.8, Фаза C) — None означает всю сеть (owner);
+    total_users/registrations_last_30_days/total_services сознательно не
+    принимают salon_id — остаются сетевыми всегда (см. AdminService.get_stats)."""
 
     def __init__(self, db: Session):
         self.db = db
@@ -25,10 +30,12 @@ class StatsRepository:
         )
         return dict(self.db.execute(stmt).all())
 
-    def count_active_masters(self) -> int:
+    def count_active_masters(self, salon_id: uuid.UUID | None = None) -> int:
         stmt = select(func.count()).select_from(Master).where(
             Master.deleted_at.is_(None), Master.is_active.is_(True)
         )
+        if salon_id is not None:
+            stmt = stmt.where(Master.salon_id == salon_id)
         return self.db.execute(stmt).scalar_one()
 
     def count_active_services(self) -> int:
@@ -37,7 +44,8 @@ class StatsRepository:
         )
         return self.db.execute(stmt).scalar_one()
 
-    def appointments_and_revenue_since(self, since: datetime) -> tuple[int, Decimal]:
+    def appointments_and_revenue_since(self, since: datetime,
+                                       salon_id: uuid.UUID | None = None) -> tuple[int, Decimal]:
         """Количество и суммарная выручка завершённых визитов с указанной даты.
 
         Фильтр по start_time (дата визита), а не created_at: запись, сделанная
@@ -49,6 +57,8 @@ class StatsRepository:
             Appointment.start_time >= since,
             Appointment.status == AppointmentStatus.done,
         )
+        if salon_id is not None:
+            stmt = stmt.where(Appointment.salon_id == salon_id)
         count, revenue = self.db.execute(stmt).one()
         return count, revenue
 
