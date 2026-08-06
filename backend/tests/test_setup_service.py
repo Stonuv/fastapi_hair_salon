@@ -10,11 +10,24 @@ import pytest
 from fastapi import HTTPException
 
 from app.models.enums import UserRole
+from app.repositories.user_repository import UserRepository
 from app.schemas.salon import SalonCreate
 from app.schemas.setup import SetupRequest
 from app.schemas.user import UserCreate
 from app.services import setup_service as setup_service_module
+from app.services.salon_service import SalonService
 from app.services.setup_service import SetupService
+
+
+class TestSetupServiceRealInit:
+    def test_real_construction_wires_user_repo_and_salon_service(self):
+        """make_service() below builds SetupService via __new__ + a manual
+        fake, so it would never notice __init__ losing or misnaming a
+        dependency — only this test calls the real constructor (see project
+        memory 'test-fakes-bypass-init')."""
+        svc = SetupService(db=None)
+        assert isinstance(svc.user_repo, UserRepository)
+        assert isinstance(svc.salon_service, SalonService)
 
 
 def make_service(*, owner_exists=False, email_exists=False, phone_exists=False,

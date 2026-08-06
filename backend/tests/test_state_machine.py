@@ -6,8 +6,27 @@ import pytest
 from fastapi import HTTPException
 
 from app.models.enums import AppointmentStatus, UserRole
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.master_repository import MasterRepository
+from app.repositories.salon_repository import SalonRepository
+from app.repositories.schedule_repository import ScheduleRepository
+from app.repositories.service_repository import ServiceRepository
 from app.services.appointment_service import (ALLOWED_TRANSITIONS,
                                               AppointmentService)
+
+
+class TestAppointmentServiceRealInit:
+    def test_real_construction_wires_all_repos(self):
+        """make_service() below builds AppointmentService via __new__ +
+        manual fakes, so it would never notice __init__ losing or misnaming a
+        repo — only this test calls the real constructor (see project memory
+        'test-fakes-bypass-init')."""
+        svc = AppointmentService(db=None)
+        assert isinstance(svc.appointment_repo, AppointmentRepository)
+        assert isinstance(svc.master_repo, MasterRepository)
+        assert isinstance(svc.salon_repo, SalonRepository)
+        assert isinstance(svc.service_repo, ServiceRepository)
+        assert isinstance(svc.schedule_repo, ScheduleRepository)
 
 
 class TestTransitionTable:

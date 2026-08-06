@@ -10,11 +10,32 @@ import pytest
 from fastapi import HTTPException
 
 from app.models.enums import UserRole
+from app.repositories.master_repository import MasterRepository
+from app.repositories.salon_repository import SalonRepository
+from app.repositories.service_repository import ServiceRepository
+from app.repositories.session_repository import SessionRepository
+from app.repositories.stats_repository import StatsRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.user import AdminUserCreate
 from app.services.admin_service import AdminService
 
 TARGET_ID = uuid.uuid4()
 SALON_ID = uuid.uuid4()
+
+
+class TestAdminServiceRealInit:
+    def test_real_construction_wires_all_repos(self):
+        """make_service() below builds AdminService via __new__ + manual fakes,
+        so it would never notice __init__ losing or misnaming a repo — only
+        this test calls the real constructor (see project memory
+        'test-fakes-bypass-init')."""
+        svc = AdminService(db=None)
+        assert isinstance(svc.user_repo, UserRepository)
+        assert isinstance(svc.master_repo, MasterRepository)
+        assert isinstance(svc.salon_repo, SalonRepository)
+        assert isinstance(svc.service_repo, ServiceRepository)
+        assert isinstance(svc.session_repo, SessionRepository)
+        assert isinstance(svc.stats_repo, StatsRepository)
 
 
 def make_requesting_admin():

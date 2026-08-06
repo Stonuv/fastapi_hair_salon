@@ -3,8 +3,22 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from app.repositories.appointment_repository import AppointmentRepository
 from app.services import reminder_service as reminder_service_module
 from app.services.reminder_service import ReminderService
+
+
+class TestReminderServiceRealInit:
+    def test_real_construction_wires_appointment_repo(self):
+        """make_service() below builds ReminderService via __new__ + a manual
+        fake, so it would never notice __init__ losing or misnaming the repo
+        — only this test calls the real constructor (see project memory
+        'test-fakes-bypass-init'). Also the only place in the automated
+        suite that touches ReminderService's real __init__ at all — it isn't
+        exercised by any integration test (the reminder loop isn't an HTTP
+        route)."""
+        svc = ReminderService(db=None)
+        assert isinstance(svc.appointment_repo, AppointmentRepository)
 
 
 def make_appointment(**overrides):

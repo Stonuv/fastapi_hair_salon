@@ -7,9 +7,30 @@ from fastapi import HTTPException
 
 from app.models.enums import UserRole
 from app.repositories._query_utils import escape_like
+from app.repositories.email_verification_token_repository import \
+    EmailVerificationTokenRepository
+from app.repositories.login_attempt_repository import LoginAttemptRepository
+from app.repositories.password_reset_token_repository import \
+    PasswordResetTokenRepository
+from app.repositories.session_repository import SessionRepository
+from app.repositories.user_repository import UserRepository
 from app.services.auth_service import (AuthService, _hash_token,
                                        _verify_password, hash_password,
                                        require_role)
+
+
+class TestAuthServiceRealInit:
+    def test_real_construction_wires_all_repos(self):
+        """Unit tests below build AuthService via __new__ + manual fakes, so
+        they'd never notice __init__ losing or misnaming a repo — only this
+        test calls the real constructor (see project memory
+        'test-fakes-bypass-init')."""
+        svc = AuthService(db=None)
+        assert isinstance(svc.user_repo, UserRepository)
+        assert isinstance(svc.login_attempt_repo, LoginAttemptRepository)
+        assert isinstance(svc.reset_token_repo, PasswordResetTokenRepository)
+        assert isinstance(svc.verification_token_repo, EmailVerificationTokenRepository)
+        assert isinstance(svc.session_repo, SessionRepository)
 
 
 class TestPasswordHashing:

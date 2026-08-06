@@ -11,6 +11,9 @@ import pytest
 from fastapi import HTTPException
 
 from app.models.enums import AppointmentStatus, UserRole
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.master_repository import MasterRepository
+from app.repositories.review_repository import ReviewRepository
 from app.routes import masters as masters_module
 from app.services._salon_scope import resolve_salon_scope
 from app.services.appointment_service import AppointmentService
@@ -19,6 +22,20 @@ from app.services.review_service import ReviewService
 SALON_A = uuid.uuid4()
 SALON_B = uuid.uuid4()
 MASTER_ID = uuid.uuid4()
+
+
+class TestReviewServiceRealInit:
+    def test_real_construction_wires_all_repos(self):
+        """make_review_service() below builds ReviewService via __new__ +
+        manual fakes, so it would never notice __init__ losing or misnaming a
+        repo — only this test calls the real constructor (see project memory
+        'test-fakes-bypass-init'). Also the only place in the automated
+        suite that touches ReviewService's real __init__ at all — no
+        integration test hits /api/reviews yet."""
+        svc = ReviewService(db=None)
+        assert isinstance(svc.review_repo, ReviewRepository)
+        assert isinstance(svc.appointment_repo, AppointmentRepository)
+        assert isinstance(svc.master_repo, MasterRepository)
 
 
 def make_admin(salon_id=SALON_A):

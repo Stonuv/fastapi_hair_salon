@@ -7,10 +7,23 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.repositories.user_repository import UserRepository
 from app.services import vk_oauth_service as vk_module
 from app.services.vk_oauth_service import (VkOAuthError, VkOAuthService,
                                            build_authorize_url,
                                            generate_pkce, is_enabled)
+
+
+class TestVkOAuthServiceRealInit:
+    def test_real_construction_wires_user_repo(self):
+        """make_service() below builds VkOAuthService via __new__ + a manual
+        fake, so it would never notice __init__ losing or misnaming the repo
+        — only this test calls the real constructor (see project memory
+        'test-fakes-bypass-init'). Also the only place in the automated
+        suite that touches VkOAuthService's real __init__ at all — VK OAuth
+        needs a live VK API, so no integration test covers it either."""
+        svc = VkOAuthService(db=None)
+        assert isinstance(svc.user_repo, UserRepository)
 
 
 class FakeResponse:
