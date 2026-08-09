@@ -1,0 +1,3700 @@
+% main.tex -- руководство по структуре проекта для начинающих.
+% Оформление и пакеты -- в config.tex (копия final_report/config.tex).
+% В отличие от final_report/tech_zadanie (описывают продукт), этот документ
+% описывает КОД: за что отвечает каждый файл, как слои вызывают друг друга,
+% с реальными выдержками кода (verbatim), как в admin_manual.
+\input{config}
+
+\begin{document}
+
+% ============================================================
+% ТИТУЛЬНЫЙ ЛИСТ
+% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+{\large CMS для парикмахерских и барбершопов «Сайтама»\par}
+\vspace{3cm}
+{\Huge\bfseries РУКОВОДСТВО ПО СТРУКТУРЕ ПРОЕКТА\par}
+\vspace{1.2em}
+{\Large Подробный разбор кодовой базы для тех, кто только начинает в ней разбираться\par}
+\vspace{0.6em}
+{\large Версия документа 1.0\par}
+\vfill
+{\large Каждый файл backend/ и frontend/ -- что делает и как читать его код\par}
+\vspace{0.4em}
+{\large С примерами кода и пояснениями по архитектуре\par}
+\vfill
+Составлено по состоянию кода на август 2026\par
+\vspace{1cm}
+\end{titlepage}
+
+% ============================================================
+\section*{О ЧЁМ ЭТОТ ДОКУМЕНТ}
+\addcontentsline{toc}{section}{О ЧЁМ ЭТОТ ДОКУМЕНТ}
+% ============================================================
+
+У проекта CMS «Сайтама» уже есть четыре документа: техническое задание
+(что нужно было сделать), руководство пользователя и руководство
+администратора (как пользоваться готовой системой) и итоговый отчёт
+(что в итоге сделано и почему именно так). Все они описывают
+\emph{продукт} -- то, что видит клиент, администратор или проверяющий.
+
+Этот документ устроен иначе. Он описывает \emph{код} -- репозиторий
+\texttt{fastapi_hair_salon} файл за файлом: какая папка за что отвечает,
+какой файл что делает, как одна функция вызывает другую от HTTP-запроса
+браузера до строки в базе данных, и почему многие вещи в коде сделаны
+именно так, а не иначе. Адресован новому разработчику (или самому себе
+через полгода), который склонировал репозиторий и не знает, с чего
+начать чтение.
+
+\textbf{Что нужно знать заранее.} Базовые понятия программирования:
+переменные, функции, классы, HTTP-запросы, что такое база данных и таблица.
+Знание Python, FastAPI, Vue или SQL \emph{не требуется} -- каждое новое
+понятие (слоистая архитектура, ORM, Pydantic-схема, Vue-компонент,
+Pinia-хранилище и т.\,д.) объясняется в тексте при первом появлении, на
+примере реального кода этого проекта.
+
+\textbf{Как читать этот документ.}
+
+\begin{itemize}
+  \item Разделы 1--3 -- один раз подряд, от начала до конца: они дают
+        общую картину (что за проект, из каких частей состоит, как эти
+        части вызывают друг друга на сквозном примере одной записи на
+        стрижку). Без этой картины отдельные файлы не складываются в
+        целое.
+  \item Разделы 4--21 -- как справочник: открыли файл в редакторе,
+        нашли его путь в оглавлении, прочитали описание. Каждый файл
+        backend/ и frontend/ описан отдельным блоком: назначение,
+        ключевые функции/классы с сигнатурами и (если есть что-то
+        неочевидное) отдельная пометка «Особенности».
+  \item Раздел 21 в конце -- куда идти дальше, если этого документа
+        не хватило (README, ROADMAP, остальные документы проекта).
+\end{itemize}
+
+\textbf{Чего в этом документе нет.} Пошаговых инструкций «как
+пользователю записаться на стрижку» (это -- руководство пользователя) и
+инструкций по развёртыванию на боевом сервере (это -- руководство
+администратора, раздел~19 этого документа даёт только краткую версию для
+локального запуска). Здесь -- только код и то, как он устроен.
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Обзор проекта}
+% ============================================================
+
+\subsection*{Что делает система}
+\addcontentsline{toc}{subsection}{Что делает система}
+
+CMS «Сайтама» автоматизирует запись клиентов в сеть парикмахерских и
+барбершопов: клиент сам выбирает мастера, услугу и свободное время без
+звонка администратору; у каждого мастера -- свой прайс на одну и ту же
+услугу; система сама не даёт записать двух клиентов к одному мастеру на
+одно и то же время; клиентам приходят email-напоминания за 24 и за 2 часа
+до визита; администратор видит отчёты по выручке и загруженности без
+участия разработчика. Сеть может состоять из нескольких точек
+(\texttt{salon}) -- этим управляет отдельная роль «владелец сети»
+(\texttt{owner}) поверх «администратора точки» (\texttt{admin}).
+
+\subsection*{Роли пользователей}
+\addcontentsline{toc}{subsection}{Роли пользователей}
+
+Почти весь код backend/ (роуты, сервисы) и немалая часть frontend/
+(маршруты, условия в шаблонах) устроены вокруг четырёх ролей. Их стоит
+запомнить сразу -- они будут встречаться в каждом разделе этого документа.
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Роли пользователей системы} \\
+\hline
+\textbf{Роль} & \textbf{Что может} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Роль} & \textbf{Что может} \\
+\hline
+\endhead
+\hline
+\endfoot
+\texttt{client} (клиент) & Каталог мастеров и услуг, запись на свободное
+  время, свои записи (просмотр/отмена), отзыв на завершённую запись,
+  редактирование своего профиля. Роль по умолчанию при саморегистрации. \\
+\texttt{master} (мастер) & Свой профиль и услуги (с индивидуальной ценой),
+  своё расписание по дням недели, свои записи клиентов (подтвердить /
+  завершить / отменить / перенести), отзывы о себе (только просмотр). \\
+\texttt{admin} (администратор точки) & Все возможности мастера -- плюс
+  управление пользователями и мастерами \emph{своей} точки, модерация
+  отзывов своей точки, отчёты и статистика по своей точке. Обязательно
+  привязан к одной точке (\texttt{salon_id}) -- ограничение
+  \texttt{ck_users_admin_requires_salon} в базе данных. \\
+\texttt{owner} (владелец сети) & Всё то же, что и \texttt{admin}, но по
+  всей сети сразу или по выбранной точке (переключатель в админке) --
+  плюс то, что \texttt{admin} не может: создавать/закрывать точки сети,
+  управлять общим каталогом услуг, назначать роль \texttt{admin} другим
+  пользователям, редактировать контент и тему сайта. \\
+\end{xltabular}
+
+Правило, которое стоит запомнить: \texttt{owner} -- надмножество
+\texttt{admin} (в коде -- функция \texttt{get_current_admin} в
+\envvar{backend/app/services/auth_service.py} явно пропускает и
+\texttt{owner} тоже). Отдельного дерева экранов или эндпоинтов «только
+для owner» почти нет -- вместо этого одни и те же роуты и страницы
+проверяют \emph{дополнительно}, что перед ними именно \texttt{owner}, там,
+где это нужно.
+
+\subsection*{Технологический стек}
+\addcontentsline{toc}{subsection}{Технологический стек}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Из чего состоит проект} \\
+\hline
+\textbf{Технология} & \textbf{Где используется} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Технология} & \textbf{Где используется} \\
+\hline
+\endhead
+\hline
+\endfoot
+Python 3.14 + FastAPI & Backend: HTTP API, автоматическая документация
+  \texttt{/api/docs}. \\
+SQLAlchemy 2.0 (стиль \texttt{Mapped[...]}) & ORM -- как Python-классы в
+  \envvar{models/} превращаются в SQL-таблицы и запросы. \\
+Alembic & Версионируемые миграции схемы БД (\envvar{backend/alembic/}). \\
+Pydantic 2 & Валидация входных данных и сериализация ответов
+  (\envvar{schemas/}). \\
+PostgreSQL 16 & Единственная база данных; несколько бизнес-правил
+  (например, запрет двойного бронирования) реализованы прямо в схеме БД,
+  не только в коде. \\
+Vue 3 (Composition API, \texttt{<script setup>}) & Frontend, без
+  TypeScript. \\
+Pinia & Хранилища состояния фронтенда (\envvar{frontend/src/stores/}). \\
+Vue Router 4 & Маршрутизация SPA, один файл
+  \envvar{frontend/src/router/index.js}. \\
+Tailwind CSS & Стили; цвета темы -- CSS-переменные, переключаемые в
+  рантайме, а не константы. \\
+Vite & Сборка и dev-сервер фронтенда. \\
+Docker Compose + Caddy & Развёртывание (раздел~19). \\
+\end{xltabular}
+
+\subsection*{Слоистая архитектура backend}
+\addcontentsline{toc}{subsection}{Слоистая архитектура backend}
+
+Backend (\envvar{backend/app/}) построен как строгая однонаправленная
+цепочка слоёв -- каждый слой знает только о том, что находится под ним, и
+не знает о том, что выше. Рисунок~1 показывает эту цепочку вместе с тем,
+в какой папке искать код каждого слоя -- к этому рисунку стоит
+возвращаться при чтении разделов~3--9.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{0.82\textwidth}{!}{%
+\begin{tikzpicture}[
+  layer/.style={draw, rectangle, rounded corners, minimum width=10.2cm, minimum height=1cm, align=center, font=\small},
+  note/.style={font=\scriptsize\itshape, align=left, text width=4.8cm},
+  arr/.style={-{Stealth[length=2mm]}},
+]
+\node[layer] (vue) at (0,12) {\texttt{frontend/src/} -- Vue 3 SPA (views, components, stores, api)};
+\node[layer] (routes) at (0,9.5) {\texttt{backend/app/routes/} -- APIRouter по ресурсам};
+\node[layer] (services) at (0,7) {\texttt{backend/app/services/} -- бизнес-правила, роли};
+\node[layer] (repos) at (0,4.5) {\texttt{backend/app/repositories/} -- SQLAlchemy-запросы};
+\node[layer] (models) at (0,2) {\texttt{backend/app/models/} -- ORM-таблицы};
+\node[layer] (db) at (0,-0.5) {PostgreSQL 16 (\texttt{backend/alembic/} -- миграции)};
+\draw[arr] (vue) -- (routes);
+\draw[arr] (routes) -- (services);
+\draw[arr] (services) -- (repos);
+\draw[arr] (repos) -- (models);
+\draw[arr] (models) -- (db);
+\node[note, right=0.4cm of vue] {HTTP JSON, REST, путь \texttt{/api/...}};
+\node[note, right=0.4cm of routes] {\texttt{backend/app/schemas/} -- Pydantic DTO проверяются на границе роута (раздел 5)};
+\node[note, right=0.4cm of services] {\texttt{Depends(get_current_...)} -- проверка роли до вызова сервиса (раздел 10)};
+\node[note, right=0.4cm of repos] {Один класс-репозиторий на сущность; без общей базовой абстракции (раздел 6)};
+\node[note, right=0.4cm of models] {\texttt{Mapped[...]}, ограничения (\texttt{CHECK}, \texttt{UNIQUE}) прямо в модели};
+\end{tikzpicture}%
+}
+\caption{Слоистая архитектура backend и где искать код каждого слоя}
+\end{figure}
+
+Коротко, что делает каждый слой (подробно -- в своём разделе):
+
+\begin{itemize}
+  \item \textbf{\texttt{routes/}} (раздел~8) -- принимает HTTP-запрос,
+        проверяет роль пользователя через \texttt{Depends(...)}, вызывает
+        ровно один метод нужного сервиса, отдаёт результат. Сам не решает
+        бизнес-задач и не обращается к базе данных напрямую.
+  \item \textbf{\texttt{services/}} (раздел~7) -- вся бизнес-логика:
+        «можно ли клиенту записаться на это время», «кто имеет право
+        изменить эту запись», «как посчитать итоговую цену». Вызывает один
+        или несколько репозиториев, ничего не знает про HTTP.
+  \item \textbf{\texttt{repositories/}} (раздел~6) -- единственное место,
+        где пишутся SQLAlchemy-запросы (\texttt{select}, \texttt{insert}
+        и т.\,д.). Один класс-репозиторий на одну сущность БД (пользователи,
+        записи, точки сети...). Ничего не знает про бизнес-правила.
+  \item \textbf{\texttt{models/}} (раздел~4) -- Python-классы, описывающие
+        таблицы БД (какие столбцы, какие ограничения).
+  \item \textbf{\texttt{schemas/}} (раздел~5) -- отдельная параллельная
+        папка: Pydantic-классы, описывающие форму запроса/ответа HTTP API.
+        Специально \emph{не то же самое}, что модели -- у клиента API
+        должно быть можно поменять список полей, не трогая структуру
+        таблицы, и наоборот.
+\end{itemize}
+
+Такое разделение называется \textbf{слоистой архитектурой}
+(layered architecture) с паттерном \textbf{Repository} (доступ к БД
+спрятан за классом с понятными методами вместо SQL-запросов, разбросанных
+по всему коду) и \textbf{DTO на границе} (Data Transfer Object -- то, что
+видит клиент API, не обязано совпадать с тем, как данные лежат в БД).
+Инъекция зависимостей (какой сервис получит какой репозиторий, какая
+сессия БД достанется запросу) устроена не через отдельный
+DI-контейнер, а через штатный механизм FastAPI --
+\texttt{Depends(...)} -- он встретится почти в каждом примере кода этого
+документа.
+
+\subsection*{Frontend: Vue 3 без TypeScript}
+\addcontentsline{toc}{subsection}{Frontend: Vue 3 без TypeScript}
+
+Frontend (\envvar{frontend/src/}) вызывает backend по тем же правилам
+REST API, что и любой другой клиент. Пять папок стоит запомнить сразу
+(подробно -- разделы~13--18):
+
+\begin{itemize}
+  \item \textbf{\texttt{views/}} -- страницы (одна на маршрут), собирают
+        компоненты вместе.
+  \item \textbf{\texttt{components/}} и \textbf{\texttt{components/ui/}}
+        -- переиспользуемые куски интерфейса; \texttt{ui/} -- совсем
+        мелкие «кирпичики» (кнопка, поле ввода), остальное -- крупнее.
+  \item \textbf{\texttt{stores/}} -- Pinia-хранилища: состояние,
+        общее для нескольких страниц (кто залогинен, список точек сети...).
+  \item \textbf{\texttt{api/}} -- тонкие обёртки над \texttt{axios} --
+        по одному файлу на ресурс backend (\texttt{auth}, \texttt{masters},
+        \texttt{appointments}...), без логики внутри, только HTTP-вызовы.
+  \item \textbf{\texttt{router/index.js}} -- один файл, все маршруты
+        приложения и проверки доступа к ним.
+\end{itemize}
+
+% ============================================================
+\section{Структура репозитория верхнего уровня}
+% ============================================================
+
+Таблица~3 -- беглый обзор того, что лежит в корне репозитория. Первые
+три строки -- то, ради чего существует проект (backend/frontend/база
+данных как код); остальное -- документация и инфраструктура вокруг них.
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Каталоги и файлы верхнего уровня} \\
+\hline
+\textbf{Путь} & \textbf{Что это} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Путь} & \textbf{Что это} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{backend/} & FastAPI-приложение: код (\texttt{app/}), миграции
+  (\texttt{alembic/}), тесты (\texttt{tests/}). Разделы 3--12 этого
+  документа. \\
+\envvar{frontend/} & Vue 3 SPA: код (\texttt{src/}), тесты
+  (\texttt{tests/}). Разделы 13--18. \\
+\envvar{docker-compose.yml} & Продовая сборка всего стека (Postgres +
+  backend + frontend + Caddy + бэкапы). Раздел~19. \\
+\envvar{docker-compose.dev.yml} & Дополнительный сервис для локальной
+  разработки (Mailpit -- локальный SMTP для писем). Раздел~19--20. \\
+\envvar{Caddyfile} & Конфигурация Caddy -- TLS-терминатор и
+  security-заголовки. Раздел~19. \\
+\envvar{scripts/deploy.sh} & Однокомандный скрипт обновления прод-сервера.
+  Раздел~19. \\
+\envvar{.github/workflows/ci.yml} & GitHub Actions -- восемь параллельных
+  проверок на каждый push/PR (раздел~12, раздел~19). \\
+\envvar{README.md} & Обзор проекта, полный список возможностей по ролям,
+  инструкция быстрого локального запуска. \\
+\envvar{ROADMAP.md} & Большой рабочий документ: аудит проекта, план
+  доработки, техническая спецификация функционала «сеть точек». Не
+  продуктовый документ для внешнего читателя -- рабочие заметки по ходу
+  разработки. \\
+\envvar{SECURITY.md} & Как сообщить об уязвимости (не через публичный
+  Issue). \\
+\envvar{new_issues.md} & Журнал разобранных замечаний по проекту
+  (что было найдено, что и как исправлено) -- история, а не открытые
+  задачи. \\
+\envvar{notes/} & Рабочие заметки по ходу разработки (анализ стека,
+  подсказки для дальнейшей разработки с ИИ-ассистентом, черновик
+  спецификации требований). Не входит в состав официальной документации
+  проекта. \\
+\texttt{final_report/}, \texttt{tech_zadanie/}, \texttt{user_manual/},
+  \envvar{admin_manual/} & Остальные документы проекта в формате LaTeX
+  (см. раздел~21) -- этот документ (\texttt{project_guide/}) пятый в
+  этом ряду. \\
+\envvar{graphify-out/} & Автоматически сгенерированный граф знаний по
+  кодовой базе (инструмент \texttt{graphify}) -- вспомогательный
+  артефакт для навигации по коду, не документация проекта. \\
+\texttt{claude_design_examples/}, \envvar{3d_models/} & Референсы
+  дизайна и 3D-модель интерьера барбершопа (\texttt{.glb}), используемая
+  компонентом \texttt{Hero3DRoom.vue} (раздел~16). \\
+\envvar{backups/} & Точка монтирования для локальных бэкапов БД
+  (см. \texttt{docker-compose.yml}, сервис \texttt{backup-local}). \\
+\envvar{.env.example} & Шаблон переменных окружения для
+  \texttt{docker-compose.yml} -- какие переменные нужны и что они
+  значат, с комментариями. \\
+\envvar{pyrightconfig.json} & Конфигурация проверки типов Python
+  (Pyright, режим \texttt{basic}) -- только локально, не в CI. \\
+\end{xltabular}
+
+% ============================================================
+\section{Backend: архитектура и жизненный цикл приложения}
+% ============================================================
+
+\subsection{Точка входа: \texttt{main.py} и \texttt{config.py}}
+
+Когда контейнер (или разработчик локально) запускает
+\texttt{uvicorn app.main:app}, выполняется файл
+\envvar{backend/app/main.py}. Он создаёт объект приложения FastAPI,
+подключает промежуточное ПО (CORS), регистрирует все роутеры и объявляет
+два служебных эндпоинта:
+
+\begin{verbatim}
+app = FastAPI(
+    title=settings.app_name,
+    debug=settings.debug,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(setup_router)
+app.include_router(auth_router)
+app.include_router(services_router)
+app.include_router(masters_router)
+app.include_router(appointments_router)
+app.include_router(admin_router)
+app.include_router(reviews_router)
+app.include_router(site_settings_router)
+app.include_router(salons_router)
+
+
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
+    return {"status": "ok"}
+\end{verbatim}
+
+Три детали, на которые стоит обратить внимание сразу, потому что они
+типичны для всего проекта:
+
+\begin{itemize}
+  \item \texttt{docs_url="/api/docs"} -- FastAPI сам генерирует
+        интерактивную документацию API (Swagger UI) из кода роутов и
+        Pydantic-схем, без отдельного описания контракта вручную. Открыв
+        локально запущенный backend на \texttt{http://localhost:8000/api/docs},
+        можно увидеть и вызвать вживую вообще все эндпоинты, описанные в
+        разделах~4--9 этого документа.
+  \item \texttt{lifespan=lifespan} -- функция из
+        \envvar{backend/app/scheduler.py} (раздел~3.2), которая
+        запускается при старте и останавливается при выключении
+        приложения -- через неё поднимается фоновая задача рассылки
+        напоминаний.
+  \item \texttt{GET /health} делает настоящий запрос \texttt{SELECT 1} к
+        базе данных, а не просто отвечает «процесс жив». Если БД
+        недоступна, эндпоинт вернёт HTTP 503 -- именно на этот путь
+        смотрит \texttt{healthcheck} контейнера в
+        \texttt{docker-compose.yml} (раздел~19), чтобы Docker понял, что
+        контейнер нездоров, даже если сам процесс \texttt{uvicorn} ещё
+        работает.
+\end{itemize}
+
+Все настраиваемые значения (строка подключения к БД, секретный ключ для
+JWT, лимиты запросов, SMTP и т.\,д.) собраны в одном месте --
+\envvar{backend/app/config.py}, классе \texttt{Settings} на базе
+\texttt{pydantic-settings}. Значения приходят из переменных окружения или
+файла \texttt{backend/.env}; для каждого поля в файле уже задан
+разумный дефолт для локальной разработки:
+
+\begin{verbatim}
+class Settings(BaseSettings):
+    app_name: str  = "Барбершоп «Сайтама»"
+    debug:    bool = True
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/barbershop"
+    secret_key:                  str = _DEFAULT_SECRET_KEY
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days:   int = 30
+    ...
+    model_config = SettingsConfigDict(env_file=".env")
+
+    @model_validator(mode="after")
+    def _no_default_secret_outside_debug(self) -> "Settings":
+        if not self.debug and self.secret_key == _DEFAULT_SECRET_KEY:
+            raise RuntimeError(
+                "SECRET_KEY не задан: при DEBUG=false задайте собственный "
+                "SECRET_KEY через переменную окружения или backend/.env"
+            )
+        return self
+\end{verbatim}
+
+Здесь стоит запомнить приём, который в проекте называют
+\emph{fail-fast}: вне режима отладки (\texttt{DEBUG=false}, то есть в
+проде) приложение \emph{отказывается запускаться}, если не задан
+собственный \texttt{SECRET_KEY} или \texttt{SETUP_TOKEN} -- лучше
+увидеть ошибку запуска контейнера сразу, чем молча выдавать поддельные
+JWT-токены на дефолтном секретном ключе, известном каждому, кто читал
+исходный код.
+
+\subsection{Сессия БД и фоновые задачи: \texttt{database.py} и \texttt{scheduler.py}}
+
+\envvar{backend/app/database.py} создаёт SQLAlchemy-движок
+(\texttt{engine}) и определяет функцию \texttt{get_db()} -- одну из
+самых часто встречающихся конструкций во всём backend-коде:
+
+\begin{verbatim}
+def get_db() -> Iterator[Session]:
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+\end{verbatim}
+
+Это -- FastAPI-\texttt{Depends}-зависимость, реализующая паттерн
+\textbf{Unit of Work}: на каждый HTTP-запрос создаётся своя сессия БД,
+запрос коммитится один раз в самом конце, если всё прошло без
+исключений, и полностью откатывается, если где-то по пути (в роуте, в
+сервисе, в репозитории) было брошено исключение -- в том числе
+\texttt{HTTPException}. Благодаря этому многошаговые операции (например,
+смена роли пользователя \emph{и} деактивация его профиля мастера разом)
+либо выполняются целиком, либо не выполняются вовсе -- никогда наполовину.
+В коде роута эта зависимость выглядит так: \texttt{db: Session = Depends(get_db)}
+-- этот параметр встретится почти в каждом обработчике роута
+в разделе~8.
+
+\envvar{backend/app/scheduler.py} отвечает за единственную фоновую
+задачу приложения -- рассылку напоминаний о записи. Ни отдельного
+воркера, ни очереди задач (Celery/Redis) в проекте нет: вместо этого
+внутри того же процесса backend работает бесконечный \texttt{asyncio}-цикл,
+запускаемый и останавливаемый вместе с самим приложением через
+\texttt{lifespan}:
+
+\begin{verbatim}
+async def _run_reminder_pass() -> None:
+    db = SessionLocal()
+    try:
+        await asyncio.to_thread(ReminderService(db).send_due_reminders)
+    finally:
+        db.close()
+
+
+async def _reminder_loop() -> None:
+    while True:
+        try:
+            await _run_reminder_pass()
+        except Exception:
+            logger.exception("Не удалось выполнить проход напоминаний о записях")
+        await asyncio.sleep(settings.reminder_poll_interval_seconds)
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    task = asyncio.create_task(_reminder_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+\end{verbatim}
+
+\texttt{asyncio.to_thread(...)} здесь важен: \texttt{ReminderService}
+внутри делает обычные синхронные вызовы SQLAlchemy и SMTP, которые сами
+по себе заблокировали бы весь событийный цикл (event loop) -- тот же
+самый цикл, который в этот момент должен успевать обслуживать HTTP-запросы
+пользователей сайта. Уводя синхронный код в отдельный поток, цикл
+остаётся свободным. Раз в \texttt{settings.reminder_poll_interval_seconds}
+секунд (по умолчанию 300, то есть 5 минут) цикл спрашивает у
+\texttt{ReminderService}, кому пора отправить письмо -- подробнее в
+разделе~7 (\texttt{services/reminder_service.py}). Такое решение
+осознанно упрощённое: оно не масштабируется на несколько работающих
+одновременно копий backend (каждая запустила бы свой независимый цикл и
+письма продублировались бы) -- проект и рассчитан ровно на один
+работающий экземпляр контейнера \texttt{backend} (то же ограничение
+разделяют защита от перебора паролей и общие лимиты запросов, раздел~10).
+
+\subsection{Слои на примере одной записи: от HTTP-запроса до строки в БД}
+
+Самый быстрый способ понять, как слои вызывают друг друга -- пройти путь
+одного HTTP-запроса целиком, слой за слоем. Возьмём самый частый и самый
+важный сценарий в системе: клиент нажимает «Записаться» на странице
+мастера, и браузер отправляет
+\texttt{POST /api/appointments}.
+
+\paragraph{Шаг 1 -- роут принимает запрос}
+\envvar{backend/app/routes/appointments.py}:
+
+\begin{verbatim}
+@router.post("", response_model=AppointmentResponse,
+             status_code=status.HTTP_201_CREATED)
+@limiter.limit(settings.rate_limit_booking)
+def create_appointment(
+    request: Request,
+    data: AppointmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_client),
+):
+    if not current_user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Укажите email в профиле, чтобы оформить запись")
+    return AppointmentService(db).create(current_user.id, data)
+\end{verbatim}
+
+Роут сам почти ничего не делает -- и это правильно, так и задумано.
+\texttt{Depends(get_current_client)} уже к этому моменту проверил
+JWT-токен из cookie и роль пользователя (раздел~10) -- если бы токена не
+было или роль не подходила, до этой строчки код вообще не дошёл бы, FastAPI
+сам вернул бы 401 или 403. \texttt{data: AppointmentCreate} -- тело
+запроса уже провалидировано и превращено в Python-объект (шаг 2 ниже) до
+того, как выполнилась первая строчка функции. Единственная бизнес-проверка
+прямо в роуте (нужен email в профиле) -- узкое исключение, оставленное
+здесь, а не в сервисе, потому что она специфична именно для HTTP-сценария
+записи через VK ID без email (раздел~10). Вся остальная работа --
+\texttt{AppointmentService(db).create(...)}, один вызов.
+
+\paragraph{Шаг 2 -- Pydantic-схема проверяет форму запроса}
+\envvar{backend/app/schemas/appointment.py}:
+
+\begin{verbatim}
+class AppointmentCreate(BaseModel):
+    master_id:  Annotated[UUID, Field(description="UUID мастера")]
+    service_id: Annotated[UUID, Field(description="UUID услуги")]
+    start_time: Annotated[AwareDatetime, Field(
+        description="Желаемое время начала (обязательно с таймзоной; нормализуется в UTC)")]
+
+    @field_validator("start_time")
+    @classmethod
+    def _normalize_to_utc(cls, v: datetime) -> datetime:
+        return v.astimezone(timezone.utc)
+\end{verbatim}
+
+Клиент присылает всего три поля -- мастер, услуга, желаемое время
+начала. \texttt{end_time} и итоговая цена клиенту не доверяются вовсе:
+их вычисляет сервер (шаг 3). Валидатор \texttt{_normalize_to_utc}
+переводит присланное время в UTC \emph{на границе}, один раз -- вся
+дальнейшая логика расписания и слотов (и на backend, и на frontend) может
+спокойно считать, что работает в UTC, не заботясь о часовом поясе
+браузера клиента.
+
+\paragraph{Шаг 3 -- сервис проверяет бизнес-правила}
+\envvar{backend/app/services/appointment_service.py},
+метод \texttt{AppointmentService.create()} -- самая длинная и самая
+показательная функция всего проекта, стоит прочитать её целиком в файле;
+здесь -- сокращённая версия с сохранёнными номерами шагов из комментариев
+самого кода:
+
+\begin{verbatim}
+def create(self, client_id: UUID, data: AppointmentCreate) -> AppointmentResponse:
+    # 0. Лимит одновременных незавершённых записей клиента
+    active_count = self.appointment_repo.count_active_for_client(client_id)
+    if active_count >= settings.max_active_appointments_per_client:
+        raise HTTPException(status_code=400, detail="Слишком много активных записей...")
+
+    # 1. Мастер и услуга существуют и активны
+    master = self.master_repo.get_by_id(data.master_id)
+    if not master or not master.is_active:
+        raise HTTPException(status_code=404, detail="Мастер не найден или неактивен")
+    if master.user_id == client_id:
+        raise HTTPException(status_code=400, detail="Нельзя записаться к себе")
+    service = self.service_repo.get_by_id(data.service_id)
+    ...
+
+    # 2. Мастер оказывает именно эту услугу?
+    ms = self.master_repo.get_master_service(data.master_id, data.service_id)
+    if not ms:
+        raise HTTPException(status_code=400, detail="Мастер не оказывает данную услугу")
+
+    # 3. Вычисляем end_time и итоговую цену (Decimal, не float -- не теряет точность)
+    end_time = data.start_time + timedelta(minutes=service.duration_min)
+    final_price = (
+        ms.price_override
+        if ms.price_override is not None
+        else (service.price * master.coefficient).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    )
+
+    # 4. Слот попадает в рабочее расписание мастера и в часы работы точки?
+    self._validate_within_schedule(data.master_id, master.salon_id, data.start_time, end_time)
+
+    # 5. Нет ли уже другой записи на это время? (предварительная проверка)
+    overlap = self.appointment_repo.get_overlapping(data.master_id, data.start_time, end_time)
+    if overlap:
+        raise HTTPException(status_code=409, detail="Выбранное время уже занято")
+
+    # 6. Сохраняем. От гонки двух одновременных запросов защищает не эта
+    # проверка выше, а EXCLUDE-ограничение в самой базе данных (раздел 11).
+    try:
+        appointment = self.appointment_repo.create(
+            client_id, data, end_time, final_price, master.salon_id
+        )
+    except IntegrityError as exc:
+        self.db.rollback()
+        raise HTTPException(status_code=409, detail="Выбранное время уже занято") from exc
+    return AppointmentResponse.model_validate(
+        self.appointment_repo.get_by_id(appointment.id)
+    )
+\end{verbatim}
+
+Шаг~6 -- ключевое место всей архитектуры проекта, и стоит остановиться на
+нём подробнее. Проверка «нет ли пересечения» на шаге~5 \emph{сама по себе
+не защищает} от двойного бронирования: если два клиента отправят запрос
+на один и тот же слот одновременно, оба запроса могут пройти проверку на
+шаге~5 до того, как первый из них успеет сохранить свою запись -- это
+называется состоянием гонки (race condition). Шаг~5 существует только
+ради понятной ошибки в обычном (не гоночном) случае. Настоящая защита --
+на уровне самой базы данных: если сохранить одновременно два
+пересекающихся интервала у одного мастера всё-таки попытаются, PostgreSQL
+физически откажет второму запросу через ограничение
+\texttt{EXCLUDE USING gist} (раздел~11) -- и именно поэтому вокруг
+\texttt{appointment_repo.create(...)} стоит \texttt{try/except
+IntegrityError}, превращающий отказ базы данных в понятный клиенту ответ
+409, а не в необработанную ошибку 500.
+
+\paragraph{Шаг 4 -- репозиторий сохраняет запись}
+\envvar{backend/app/repositories/appointment_repository.py}:
+
+\begin{verbatim}
+def create(self, client_id: uuid.UUID, data: AppointmentCreate,
+           end_time: datetime, final_price: Decimal, salon_id: uuid.UUID) -> Appointment:
+    appointment = Appointment(
+        client_id=client_id,
+        master_id=data.master_id,
+        service_id=data.service_id,
+        salon_id=salon_id,
+        start_time=data.start_time,
+        end_time=end_time,
+        final_price=final_price,
+        status=AppointmentStatus.pending,
+    )
+    self.db.add(appointment)
+    self.db.flush()
+    self.db.refresh(appointment)
+    return appointment
+\end{verbatim}
+
+Репозиторий -- единственное место во всём проекте, которое строит
+SQLAlchemy-объекты и обращается к \texttt{self.db}. Никакой бизнес-логики
+здесь уже нет: всё (цена, \texttt{end_time}, \texttt{salon_id}) уже
+вычислено сервисом на шаге~3 и передано сюда готовым. Обратите внимание
+на \texttt{self.db.flush()} вместо \texttt{self.db.commit()} -- репозиторий
+отправляет изменения в БД (чтобы, например, \texttt{IntegrityError} от
+ограничения \texttt{EXCLUDE} произошёл именно здесь и его можно было
+поймать), но не завершает транзакцию -- это исключительно обязанность
+\texttt{get_db()} из раздела~3.2, и только когда \emph{весь} запрос
+отработал успешно.
+
+\paragraph{Шаг 5 -- ответ сериализуется обратно в JSON}
+\envvar{AppointmentResponse.model_validate(...)} в конце шага~3 -- это
+переход из мира ORM обратно в мир DTO: Pydantic-схема
+\texttt{AppointmentResponse} (\envvar{backend/app/schemas/appointment.py})
+сама решает, какие поля \texttt{Appointment} видит клиент API, и
+сериализует их в JSON. «Сырые» ORM-объекты никогда не покидают backend
+через HTTP -- этому правилу подчиняется вообще весь проект, не только
+этот эндпоинт.
+
+Итог: один HTTP-запрос прошёл через все пять слоёв ровно по стрелкам
+Рисунка~1 -- ни разу в обратную сторону и ни разу «в обход». Эта же схема
+без изменений повторяется для \emph{любого} другого эндпоинта проекта --
+разница только в конкретных бизнес-правилах внутри сервиса. Держите этот
+пример перед глазами, читая разделы~4--9: они описывают те же пять слоёв,
+но уже для остальных 12 сущностей системы (пользователи, точки сети,
+услуги, отзывы...).
+
+% ============================================================
+\section{Backend: модели данных (\texttt{models/})}
+% ============================================================
+
+Каждый файл в \envvar{backend/app/models/} -- один Python-класс,
+описывающий одну таблицу БД через SQLAlchemy 2.0 (стиль
+\texttt{Mapped[...]}). Три общих «примеси» переиспользуются почти
+везде -- смотрите первую запись ниже (\texttt{mixins.py}) перед
+остальными: не пришлось бы гадать, почему у большинства моделей нет
+собственного объявления \texttt{id}/\texttt{created_at}.
+
+\paragraph{\envvar{backend/app/models/mixins.py}}
+Общие «примеси» (mixins) для переиспользования одинаковых столбцов между
+моделями -- чтобы не дублировать код первичного ключа, отметки времени
+создания и мягкого удаления в каждом файле модели отдельно. Почти все
+модели проекта наследуются от одного или нескольких из этих трёх классов.
+\begin{verbatim}
+class UUIDPrimaryKeyMixin   # столбец id: UUID (генерируется в Python, uuid.uuid4)
+class TimestampMixin        # столбец created_at: datetime (server_default=func.now())
+class SoftDeleteMixin       # столбец deleted_at: datetime | None
+SoftDeleteMixin.is_deleted(self) -> bool   # property: True, если deleted_at заполнен
+\end{verbatim}
+\textit{Особенности:} \texttt{SoftDeleteMixin} реализует паттерн мягкого
+удаления -- запись помечается удалённой, но физически остаётся в БД, так
+как на неё могут ссылаться другие таблицы через \texttt{ondelete=RESTRICT}
+(например, записи на приём ссылаются на пользователя).
+
+\paragraph{\envvar{backend/app/models/user.py}}
+Пользователь (\texttt{User}) -- центральная сущность системы: один и тот
+же класс описывает клиента, мастера, администратора точки и владельца
+сети, различаемых полем \texttt{role}. Самый связанный класс во всём
+проекте -- полный разбор кода уже приведён в разделе~3.3 (шаг~3) и в
+разделе~10 (аутентификация); здесь -- только сводка.
+\begin{verbatim}
+class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin)
+User.email_verified(self) -> bool   # property
+User.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} партиционные уникальные индексы на
+\texttt{email}/\texttt{phone}/\texttt{vk_user_id} действуют только
+среди «живых» строк (\texttt{deleted_at IS NULL}); ограничение
+\texttt{ck_users_admin_requires_salon} в БД не даёт роли
+\texttt{admin} существовать без привязанной точки; \texttt{token_version}
+инкрементируется при logout/смене пароля/блокировке -- так отзываются
+ранее выданные JWT без хранения отдельного «чёрного списка» токенов.
+
+\paragraph{\envvar{backend/app/models/enums.py}}
+Два перечисления (Python \texttt{enum}), используемых по всему проекту --
+и на backend, и (теми же строковыми значениями) на frontend.
+\begin{verbatim}
+class UserRole(str, enum.Enum):
+    client = "client"
+    master = "master"
+    admin  = "admin"
+    owner  = "owner"
+
+class AppointmentStatus(str, enum.Enum):
+    pending   = "pending"
+    confirmed = "confirmed"
+    cancelled = "cancelled"
+    done      = "done"
+\end{verbatim}
+\textit{Особенности:} допустимые переходы между значениями
+\envvar{AppointmentStatus} проверяются не здесь, а в
+\envvar{AppointmentService} (словарь \envvar{ALLOWED_TRANSITIONS}, раздел~3.3
+и раздел~7) -- сама модель ничего не знает про машину состояний.
+
+\paragraph{\envvar{backend/app/models/appointment.py}}
+Запись клиента к мастеру на конкретную услугу -- уже подробно разобрана в
+разделе~3.3 целиком, включая защиту от двойного бронирования
+(\texttt{EXCLUDE USING gist}, раздел~11). Кратко:
+\begin{verbatim}
+class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+Appointment.review_id(self) -> uuid.UUID | None      # property
+Appointment.client_name(self) -> str                 # property (денормализация для списков)
+Appointment.master_name(self) -> str                 # property
+Appointment.service_name(self) -> str                # property
+Appointment.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} \texttt{salon_id} денормализован из
+\texttt{master.salon_id} на момент создания записи -- перевод мастера в
+другую точку задним числом не переносит его старые записи; так же
+«заморожена» \texttt{final_price} -- изменение прайса не meняет цену уже
+созданных записей.
+
+\paragraph{\envvar{backend/app/models/master.py}}
+Определяет мастера (парикмахера/барбера) -- сотрудника, оказывающего
+услуги в конкретной точке сети (\texttt{salon}), и связь мастера с
+услугами, которые он выполняет. \texttt{Master} связан с \texttt{User}
+(учётной записью для входа) и с \texttt{Salon}: один мастер физически
+работает только в одной точке. \texttt{MasterService} -- связующая
+таблица «многие-ко-многим» между мастерами и услугами, позволяющая
+задать мастеру индивидуальную цену на конкретную услугу.
+\begin{verbatim}
+class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin)
+Master.first_name(self) -> str      # property, делегирует к self.user.first_name
+Master.last_name(self) -> str       # property, делегирует к self.user.last_name
+Master.salon_name(self) -> str      # property, делегирует к self.salon.name
+Master.__repr__(self) -> str
+
+class MasterService(Base)           # связь N:M «мастер <-> услуга»
+MasterService.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} частичный уникальный индекс
+\texttt{uq_masters_user_id_active} действует только при
+\texttt{deleted_at IS NULL} -- после мягкого удаления профиля мастера тот
+же пользователь может получить новый активный профиль. Итоговая цена
+услуги мастера = \texttt{services.price * masters.coefficient}, если в
+\texttt{master_services.price_override} не задано конкретное значение.
+
+\paragraph{\envvar{backend/app/models/salon.py}}
+Точка сети барбершопов (конкретный физический адрес/филиал), к которой
+привязаны мастера и записи на услуги. Хранит название, адрес, телефон,
+часы работы и фото. Проект поддерживает сеть из нескольких точек, поэтому
+мастер и запись обязательно ссылаются на конкретный \texttt{salon}.
+\begin{verbatim}
+class Salon(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+Salon.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} не использует \texttt{SoftDeleteMixin} -- точка не
+удаляется физически (мастера/записи ссылаются на неё с
+\texttt{ondelete=RESTRICT}), а «закрывается» через \texttt{is_active=false};
+\texttt{slug} генерируется сервером из \texttt{name} (транслитерация +
+slugify, раздел~9) и не редактируется вручную.
+
+\paragraph{\envvar{backend/app/models/service.py}}
+Услуга, которую оказывает барбершоп (например, стрижка или бритьё) -- с
+базовой ценой и длительностью в минутах. Услуга входит в общий каталог
+сети (не привязана к конкретной точке) и может выполняться разными
+мастерами через связь \texttt{MasterService}.
+\begin{verbatim}
+class Service(Base, UUIDPrimaryKeyMixin, SoftDeleteMixin)
+Service.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} наследует \texttt{SoftDeleteMixin}, но не
+\texttt{TimestampMixin} (нет \texttt{created_at}); \texttt{is_active}
+(публикация в каталоге) и \texttt{deleted_at} (мягкое удаление) -- два
+независимых механизма скрытия услуги: первый временно прячет её из
+каталога, второй убирает полностью.
+
+\paragraph{\envvar{backend/app/models/schedule.py}}
+Рабочее расписание конкретного мастера по дням недели -- во сколько
+мастер начинает и заканчивает работу и является ли день рабочим. У
+каждого мастера не может быть больше одной строки расписания на день
+недели (0 = понедельник, ..., 6 = воскресенье).
+\begin{verbatim}
+class Schedule(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+Schedule.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} \texttt{UniqueConstraint} на
+\texttt{(master_id, day_of_week)} не даёт создать два расписания на
+один день недели для одного мастера; \texttt{CHECK}-ограничения в БД
+требуют \texttt{end_time > start_time} и \texttt{day_of_week} в
+диапазоне 0--6.
+
+\paragraph{\envvar{backend/app/models/review.py}}
+Отзыв клиента о завершённой записи (\texttt{appointment}) -- оценка от 1
+до 5 и необязательный текстовый комментарий. Каждая запись на услугу
+может получить максимум один отзыв. Отзыв публикуется сразу после
+создания, но администратор может скрыть его через \texttt{is_published},
+не удаляя из базы.
+\begin{verbatim}
+class Review(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+Review.client_name(self) -> str     # property
+Review.master_name(self) -> str     # property
+Review.service_name(self) -> str    # property
+Review.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} \texttt{master_id} и \texttt{service_id}
+денормализованы из связанной записи \texttt{appointment} в момент
+создания отзыва -- это позволяет выбирать отзывы конкретного
+мастера/услуги без join'а через \texttt{appointments}; уникальное
+ограничение на \texttt{appointment_id} гарантирует «один отзыв на одну
+запись».
+
+\paragraph{\envvar{backend/app/models/session.py}}
+Сессия входа пользователя -- по сути refresh-токен, позволяющий получить
+новый access-токен (JWT) без повторного ввода пароля. В БД хранится
+только хеш токена; сам токен живёт в httpOnly-cookie на устройстве
+пользователя. У одного пользователя может быть несколько активных сессий
+(по одной на устройство).
+\begin{verbatim}
+class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+Session.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} logout удаляет только одну сессию (текущее
+устройство), а события безопасности (смена/сброс пароля, блокировка,
+мягкое удаление пользователя) удаляют разом все сессии пользователя
+синхронно с увеличением \texttt{token_version} -- иначе access-токен
+был бы отозван, а refresh-токен продолжал бы тихо выдавать новые рабочие
+access-токены (подробнее -- раздел~10).
+
+\paragraph{\envvar{backend/app/models/password_reset_token.py}}
+Таблица токенов для восстановления забытого пароля. Пользователь
+запрашивает сброс, получает ссылку с токеном, а в БД хранится только
+SHA-256-хеш этого токена вместе со сроком действия и отметкой об
+использовании.
+\begin{verbatim}
+class PasswordResetToken(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+PasswordResetToken.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} в БД хранится только хеш токена, никогда сам
+токен -- тот живёт лишь в ссылке, отправленной пользователю письмом.
+
+\paragraph{\envvar{backend/app/models/email_verification_token.py}}
+Таблица для подтверждения email-адреса пользователя после регистрации.
+Устроена почти так же, как \texttt{password_reset_token.py}, только для
+сценария «подтвердите почту».
+\begin{verbatim}
+class EmailVerificationToken(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+EmailVerificationToken.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} тот же приём, что и у \texttt{PasswordResetToken} --
+в БД лежит только SHA-256-хеш токена.
+
+\paragraph{\envvar{backend/app/models/login_attempt.py}}
+Таблица аудита попыток входа в систему -- каждая попытка логина
+(успешная или нет) записывается сюда с email, IP-адресом и результатом.
+Используется для требований безопасности -- отслеживания подозрительной
+активности и защиты от подбора пароля. Если введённый email не
+принадлежит ни одному зарегистрированному пользователю, попытка всё
+равно логируется.
+\begin{verbatim}
+class LoginAttempt(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+LoginAttempt.__repr__(self) -> str
+\end{verbatim}
+\textit{Особенности:} \texttt{user_id} -- внешний ключ с
+\texttt{ondelete="SET NULL"} и допускает \texttt{NULL}, то есть попытка
+входа сохраняется в логе, даже если email не совпал ни с одним
+пользователем или пользователь позже был удалён.
+
+\paragraph{\envvar{backend/app/models/site_settings.py}}
+Глобальные настройки и редактируемый контент сайта (тексты на главной
+странице, тема оформления, SEO и т.\,д.) -- то, что владелец сети может
+менять через CMS-панель без правки кода. Таблица всегда содержит ровно
+одну строку (singleton), которая лениво создаётся сервисом при первом
+обращении.
+\begin{verbatim}
+class SiteSettings(Base, UUIDPrimaryKeyMixin, TimestampMixin)
+\end{verbatim}
+\textit{Особенности:} весь редактируемый контент хранится в одном
+JSONB-столбце \texttt{content} (структура описана в
+\texttt{schemas/site_settings.py}, класс \texttt{SiteContent}), а не в
+отдельных колонках -- так добавление нового редактируемого поля не
+требует новой миграции БД.
+
+% ============================================================
+\section{Backend: Pydantic-схемы (\texttt{schemas/})}
+% ============================================================
+
+Каждый файл в \envvar{backend/app/schemas/} описывает форму
+HTTP-запроса/ответа -- то, что видит клиент API. Схемы намеренно живут в
+отдельной от \texttt{models/} папке (раздел~3, паттерн DTO): у одной
+сущности БД может быть несколько разных схем-ответов (полная версия для
+владельца данных, урезанная -- для посторонних).
+
+\paragraph{\envvar{backend/app/schemas/fields.py}}
+Общий модуль переиспользуемых типов полей (через \texttt{Annotated}) для
+всех Pydantic-схем проекта -- email, пароль, телефон, цвет темы, денежные
+суммы и рейтинг. Централизует правила валидации (например, ограничение
+длины пароля под bcrypt или нормализацию email в нижний регистр), чтобы
+не дублировать их в каждой схеме. Читать этот файл стоит раньше
+остальных схем -- его типы встречаются почти в каждой из них.
+\begin{verbatim}
+_fits_bcrypt(v: str) -> str          # валидатор: пароль не длиннее 72 байт в UTF-8
+NameStr          # Annotated[str]: имя/фамилия, 1-100 символов
+NormalizedEmailStr  # Annotated[EmailStr]: email приводится к нижнему регистру
+HexColorStr       # Annotated[str]: строго формат #RRGGBB
+PhoneStr          # Annotated[str]: телефон, 5-20 символов
+PasswordStr       # Annotated[str]: пароль 8-72 символа + проверка _fits_bcrypt
+PositiveMoney     # Annotated[Decimal]: сумма > 0, сериализуется в JSON как число
+NonNegativeMoney  # Annotated[Decimal]: сумма >= 0
+MoneyOut          # Annotated[Decimal]: для ответов API, без ограничений на ввод
+RatingInt         # Annotated[int]: оценка от 1 до 5
+\end{verbatim}
+\textit{Особенности:} bcrypt (начиная с версии 5.x) выбрасывает
+\texttt{ValueError} на пароль длиннее 72 байт -- без верхней границы в
+\texttt{PasswordStr} длинный пароль ронял бы регистрацию/сброс пароля
+ошибкой 500 вместо понятной 400; денежные суммы в Python -- \texttt{Decimal}
+(не \texttt{float}, чтобы не терять точность), но в JSON отдаются обычным
+числом, а не строкой.
+
+\paragraph{\envvar{backend/app/schemas/appointment.py}}
+DTO для записи на приём -- разобраны целиком в разделе~3.3
+(\texttt{AppointmentCreate} на шаге~2). Полный список классов:
+\begin{verbatim}
+class AppointmentCreate(BaseModel)          # что присылает клиент (см. раздел 3.3)
+class AppointmentStatusUpdate(BaseModel)    # смена статуса мастером/админом
+class AppointmentReschedule(BaseModel)      # перенос записи на другое время
+class AppointmentBriefResponse(BaseModel)   # краткий ответ для списков
+class AppointmentResponse(BaseModel)        # полный ответ для детальной страницы
+class SlotResponse(BaseModel)               # один свободный временной слот
+class SlotListResponse(BaseModel)           # список слотов на дату
+\end{verbatim}
+\textit{Особенности:} \texttt{AppointmentReschedule} валидирует только
+новое время -- мастер и услуга не меняются, \texttt{end_time}
+пересчитывается на сервере из длительности той же услуги.
+
+\paragraph{\envvar{backend/app/schemas/user.py}}
+Pydantic-схемы для пользователя системы (клиент, мастер или
+администратор) -- базовые поля профиля, саморегистрация,
+создание/редактирование пользователя администратором и три варианта
+ответа API с разным уровнем раскрытия персональных данных.
+\begin{verbatim}
+class UserBase(BaseModel)              # общие поля: email, first_name, last_name, phone
+class UserCreate(UserBase)             # тело запроса саморегистрации (+ password)
+class AdminUserCreate(UserCreate)      # создание пользователя администратором (+ role)
+class UserUpdate(BaseModel)            # самостоятельное обновление профиля
+class AdminUserUpdate(BaseModel)       # редактирование пользователя админом (+ new_password)
+class UserResponse(BaseModel)          # полный ответ (для владельца аккаунта/админа)
+class UserPublicResponse(BaseModel)    # публичная проекция (только имя, без контактов)
+class ClientBriefResponse(BaseModel)   # клиент в контексте записи (имя + телефон)
+\end{verbatim}
+\textit{Особенности:} email в \texttt{UserUpdate} необязателен -- актуально
+для клиентов, зарегистрированных через VK без email (VK ID не всегда его
+отдаёт), им предлагается указать email при оформлении первой записи
+(раздел~3.3); \texttt{ClientBriefResponse} и \texttt{UserPublicResponse} --
+намеренно урезанные проекции, чтобы не раскрывать email/роль/\texttt{is_blocked}
+посторонним.
+
+\paragraph{\envvar{backend/app/schemas/auth.py}}
+Pydantic-схемы для эндпоинтов авторизации -- вход по email/паролю, ответ
+с JWT-токеном, запрос и подтверждение восстановления пароля,
+подтверждение email.
+\begin{verbatim}
+class LoginRequest(BaseModel)               # тело запроса на вход (email + password)
+class TokenResponse(BaseModel)              # ответ с access-токеном и данными пользователя
+class PasswordResetRequest(BaseModel)       # тело запроса на восстановление пароля
+class PasswordResetConfirm(BaseModel)       # подтверждение сброса пароля (token + new_password)
+class EmailVerificationConfirm(BaseModel)   # подтверждение email (token)
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/schemas/master.py}}
+Pydantic-схемы, описывающие мастера и его услуги в разных контекстах
+API -- от краткой карточки в каталоге до полного профиля с контактами
+(для самого мастера/администратора) и данных для обновления профиля или
+прайса.
+\begin{verbatim}
+class MasterServiceResponse(BaseModel)   # услуга в контексте мастера (с итоговой ценой)
+class MasterBriefResponse(BaseModel)     # краткая карточка мастера для списков/каталога
+class MasterResponse(BaseModel)          # полный профиль (для самого мастера/администратора)
+class MasterPublicResponse(BaseModel)    # публичный профиль (без email/телефона)
+class MasterUpdate(BaseModel)            # обновление профиля мастера
+class MasterServiceCreate(BaseModel)     # добавление услуги мастеру
+class MasterPhotoUpdate(BaseModel)       # смена/очистка фото мастера
+\end{verbatim}
+\textit{Особенности:} \texttt{MasterPublicResponse.rating} агрегируется
+на бэкенде по всем опубликованным отзывам -- фронтенд не должен
+пересчитывать его по одной странице выдачи; \texttt{MasterUpdate.salon_id}
+позволяет переводить мастера между точками сети (разрешено только
+владельцу сети).
+
+\paragraph{\envvar{backend/app/schemas/service.py}}
+Pydantic-схемы для услуги барбершопа -- базовые поля, создание,
+обновление и ответ API.
+\begin{verbatim}
+class ServiceBase(BaseModel)      # общие поля: name, description, price, duration_min
+class ServiceCreate(ServiceBase)  # тело запроса на создание услуги
+class ServiceUpdate(BaseModel)    # частичное обновление услуги
+class ServiceResponse(BaseModel)  # ответ API с данными услуги
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/schemas/schedule.py}}
+Pydantic-схемы для рабочего расписания мастера -- создание и обновление
+записи расписания на один день недели, а также ответ API.
+\begin{verbatim}
+class ScheduleCreate(BaseModel)                     # день_недели, start_time, end_time, is_working
+ScheduleCreate.end_after_start(self)                # model_validator(mode="after")
+class ScheduleUpdate(BaseModel)                     # частичное обновление
+ScheduleUpdate.end_after_start(self)                # model_validator(mode="after")
+class ScheduleResponse(BaseModel)
+\end{verbatim}
+\textit{Особенности:} \texttt{ScheduleUpdate.end_after_start} сравнивает
+поля через \texttt{is not None}, а не через truthiness -- время
+\texttt{00:00} (полночь) в Python ложно (falsy), и проверка вида «если
+значение задано» через простое \texttt{if self.start_time} молча
+пропускала бы валидацию именно для полуночи.
+
+\paragraph{\envvar{backend/app/schemas/salon.py}}
+Pydantic-схемы для точки сети (\texttt{salon}) -- базовые поля, создание,
+обновление и два варианта ответа API (полный и краткий, для встраивания в
+другие ответы вроде профиля мастера).
+\begin{verbatim}
+class SalonBase(BaseModel)          # name, address, phone, open_time, close_time, photo_url
+class SalonCreate(SalonBase)
+SalonCreate.close_after_open(self)  # model_validator(mode="after")
+class SalonUpdate(BaseModel)
+SalonUpdate.close_after_open(self)  # model_validator(mode="after")
+class SalonResponse(BaseModel)
+class SalonBriefResponse(BaseModel) # краткая версия для встраивания в другие схемы
+\end{verbatim}
+\textit{Особенности:} \texttt{slug} сознательно отсутствует в
+\texttt{SalonCreate}/\texttt{SalonUpdate} -- генерируется сервером из
+\texttt{name} (раздел~9); \texttt{SalonUpdate.close_after_open}
+проверяет пару \texttt{open_time}/\texttt{close_time} только когда
+переданы оба поля сразу.
+
+\paragraph{\envvar{backend/app/schemas/review.py}}
+Pydantic-схемы для создания отзыва клиентом, модерации отзыва
+администратором (публикация/скрытие) и ответа API с данными отзыва.
+\begin{verbatim}
+_validate_comment_content(v: str | None) -> str | None   # валидатор: мат/ссылки
+class ReviewCreate(BaseModel)      # appointment_id, rating, comment
+class ReviewModerate(BaseModel)    # is_published
+class ReviewResponse(BaseModel)
+\end{verbatim}
+\textit{Особенности:} отзыв публикуется сразу без модерации
+(\texttt{is_published} -- лишь пост-фактум скрытие администратором),
+поэтому валидатор \texttt{_validate_comment_content} обязан целиком
+отклонить запрос (\texttt{raise ValueError}) при мате или ссылках, а не
+просто пометить его на проверку -- использует
+\texttt{utils/content_filter.py} (раздел~9).
+
+\paragraph{\envvar{backend/app/schemas/pagination.py}}
+Универсальные вспомогательные классы для постраничной выдачи списков
+(пагинации) -- используются во всех эндпоинтах, отдающих список записей.
+\begin{verbatim}
+class PageParams                         # FastAPI-зависимость параметров из query-строки
+PageParams.__init__(self, page: int = 1, page_size: int = 20) -> None
+PageParams.offset(self) -> int           # property
+class PageResponse(BaseModel, Generic[T])  # обёртка: items/total/page/page_size
+PageResponse.total_pages(self) -> int    # computed_field
+\end{verbatim}
+\textit{Особенности:} \texttt{page_size} ограничен диапазоном 1--20;
+\texttt{total_pages} вычисляется приёмом «деление с округлением вверх
+без импорта \texttt{math}» -- \texttt{-(-total // page_size)}.
+
+\paragraph{\envvar{backend/app/schemas/admin_stats.py}}
+Pydantic-схемы для ответа административной панели со сводной
+статистикой -- общее число пользователей, клиентов, мастеров, услуг,
+записей за месяц, выручка за месяц и график регистраций за последние 30
+дней.
+\begin{verbatim}
+class DailyCount(BaseModel)          # пара «дата + количество» (для графика регистраций)
+class AdminStatsResponse(BaseModel)  # сводная статистика для главного экрана админки
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/schemas/report.py}}
+Pydantic-схемы для отчёта по бизнес-показателям (выручка, число записей,
+средний чек, разбивка по дням/услугам/мастерам) за выбранный период.
+\begin{verbatim}
+class DailyRevenue(BaseModel)       # выручка за один день
+class ServiceReportRow(BaseModel)   # строка отчёта по услуге
+class MasterReportRow(BaseModel)    # строка отчёта по мастеру
+class ReportResponse(BaseModel)     # полный отчёт: итоги + разбивки
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/schemas/setup.py}}
+Pydantic-схемы для первоначальной настройки системы при первом запуске
+(bootstrap) -- создание первого аккаунта-владельца сети и первой точки, а
+также проверка, завершена ли установка.
+\begin{verbatim}
+class SetupStatusResponse(BaseModel)  # завершена ли установка, требуется ли setup_token
+class SetupRequest(BaseModel)         # owner, salon, site_content, setup_token
+\end{verbatim}
+\textit{Особенности:} первый созданный пользователь получает роль
+\texttt{owner} (не \texttt{admin}) -- роль \texttt{admin} привязана к
+конкретной точке сети, которой на первом запуске ещё не существует.
+
+\paragraph{\envvar{backend/app/schemas/site_settings.py}}
+Pydantic-схемы для всего редактируемого контента сайта (CMS) -- тексты и
+медиа шапки, SEO-теги, главного экрана, блока преимуществ, каталога
+услуг, блока мастеров, призыва к действию, подвала, а также цветовая тема
+и шрифт оформления. \texttt{SiteContent} -- корневая схема, которая
+целиком читается и записывается через админ-панель и хранится как JSONB
+в модели \texttt{SiteSettings}.
+\begin{verbatim}
+class HeaderContent(BaseModel)     # текст шапки (название бренда, слоган)
+class SeoContent(BaseModel)        # SEO-теги (title, description, favicon_url)
+class HeroContent(BaseModel)       # содержимое главного экрана
+class FeaturesContent(BaseModel)   # блок «почему мы»
+class ServicesContent(BaseModel)   # заголовок/примечание для блока каталога услуг
+class MastersContent(BaseModel)    # заголовок для блока мастеров
+class CtaContent(BaseModel)        # блок призыва к действию
+class SocialLink(BaseModel)        # одна ссылка на соцсеть/ресурс
+class FooterContent(BaseModel)     # содержимое подвала сайта
+class ThemeColors(BaseModel)       # набор цветов темы
+class ThemeContent(BaseModel)      # тема оформления целиком
+class SiteContent(BaseModel)       # корневая схема всего контента сайта
+\end{verbatim}
+\textit{Особенности:} значения по умолчанию во всех классах повторяют
+текущие захардкоженные тексты фронтенда -- если владелец ничего не
+сохранял, сайт выглядит как сейчас; \texttt{FooterContent} сознательно не
+содержит \texttt{address}/\texttt{hours} -- это атрибуты конкретной точки
+сети (\texttt{Salon}), а не бренда в целом; \texttt{SiteContent} не
+запрещает лишние поля, поэтому устаревшие ключи в уже сохранённом JSONB
+просто игнорируются при валидации.
+
+\paragraph{\envvar{backend/app/schemas/upload.py}}
+Pydantic-схема ответа на загрузку изображения (например, фото мастера,
+точки или главного экрана) -- возвращает URL сохранённого файла.
+\begin{verbatim}
+class ImageUploadResponse(BaseModel)   # ответ API с URL загруженного изображения
+\end{verbatim}
+
+% ============================================================
+\section{Backend: репозитории (\texttt{repositories/})}
+% ============================================================
+
+Один класс-репозиторий на одну сущность БД. Единственное место во всём
+проекте, где пишутся SQLAlchemy-запросы (\texttt{select}, \texttt{insert}
+и т.\,д.) -- сервисы (раздел~7) никогда не составляют SQL напрямую. Общей
+базовой абстракции репозитория или generic CRUD-класса в проекте
+осознанно нет -- при относительно небольшом числе репозиториев (15 штук)
+наследование добавило бы косвенности больше, чем сэкономило бы кода;
+переиспользуемая логика (пагинация, экранирование \texttt{LIKE})
+вынесена свободными функциями в \texttt{_query_utils.py} -- он и
+описан первым.
+
+\paragraph{\envvar{backend/app/repositories/_query_utils.py}}
+Общий модуль с двумя SQL-утилитами, переиспользуемыми почти во всех
+репозиториях с поиском/списками: безопасное экранирование текста для
+\texttt{ILIKE}-поиска и универсальная пагинация (страница + общее число)
+поверх готового запроса.
+\begin{verbatim}
+LIKE_ESCAPE_CHAR: str   # константа "\\"
+escape_like(value: str) -> str
+paginated(db: Session, stmt: Select[tuple[T]], *, page: int, page_size: int) -> tuple[list[T], int]
+\end{verbatim}
+\textit{Особенности:} без \texttt{escape_like} поиск по строке с
+\texttt{\%} или \texttt{_} работал бы некорректно и мог провоцировать
+дорогие полные сканы таблицы -- использовать строго в паре с
+\texttt{.ilike(f"\%\{escape_like(s)\}\%", escape=LIKE_ESCAPE_CHAR)}.
+
+\paragraph{\envvar{backend/app/repositories/appointment_repository.py}}
+Разобран целиком в разделе~3.3 (шаг~4) -- запись/чтение записей на приём,
+включая поиск пересечений и выборку записей для рассылки напоминаний.
+Полный список методов -- в самом файле (раздел~3.3 приводит лишь
+\texttt{create()}).
+
+\paragraph{\envvar{backend/app/repositories/user_repository.py}}
+Центральный репозиторий пользователей -- поиск по email/телефону/VK ID,
+список для админ-панели с фильтрами по роли и точке сети, создание
+(обычное и через VK OAuth), смена пароля/роли/точки/блокировки, мягкое
+удаление. Разобран частично в разделе~10 (аутентификация); полный список
+методов -- в самом файле.
+
+\paragraph{\envvar{backend/app/repositories/master_repository.py}}
+Центральный репозиторий профилей мастеров -- каталог мастеров с
+фильтрами и сортировкой, привязка мастера к точке сети, список услуг
+мастера с индивидуальными ценами, мягкое удаление и деактивация профиля.
+\begin{verbatim}
+get_by_id(master_id, *, include_deleted=False) -> Master | None
+get_by_user_id(user_id) -> Master | None
+list_paginated(*, page, page_size, specialization=None, service_id=None,
+                salon_id=None, is_active=True, sort_by="name", sort_order="asc") -> tuple[list[Master], int]
+get_with_services(master_id) -> Master | None
+create(user_id, salon_id) -> Master
+update(master, data: MasterUpdate) -> Master
+deactivate(master) -> None
+reactivate(master) -> Master
+soft_delete(master) -> None
+add_service(master_id, service_id, price_override=None) -> MasterService
+remove_service(master_id, service_id) -> bool
+get_master_service(master_id, service_id) -> MasterService | None
+\end{verbatim}
+\textit{Особенности:} при сортировке по цене с выбранной услугой
+сортировка идёт по реальной итоговой цене (\texttt{price_override},
+если задан, иначе базовая цена $\times$ \texttt{coefficient});
+\texttt{reactivate()} восстанавливает старый профиль мастера
+(специализацию, коэффициент, услуги, историю отзывов) вместо создания
+нового при повторном назначении роли.
+
+\paragraph{\envvar{backend/app/repositories/salon_repository.py}}
+Репозиторий точек сети (салонов) -- адреса, часы работы, slug для URL;
+здесь же создание/редактирование точки, включая метод полной замены
+данных для сценария первичной настройки.
+\begin{verbatim}
+get_by_id(salon_id) -> Salon | None
+get_by_slug(slug) -> Salon | None
+get_first() -> Salon | None
+list_all(*, is_active=None) -> list[Salon]
+create(data: SalonCreate, slug: str) -> Salon
+update(salon, data: SalonUpdate) -> Salon
+replace_details(salon, data: SalonCreate, slug: str) -> Salon
+\end{verbatim}
+\textit{Особенности:} \texttt{list_all} намеренно без пагинации -- у
+сети физически десятки точек максимум; \texttt{replace_details} нужен
+визарду \texttt{/api/setup}, чтобы заполнить строку-заглушку из миграции
+реальными данными вместо создания второго салона.
+
+\paragraph{\envvar{backend/app/repositories/service_repository.py}}
+Репозиторий каталога услуг -- базовая цена, длительность, поиск по
+названию, фильтр по цене и активности, пагинация и сортировка. Услуги
+удаляются мягко, чтобы не сломать историю уже сделанных записей.
+\begin{verbatim}
+get_by_id(service_id, *, include_deleted=False) -> Service | None
+list_paginated(*, page, page_size, search=None, min_price=None, max_price=None,
+                is_active=None, sort_by="name", sort_order="asc") -> tuple[list[Service], int]
+create(data: ServiceCreate) -> Service
+update(service, data: ServiceUpdate) -> Service
+soft_delete(service) -> None
+\end{verbatim}
+\textit{Особенности:} \texttt{soft_delete} не удаляет строку физически,
+а проставляет \texttt{deleted_at} и \texttt{is_active=False} -- услуга
+остаётся доступной для уже существующих записей клиентов
+(\texttt{ondelete=RESTRICT}).
+
+\paragraph{\envvar{backend/app/repositories/schedule_repository.py}}
+Репозиторий недельного расписания мастера -- какие дни недели мастер
+работает и в какие часы. У одного мастера может быть до семи записей
+расписания, по одной на каждый день недели.
+\begin{verbatim}
+get_by_id(schedule_id) -> Schedule | None
+get_by_master(master_id) -> list[Schedule]
+get_by_master_and_day(master_id, day_of_week) -> Schedule | None
+create(master_id, data: ScheduleCreate) -> Schedule
+update(schedule, data: ScheduleUpdate) -> Schedule
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/repositories/review_repository.py}}
+Репозиторий отзывов клиентов на мастеров -- чтение с фильтрами (мастер,
+услуга, минимальный рейтинг, статус публикации) и пагинацией, создание,
+публикация/скрытие модератором, удаление, средний рейтинг мастера.
+\begin{verbatim}
+get_by_id(review_id) -> Review | None
+get_by_appointment(appointment_id) -> Review | None
+list_paginated(*, page, page_size, master_id=None, service_id=None, min_rating=None,
+                is_published=True, salon_id=None, sort_order="desc") -> tuple[list[Review], int]
+rating_summary(master_id) -> tuple[float | None, int]
+create(*, appointment_id, client_id, master_id, service_id, rating, comment) -> Review
+set_published(review, is_published) -> Review
+delete(review) -> None
+\end{verbatim}
+\textit{Особенности:} \texttt{is_published=None} переключает в режим
+модерации (видно всё, включая скрытые); у модели \texttt{Review} нет
+собственного \texttt{salon_id}, поэтому скоуп по точке для
+администратора делается через join на мастера отзыва.
+
+\paragraph{\envvar{backend/app/repositories/session_repository.py}}
+Репозиторий пользовательских сессий -- серверной части refresh-токенов,
+позволяющих продлевать вход без повторного ввода пароля.
+\begin{verbatim}
+create(user_id, token_hash, expires_at) -> Session
+get_valid_by_hash(token_hash) -> Session | None
+delete(session) -> None
+delete_by_hash(token_hash) -> None
+delete_all_for_user(user_id) -> None
+\end{verbatim}
+\textit{Особенности:} \texttt{delete_all_for_user} вызывается вместе с
+повышением версии токена (\texttt{bump_token_version}) на событиях
+безопасности -- так закрывается полный логаут со всех устройств
+(раздел~10).
+
+\paragraph{\envvar{backend/app/repositories/password_reset_token_repository.py}}
+Хранит и проверяет одноразовые токены сброса пароля.
+\begin{verbatim}
+get_valid_by_hash(token_hash) -> PasswordResetToken | None
+create(user_id, token_hash, expires_at) -> PasswordResetToken
+count_created_since(user_id, since) -> int
+invalidate_all_for_user(user_id) -> None
+mark_used(token) -> None
+\end{verbatim}
+\textit{Особенности:} валидность = не использован и не просрочен; новый
+запрос сброса гасит все ранее выданные неиспользованные токены
+пользователя.
+
+\paragraph{\envvar{backend/app/repositories/email_verification_token_repository.py}}
+Репозиторий токенов подтверждения email -- по структуре и назначению
+почти зеркален \texttt{password_reset_token_repository.py}.
+\begin{verbatim}
+get_valid_by_hash(token_hash) -> EmailVerificationToken | None
+create(user_id, token_hash, expires_at) -> EmailVerificationToken
+count_created_since(user_id, since) -> int
+invalidate_all_for_user(user_id) -> None
+mark_used(token) -> None
+\end{verbatim}
+
+\paragraph{\envvar{backend/app/repositories/login_attempt_repository.py}}
+Журналирует каждую попытку входа в систему (успешную и неуспешную).
+Записи используются для аудита безопасности и для временной блокировки
+аккаунта после серии неудачных попыток входа подряд.
+\begin{verbatim}
+create(*, email_attempted, user_id, ip_address, success) -> LoginAttempt
+count_recent_failed(email, since) -> int
+\end{verbatim}
+\textit{Особенности:} \texttt{count_recent_failed} покрыт индексом
+\texttt{ix_login_attempts_email_created}, чтобы подсчёт неудачных
+попыток за окно времени оставался быстрым при большом журнале.
+
+\paragraph{\envvar{backend/app/repositories/site_settings_repository.py}}
+Репозиторий редактируемого контента сайта, который хранится не как набор
+колонок, а как один JSON-объект в единственной строке таблицы.
+\begin{verbatim}
+get() -> SiteSettings | None
+create() -> SiteSettings
+update(settings, content: dict) -> SiteSettings
+\end{verbatim}
+\textit{Особенности:} таблица рассчитана ровно на одну строку --
+\texttt{get()} берёт первую попавшуюся запись без фильтра по \texttt{id}.
+
+\paragraph{\envvar{backend/app/repositories/stats_repository.py}}
+Агрегирующие запросы для счётчиков и графиков главной страницы
+админ-панели -- пользователи по ролям, активные мастера и услуги,
+выручка и визиты с начала месяца, график регистраций за 30 дней.
+\begin{verbatim}
+count_users_by_role() -> dict[UserRole, int]
+count_active_masters(salon_id=None) -> int
+count_active_services() -> int
+appointments_and_revenue_since(since, salon_id=None) -> tuple[int, Decimal]
+daily_registrations(since) -> list[tuple[datetime, int]]
+\end{verbatim}
+\textit{Особенности:} \texttt{total_users}/\texttt{registrations_last_30_days}/
+\texttt{total_services} намеренно остаются сетевыми всегда (без
+\texttt{salon_id}), а мастера/выручка скоупятся по точке.
+
+\paragraph{\envvar{backend/app/repositories/report_repository.py}}
+Агрегирующие SQL-запросы для экрана аналитики администратора -- выручка,
+число визитов, процент повторных клиентов, разбивка по
+дням/услугам/мастерам за период, только по завершённым записям
+(\texttt{status = done}).
+\begin{verbatim}
+get_summary(date_from, date_to, salon_id=None) -> tuple[int, Decimal, Decimal]
+get_repeat_clients_pct(date_from, date_to, salon_id=None) -> float
+get_revenue_by_day(date_from, date_to, salon_id=None) -> list[tuple]
+get_appointments_by_service(date_from, date_to, salon_id=None) -> list[tuple]
+get_masters_breakdown(date_from, date_to, salon_id=None) -> list[tuple]
+\end{verbatim}
+\textit{Особенности:} границы периода и группировка по дням явно
+приводятся к UTC, чтобы не зависеть от таймзоны сессии PostgreSQL;
+«повторный клиент» считается по точке, в которую клиент вернулся, а не
+по точке первого визита.
+
+% ============================================================
+\section{Backend: сервисы (\texttt{services/})}
+% ============================================================
+
+Вся бизнес-логика проекта живёт здесь. Сервис вызывает один или
+несколько репозиториев и ничего не знает про HTTP -- ни \texttt{Request},
+ни коды статусов сам не выбирает без причины (\texttt{HTTPException}
+внутри сервиса -- это осознанный ответ бизнес-правила, а не техническая
+деталь транспорта). \texttt{AppointmentService} и \texttt{AuthService}
+(самые связанные сервисы проекта) разобраны подробно в разделах~3.3 и~10
+соответственно.
+
+\paragraph{\envvar{backend/app/services/_errors.py}}
+Общая утилита сервисного слоя для превращения ошибки целостности БД
+(\texttt{IntegrityError}) в понятное имя нарушенного ограничения --
+используется во всех сервисах, где перед записью в БД делается
+предварительная проверка вида «email уже занят» (тот же приём, что и в
+шаге~6 раздела~3.3).
+\begin{verbatim}
+constraint_name(exc: IntegrityError) -> str | None
+\end{verbatim}
+\textit{Особенности:} предварительные проверки в сервисах -- это
+check-then-insert с окном для гонки (два одновременных запроса могут оба
+пройти проверку); настоящую целостность гарантируют ограничения
+PostgreSQL, а проигравший гонку запрос обязан получить корректный 409
+через перехват \texttt{IntegrityError}, а не случайный 500.
+
+\paragraph{\envvar{backend/app/services/appointment_service.py}}
+Самый связанный сервис проекта -- разобран целиком в разделе~3.3
+(создание записи) и упомянут в разделе~9 (константа
+\texttt{ALLOWED_TRANSITIONS}, машина состояний). Кроме \texttt{create()},
+в файле -- отмена, смена статуса, перенос записи и расчёт свободных
+слотов; все методы стоит прочитать вместе, они разделяют одну и ту же
+проверку прав доступа (владелец записи / её мастер / администратор своей
+точки / владелец сети).
+
+\paragraph{\envvar{backend/app/services/admin_service.py}}
+Самый крупный сервис приложения -- бизнес-логика админ-панели: управление
+пользователями (создание, редактирование, смена роли, привязка к точке
+сети, блокировка, мягкое удаление), удаление услуг, подсчёт статистики
+дашборда. Здесь принимаются решения о правах -- кто кому какую роль
+может назначить.
+\begin{verbatim}
+_ensure_can_assign_role(role: UserRole, requesting_user: User) -> None
+list_users(*, page, page_size, role=None, search=None, salon_id=None,
+            sort_by="created_at", sort_order="desc") -> PageResponse[UserResponse]
+create_user(data: AdminUserCreate, requesting_user) -> UserResponse
+update_user(user_id, data: AdminUserUpdate) -> UserResponse
+change_role(user_id, role, requesting_user) -> UserResponse
+create_master_profile(user_id, salon_id, requesting_user) -> MasterResponse
+assign_salon(user_id, salon_id) -> UserResponse
+set_blocked(user_id, is_blocked, requesting_admin_id) -> UserResponse
+delete_user(user_id) -> None
+delete_service(service_id) -> None
+get_stats(salon_id=None) -> AdminStatsResponse
+\end{verbatim}
+\textit{Особенности:} назначить роль \texttt{admin}/\texttt{owner} может
+только \texttt{owner} -- иначе администратор точки мог бы выдать себе
+роль владельца и захватить всю сеть; блокировка и мягкое удаление сразу
+отзывают все refresh-сессии и повышают \texttt{token_version}; создать
+пользователя сразу с ролью \texttt{admin} через \texttt{create_user}
+нельзя -- сначала нужно назначить точку, затем сменить роль (ограничение
+БД \texttt{ck_users_admin_requires_salon}).
+
+\paragraph{\envvar{backend/app/services/auth_service.py}}
+Разобран подробно в разделе~10 -- вход/регистрация, работа с
+JWT-токенами, восстановление пароля, подтверждение email, зависимости
+\texttt{get_current_user}/\texttt{require_role}.
+
+\paragraph{\envvar{backend/app/services/vk_oauth_service.py}}
+Разобран подробно в разделе~10 -- вход через VK ID (OAuth 2.1 + PKCE).
+
+\paragraph{\envvar{backend/app/services/_salon_scope.py}}
+Разобран подробно в разделе~10 -- функция \texttt{resolve_salon_scope},
+превращающая параметр запроса \texttt{salon_id} в реально применяемый
+фильтр по точке сети в зависимости от роли вызывающего.
+
+\paragraph{\envvar{backend/app/services/master_service.py}}
+Бизнес-логика вокруг профиля мастера -- публичный и приватный варианты
+профиля, список услуг мастера с рассчитанной итоговой ценой, управление
+недельным расписанием с проверкой, что оно не выходит за часы работы
+точки.
+\begin{verbatim}
+_final_price(price_override, base_price, coefficient) -> Decimal
+list_paginated(*, page, page_size, specialization=None, service_id=None, salon_id=None,
+                is_active=True, sort_by="name", sort_order="asc") -> PageResponse[MasterBriefResponse]
+get_by_id(master_id) -> MasterResponse
+get_public_by_id(master_id) -> MasterPublicResponse
+update(master_id, data: MasterUpdate) -> MasterResponse
+get_services(master_id) -> list[MasterServiceResponse]
+add_service(master_id, service_id, price_override=None) -> MasterServiceResponse
+remove_service(master_id, service_id) -> None
+get_schedule(master_id) -> list[ScheduleResponse]
+set_schedule(master_id, data: ScheduleCreate) -> ScheduleResponse
+update_schedule(master_id, day_of_week, data: ScheduleUpdate) -> ScheduleResponse
+\end{verbatim}
+\textit{Особенности:} расписание мастера не может выходить за часы
+работы его точки (та же проверка задублирована как бэкстоп в
+\texttt{AppointmentService}, раздел~3.3); \texttt{get_public_by_id}
+скрывает деактивированных мастеров и не отдаёт контакты пользователя;
+\texttt{set_schedule} -- upsert (повторная установка на тот же день
+перезаписывает запись).
+
+\paragraph{\envvar{backend/app/services/salon_service.py}}
+Бизнес-логика точек сети -- список, получение по id, создание новой точки
+и её редактирование, плюс отдельный метод для первичной настройки
+инсталляции, который заполняет уже существующую точку-заглушку вместо
+создания второй.
+\begin{verbatim}
+list_all(*, is_active=None) -> list[SalonResponse]
+get_by_id(salon_id) -> SalonResponse
+create(data: SalonCreate) -> SalonResponse
+ensure_primary(data: SalonCreate) -> SalonResponse
+update(salon_id, data: SalonUpdate) -> SalonResponse
+\end{verbatim}
+\textit{Особенности:} \texttt{ensure_primary} заполняет данными строку-
+заглушку («Салон №1», созданную миграцией 0013), а не создаёт вторую
+точку.
+
+\paragraph{\envvar{backend/app/services/service_service.py}}
+Бизнес-логика каталога услуг -- тонкая обёртка над репозиторием без
+дополнительных правил.
+\begin{verbatim}
+list_paginated(*, page, page_size, search=None, min_price=None, max_price=None,
+                is_active=None, sort_by="name", sort_order="asc") -> PageResponse[ServiceResponse]
+get_by_id(service_id) -> ServiceResponse
+create(data: ServiceCreate) -> ServiceResponse
+update(service_id, data: ServiceUpdate) -> ServiceResponse
+\end{verbatim}
+\textit{Особенности:} в отличие от соседних сервисов
+(\envvar{SalonService}, \envvar{MasterService}) здесь нет дополнительной
+бизнес-валидации -- вся логика сводится к поиску записи и делегированию
+репозиторию, право доступа (только владелец сети) проверяется целиком на
+уровне роута.
+
+\paragraph{\envvar{backend/app/services/review_service.py}}
+Бизнес-правила вокруг отзывов клиентов -- оставить отзыв можно только на
+свою и только на завершённую запись, и только один раз; публичный и
+админский список отзывов; модерация и удаление с разграничением прав по
+точке сети.
+\begin{verbatim}
+create(client_id, data: ReviewCreate) -> ReviewResponse
+list_for_master(master_id, *, page, page_size, min_rating=None) -> PageResponse[ReviewResponse]
+list_all_admin(*, page, page_size, master_id=None, is_published=None,
+                min_rating=None, salon_id=None) -> PageResponse[ReviewResponse]
+moderate(review_id, is_published, requesting_user) -> ReviewResponse
+delete(review_id, requesting_user) -> None
+\end{verbatim}
+\textit{Особенности:} владелец сети модерирует и удаляет отзывы любой
+точки, администратор -- только своей точки (скоуп через мастера отзыва);
+обычный клиент может удалить только собственный отзыв.
+
+\paragraph{\envvar{backend/app/services/reminder_service.py}}
+Рассылает клиентам напоминания о записи за 24 часа и за 2 часа до
+визита. Сервис не привязан к расписанию каждой конкретной записи --
+периодически опрашивается фоновым процессом (\texttt{app/scheduler.py},
+раздел~3.2).
+\begin{verbatim}
+send_due_reminders() -> None
+\end{verbatim}
+\textit{Особенности:} одна проблемная запись (например, отсутствующая
+связь) не останавливает рассылку остальным клиентам в этом же проходе --
+ошибка ловится точечно на каждой записи и пишется в лог, а не поднимается
+наружу; \texttt{send_email} сама никогда не бросает исключение при сбое
+SMTP.
+
+\paragraph{\envvar{backend/app/services/report_service.py}}
+Собирает данные аналитического отчёта админ-панели в единый ответ API, а
+также умеет отдать тот же отчёт файлом Excel для скачивания.
+\begin{verbatim}
+_write_table_header(ws, row, columns) -> None
+get_report(date_from, date_to, salon_id=None) -> ReportResponse
+export_excel(date_from, date_to, salon_id=None) -> bytes
+\end{verbatim}
+\textit{Особенности:} денежные суммы остаются типом \texttt{Decimal}
+вплоть до сериализации; Excel-файл строится из 4 листов (Сводка, Выручка
+по дням, По услугам, Мастера) через \texttt{openpyxl}.
+
+\paragraph{\envvar{backend/app/services/setup_service.py}}
+Сервис первичной настройки после развёртывания -- создаёт первого
+владельца сети, первую точку и, опционально, базовый контент сайта одним
+запросом от визарда на фронтенде. После первого успешного вызова
+эндпоинт навсегда «закрывается».
+\begin{verbatim}
+_SETUP_LOCK_KEY = 727271   # константа модуля
+is_completed() -> bool
+requires_token() -> bool
+complete(data: SetupRequest) -> TokenResponse
+\end{verbatim}
+\textit{Особенности:} \texttt{complete()} берёт
+\texttt{pg_advisory_xact_lock}, чтобы два одновременных запроса не
+смогли оба пройти проверку «ещё не настроено» и оба создать «первого»
+владельца; после завершения настройки повторные вызовы отдают 404, а не
+409, чтобы не подтверждать анонимному запросу сам факт настройки; код
+настройки сравнивается через \texttt{secrets.compare_digest} (защита от
+атаки по времени ответа).
+
+\paragraph{\envvar{backend/app/services/site_settings_service.py}}
+Простой сервис редактируемого контента сайта -- получить текущий контент
+(создав запись по умолчанию, если её ещё нет) и обновить его.
+\begin{verbatim}
+get() -> SiteContent
+update(data: SiteContent) -> SiteContent
+\end{verbatim}
+
+% ============================================================
+\section{Backend: роуты (\texttt{routes/})}
+% ============================================================
+
+FastAPI-роутеры -- самый тонкий слой (раздел~3.3): проверяют роль через
+\texttt{Depends}, вызывают один метод сервиса, отдают результат. У
+каждого метода помечено, какая зависимость роли (раздел~10) его
+защищает. \texttt{routes/appointments.py} и \texttt{routes/auth.py}
+разобраны подробно в разделах~3.3 и~10.
+
+\paragraph{\envvar{backend/app/routes/admin.py}}
+Роутер \texttt{/api/admin} -- административная часть API: статистика и
+аналитические отчёты (включая выгрузку в Excel), полное управление
+пользователями (список, создание, редактирование, смена роли, привязка к
+точке, блокировка, создание профиля мастера, мягкое удаление),
+редактирование/удаление услуг, загрузка изображений и обновление фото
+мастера.
+\begin{verbatim}
+GET    /api/admin/stats                    -> AdminStatsResponse         [admin]
+GET    /api/admin/reports                  -> ReportResponse             [admin]
+GET    /api/admin/reports/export           -> файл .xlsx                 [admin]
+GET    /api/admin/users                    -> PageResponse[UserResponse] [admin]
+POST   /api/admin/users                    -> UserResponse (201)         [admin]
+PATCH  /api/admin/users/{user_id}          -> UserResponse               [admin]
+PATCH  /api/admin/users/{user_id}/role     -> UserResponse               [admin]
+PATCH  /api/admin/users/{user_id}/salon    -> UserResponse               [owner]
+PATCH  /api/admin/users/{user_id}/block    -> UserResponse               [admin]
+POST   /api/admin/users/{user_id}/master   -> MasterResponse (201)       [admin]
+DELETE /api/admin/users/{user_id}          -> 204                        [admin]
+PATCH  /api/admin/services/{service_id}    -> ServiceResponse            [owner]
+DELETE /api/admin/services/{service_id}    -> 204                        [owner]
+POST   /api/admin/uploads/image            -> ImageUploadResponse (201)  [admin]
+PATCH  /api/admin/masters/{master_id}/photo -> MasterResponse            [admin]
+\end{verbatim}
+\textit{Особенности:} право доступа разное по эндпоинтам одного файла --
+большинству операций достаточно роли \texttt{admin} (в коде --
+\texttt{get_current_admin}, которая пропускает и \texttt{owner}, раздел
+1), но привязка пользователя к точке сети и любые изменения каталога
+услуг требуют именно \texttt{get_current_owner}; фактический скоуп по
+точке (своя точка для админа, любая -- для владельца) вычисляется общей
+функцией \texttt{resolve_salon_scope} (раздел~10).
+
+\paragraph{\envvar{backend/app/routes/masters.py}}
+Роутер \texttt{/api/masters} -- публичный каталог мастеров с фильтрами,
+личный кабинет мастера, публичный профиль конкретного мастера, управление
+профилем/услугами/расписанием и получение свободных слотов для записи.
+\begin{verbatim}
+GET    /api/masters                             -> PageResponse[MasterBriefResponse]  [публичный]
+GET    /api/masters/me                          -> MasterResponse                     [master]
+GET    /api/masters/{master_id}                 -> MasterPublicResponse               [публичный]
+PATCH  /api/masters/{master_id}                 -> MasterResponse                     [master]
+GET    /api/masters/{master_id}/services        -> list[MasterServiceResponse]        [публичный]
+POST   /api/masters/{master_id}/services        -> MasterServiceResponse (201)        [admin]
+DELETE /api/masters/{master_id}/services/{id}   -> 204                                [admin]
+GET    /api/masters/{master_id}/schedule        -> list[ScheduleResponse]             [публичный]
+POST   /api/masters/{master_id}/schedule        -> ScheduleResponse                   [master]
+PATCH  /api/masters/{master_id}/schedule/{day}  -> ScheduleResponse                   [master]
+GET    /api/masters/{master_id}/slots           -> SlotListResponse                   [публичный]
+\end{verbatim}
+\textit{Особенности:} внутренняя проверка
+\texttt{_ensure_can_manage_master} -- трёхуровневая (мастер управляет
+только собой, администратор -- только мастерами своей точки, владелец --
+всеми), но перевод мастера в другую точку сети (\texttt{salon_id})
+разрешён только владельцу даже на эндпоинте, в остальном доступном
+мастеру/администратору.
+
+\paragraph{\envvar{backend/app/routes/salons.py}}
+Роутер \texttt{/api/salons} -- публичный список точек сети без
+пагинации, детали одной точки, создание новой точки и её редактирование.
+\begin{verbatim}
+GET   /api/salons               -> list[SalonResponse]   [опционально авторизован]
+GET   /api/salons/{salon_id}    -> SalonResponse         [публичный]
+POST  /api/salons               -> SalonResponse (201)   [owner]
+PATCH /api/salons/{salon_id}    -> SalonResponse         [admin]
+\end{verbatim}
+\textit{Особенности:} администратор может редактировать поля своей
+точки, но не может её открыть/закрыть (\texttt{is_active}) -- это
+решение уровня всей сети, зарезервированное для владельца; неавторизованным
+и клиентам всегда показываются только активные точки.
+
+\paragraph{\envvar{backend/app/routes/services.py}}
+Роутер \texttt{/api/services} -- публичный каталог услуг с
+поиском/фильтром по цене/сортировкой, детали одной услуги, создание и
+редактирование услуги.
+\begin{verbatim}
+GET   /api/services              -> PageResponse[ServiceResponse]  [опционально авторизован]
+GET   /api/services/{service_id} -> ServiceResponse                [публичный]
+POST  /api/services              -> ServiceResponse (201)          [owner]
+PATCH /api/services/{service_id} -> ServiceResponse                [owner]
+\end{verbatim}
+\textit{Особенности:} каталог услуг -- общий актив сети, поэтому
+создавать и редактировать его может только владелец; локальная вариативность
+цены по точке остаётся доступной администратору через
+\envvar{price_override} на конкретном мастере (\texttt{masters.py}).
+
+\paragraph{\envvar{backend/app/routes/reviews.py}}
+Роутер \texttt{/api/reviews} -- оставить отзыв на завершённую запись,
+публичный список отзывов конкретного мастера, полный список для
+модерации администратором, публикация/скрытие и удаление отзыва.
+\begin{verbatim}
+POST   /api/reviews                       -> ReviewResponse (201)              [client, лимит запросов]
+GET    /api/reviews/master/{master_id}    -> PageResponse[ReviewResponse]      [публичный]
+GET    /api/reviews                       -> PageResponse[ReviewResponse]      [admin]
+PATCH  /api/reviews/{review_id}/publish   -> ReviewResponse                    [admin]
+DELETE /api/reviews/{review_id}           -> 204                               [client]
+\end{verbatim}
+\textit{Особенности:} создание отзыва ограничено лимитом запросов
+(раздел~10) -- защита от спама отзывами; удаление формально висит на
+\texttt{get_current_client}, но фактическое право (свой отзыв vs. любой
+отзыв своей точки vs. любой отзыв сети) разруливает
+\texttt{ReviewService.delete}.
+
+\paragraph{\envvar{backend/app/routes/setup.py}}
+Роутер \texttt{/api/setup} -- статус первичной настройки (нужен ли
+фронтенду показать визард) и сам визард, который одним запросом создаёт
+владельца сети, первую точку и сразу логинит нового владельца.
+\begin{verbatim}
+GET  /api/setup/status  -> SetupStatusResponse  [публичный]
+POST /api/setup         -> TokenResponse (201)  [публичный]
+\end{verbatim}
+\textit{Особенности:} эндпоинт неизбежно публичный (до первого вызова в
+системе нет управляющего аккаунта, которым можно было бы его защитить) и
+сразу выставляет auth- и refresh-cookie, логиня нового владельца без
+отдельного запроса на вход.
+
+\paragraph{\envvar{backend/app/routes/site_settings.py}}
+Роутер \texttt{/api/settings} -- публичное чтение редактируемого
+контента сайта (шапка, главная, футер) и его обновление владельцем сети.
+\begin{verbatim}
+GET   /api/settings  -> SiteContent  [публичный]
+PATCH /api/settings  -> SiteContent  [owner]
+\end{verbatim}
+
+% ============================================================
+\section{Backend: утилиты (\texttt{utils/})}
+% ============================================================
+
+Небольшие независимые модули без состояния -- каждый решает одну узкую
+задачу и используется из нескольких мест сразу.
+
+\paragraph{\envvar{backend/app/utils/rate_limit.py}}
+Разобран подробно в разделе~10 -- общий объект \texttt{limiter}
+(slowapi), ограничивающий частоту запросов по IP.
+
+\paragraph{\envvar{backend/app/utils/client_ip.py}}
+Утилита определения настоящего IP-адреса клиента для лимитов запросов и
+журналирования попыток входа. Так как приложение всегда работает за
+обратным прокси (Caddy $\to$ nginx, раздел~19),
+\texttt{request.client.host} показал бы IP контейнера nginx, а не
+реального посетителя.
+\begin{verbatim}
+client_ip(request: Request) -> str
+\end{verbatim}
+\textit{Особенности:} функция берёт первый IP в цепочке
+\texttt{X-Forwarded-For}, и это безопасно от подделки именно потому, что
+у Caddy не настроены доверенные прокси иначе, чем свои же контейнеры --
+он сам переписывает заголовок реальным увиденным IP.
+
+\paragraph{\envvar{backend/app/utils/content_filter.py}}
+Фильтр нежелательного контента для пользовательского текста (в первую
+очередь -- комментариев к отзывам): проверка на нецензурную лексику и на
+попытки оставить ссылку/домен в тексте.
+\begin{verbatim}
+_clean_word(word: str) -> str
+contains_profanity(text: str | None) -> bool
+contains_link(text: str | None) -> bool
+\end{verbatim}
+\textit{Особенности:} список бранных корней короткий и по префиксам (не
+общие слоги, чтобы не ловить обычные слова), а нормализация схлопывает
+3+ повторяющихся буквы и переводит латинские двойники в кириллицу --
+ловит обход фильтра, не портя слова с обычными двойными буквами.
+
+\paragraph{\envvar{backend/app/utils/email.py}}
+Тонкая обёртка над отправкой писем по SMTP (по умолчанию -- локальный
+Mailpit для разработки, раздел~20) -- используется для писем
+подтверждения регистрации, сброса пароля и напоминаний о записи.
+\begin{verbatim}
+send_email(*, to: str, subject: str, text_body: str, html_body: str | None = None) -> None
+\end{verbatim}
+\textit{Особенности:} функция никогда не поднимает исключение при сбое
+SMTP (ошибка только логируется) -- это намеренно, чтобы, например,
+сценарий восстановления пароля не раскрывал через различие в ответе,
+существует ли указанный email в системе (раздел~10).
+
+\paragraph{\envvar{backend/app/utils/slug.py}}
+Генератор человекочитаемых URL-идентификаторов (slug) для точек сети --
+транслитерация кириллического названия в латиницу и подбор уникального
+варианта при совпадении с уже существующим slug.
+\begin{verbatim}
+slugify(text: str) -> str
+generate_unique_slug(name: str, *, exists: Callable[[str], bool], fallback: str = "salon") -> str
+\end{verbatim}
+\textit{Особенности:} проверка уникальности передаётся как
+функция-предикат \texttt{exists}, а не завязана на конкретный
+репозиторий -- это осознанно, чтобы \texttt{generate_unique_slug}
+можно было протестировать без обращения к БД.
+
+\paragraph{\envvar{backend/app/utils/uploads.py}}
+Сохраняет загруженное через админку изображение (фото мастера,
+hero-картинка настроек сайта) на диск и возвращает публичный URL, с
+проверкой типа файла и ограничением размера.
+\begin{verbatim}
+save_uploaded_image(file: UploadFile) -> str
+\end{verbatim}
+\textit{Особенности:} имя файла на диске всегда генерируется сервером
+(\texttt{uuid4} + расширение из белого списка content-type), а не
+берётся из пользовательского ввода -- исключает path traversal и
+загрузку произвольного не-картиночного файла.
+
+% ============================================================
+\section{Аутентификация и безопасность}
+% ============================================================
+
+Механизм авторизации -- один из самых плотно связанных участков кода
+проекта (\texttt{User} и \texttt{Session} -- два самых «подключённых»
+класса во всём графе кода проекта). Этот раздел разбирает его целиком:
+как устроен вход, откуда роут узнаёт роль вызывающего, как отзываются
+токены и как проект защищается от подбора пароля.
+
+\subsection{Два токена вместо одного}
+
+Вместо одного долгоживущего токена проект использует пару: короткоживущий
+JWT \textbf{access-токен} (15 минут, \texttt{settings.access_token_expire_minutes})
+и долгоживущий opaque \textbf{refresh-токен} (30 дней,
+хранится как строка в таблице \texttt{sessions}, раздел~11). Оба живут в
+отдельных httpOnly-cookie, а не в \texttt{localStorage}/JS-переменной --
+так украсть их через XSS-уязвимость на фронтенде существенно сложнее
+(JavaScript их вообще не видит).
+\begin{verbatim}
+ACCESS_TOKEN_COOKIE = "access_token"     # path="/api", уходит с каждым запросом к API
+REFRESH_TOKEN_COOKIE = "refresh_token"   # path="/api/auth", уходит только к эндпоинтам /auth
+\end{verbatim}
+Access-токен -- обычный JWT (подписан \texttt{HS256},
+\envvar{backend/app/services/auth_service.py}):
+\begin{verbatim}
+def _create_access_token(user: User) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    payload = {"sub": str(user.id), "ver": user.token_version, "exp": expire}
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+\end{verbatim}
+Поле \texttt{"ver"} -- снимок \texttt{user.token_version} на момент
+выдачи токена. Это и есть механизм отзыва: JWT сам по себе никак нельзя
+«отменить» до истечения срока действия, но \texttt{get_current_user}
+при каждой проверке сверяет \texttt{ver} из токена с текущим значением в
+БД:
+\begin{verbatim}
+def get_current_user(request, credentials=Depends(...), db=Depends(get_db)) -> User:
+    token = _token_from_request(request, credentials)
+    ...
+    user_id, token_version = _decode_token(token)
+    user = UserRepository(db).get_by_id(user_id)
+    if user.token_version != token_version:
+        raise HTTPException(status_code=401, detail="Токен отозван, войдите заново")
+    if user.is_blocked:
+        raise HTTPException(status_code=403, detail="Аккаунт заблокирован...")
+    return user
+\end{verbatim}
+\texttt{token_version} инкрементируется (\texttt{UserRepository.bump_token_version})
+при logout, смене/сбросе пароля и блокировке -- любой уже выданный
+access-токен с прежним \texttt{ver} мгновенно перестаёт проходить эту
+проверку, без хранения отдельного «чёрного списка» токенов.
+
+Refresh-токен работает иначе -- он не JWT, а случайная строка
+(\texttt{secrets.token_urlsafe(32)}), хеш которой (SHA-256) хранится в
+таблице \texttt{sessions}. Каждый вызов \texttt{POST /api/auth/refresh}
+\emph{ротирует} токен -- старая сессия удаляется, выдаётся новая:
+\begin{verbatim}
+def refresh_session(self, raw_refresh_token: str) -> tuple[TokenResponse, str]:
+    session = self.session_repo.get_valid_by_hash(_hash_token(raw_refresh_token))
+    if not session:
+        raise HTTPException(status_code=401, detail="Сессия недействительна...")
+    user = self.user_repo.get_by_id(session.user_id)
+    self.session_repo.delete(session)
+    ...
+    new_raw_token = create_session(self.db, user.id)
+    return build_token_response(user), new_raw_token
+\end{verbatim}
+Смысл ротации: если старый refresh-токен всё же попытаются использовать
+повторно (например, он был украден и злоумышленник, и легитимный клиент
+пробуют обновиться одновременно), второй из двух получит 401 вместо
+тихой утечки бессрочного доступа -- сессии уже нет, она удалена первым же
+успешным запросом.
+
+\subsection{Роли и \texttt{require_role}}
+
+Проверка роли -- отдельная функция-фабрика, а не набор дублирующихся
+проверок в каждом роуте:
+\begin{verbatim}
+def require_role(*roles: UserRole):
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in roles:
+            raise HTTPException(status_code=403, detail="Недостаточно прав")
+        return current_user
+    return dependency
+
+get_current_client = require_role(UserRole.client, UserRole.admin, UserRole.owner)
+get_current_master = require_role(UserRole.master, UserRole.admin, UserRole.owner)
+get_current_admin  = require_role(UserRole.admin, UserRole.owner)  # owner неявно включён
+get_current_owner  = require_role(UserRole.owner)
+\end{verbatim}
+Именно эти четыре готовые зависимости и стоят в объявлении
+\texttt{Depends(...)} у каждого роута из разделов~8 (там же -- пометка
+\texttt{[admin]}/\texttt{[owner]}/... у каждого эндпоинта, которая
+буквально означает «за какой из этих четырёх функций он стоит»).
+
+\subsection{Разрешение области видимости по точке сети}
+
+Роль решает, \emph{что} можно делать; отдельная функция решает, \emph{в
+какой точке сети}. \envvar{backend/app/services/_salon_scope.py} --
+всего 20 строк, но вызывается из большинства «списочных» эндпоинтов
+админки (раздел~8):
+\begin{verbatim}
+def resolve_salon_scope(current_user: User, salon_id_param: UUID | None) -> UUID | None:
+    if current_user.role == UserRole.owner:
+        return salon_id_param
+    if salon_id_param is not None and salon_id_param != current_user.salon_id:
+        raise HTTPException(status_code=403, detail="Доступен только собственный салон")
+    return current_user.salon_id
+\end{verbatim}
+Правило: для \texttt{owner} отсутствие параметра означает «вся сеть», а
+явно переданный \texttt{salon_id} -- «покажи мне эту одну точку». Для
+\texttt{admin} результат всегда его собственная точка -- запрос с чужим
+\texttt{salon_id} в параметре получает не тихую подмену на правильное
+значение, а явный 403. Эта функция -- обычная функция, не
+\texttt{Depends}: вызывается уже \emph{внутри} эндпоинтов, защищённых
+ролью \texttt{get_current_admin} (то есть после того, как FastAPI уже
+убедился, что вызывающий -- как минимум администратор какой-то точки).
+
+\subsection{Вход через VK ID (OAuth 2.1 + PKCE)}
+
+\envvar{backend/app/services/vk_oauth_service.py} и роуты
+\texttt{/api/auth/vk/*} реализуют классический redirect-флоу (не
+SPA-попап): фронтенд просто делает полный переход браузера на
+\texttt{GET /api/auth/vk/login}, а не axios-запрос -- потому что серверу
+нужно выставить cookie и сделать редирект на \texttt{id.vk.com}, что
+может только сам браузер.
+\begin{verbatim}
+@router.get("/vk/login")
+def vk_login():
+    state = secrets.token_urlsafe(24)
+    verifier, challenge = generate_pkce()
+    redirect = RedirectResponse(build_authorize_url(state, challenge))
+    for key, value in ((STATE_COOKIE, state), (VERIFIER_COOKIE, verifier)):
+        redirect.set_cookie(key=key, value=value, max_age=COOKIE_MAX_AGE,
+                            path=COOKIE_PATH, httponly=True, samesite="lax")
+    return redirect
+\end{verbatim}
+\texttt{generate_pkce()} создаёt пару \texttt{(code_verifier,
+code_challenge)} -- PKCE (Proof Key for Code Exchange) защищает от
+перехвата кода авторизации по пути, даже без секрета клиента. \texttt{state}
+кладётся в cookie и на обратном пути (\texttt{GET /api/auth/vk/callback})
+сверяется с тем, что VK вернул параметром запроса -- это и есть защита от
+CSRF на этом конкретном эндпоинте:
+\begin{verbatim}
+if not (code and device_id and state and cookie_state and verifier) or state != cookie_state:
+    return fail("vk_auth_failed")
+\end{verbatim}
+Дальше \texttt{VkOAuthService.handle_callback} обменивает код на токен
+VK, получает профиль пользователя и решает, что делать: если
+\texttt{vk_user_id} уже привязан к аккаунту -- логинит; если найден
+пользователь с тем же email, зарегистрированный по паролю, -- привязывает
+VK к этому аккаунту (email от VK считается доказанным владением, письмо
+подтверждения не отправляется повторно); иначе создаёт нового
+пользователя без пароля (\texttt{password_hash=None} -- такой аккаунт
+никогда не пройдёт обычный вход по email/паролю).
+
+\subsection{Защита от подбора пароля и лимиты запросов}
+
+Два независимых механизма, оба работают в памяти процесса backend, без
+Redis -- проект и так рассчитан ровно на один работающий экземпляр
+контейнера \texttt{backend} (раздел~3.2), поэтому отдельное общее
+хранилище не добавляет пользы, но добавляет эксплуатационную сложность.
+
+\textbf{Блокировка входа после серии неудач.} Таблица
+\texttt{login_attempts} (раздел~11) журналирует \emph{каждую} попытку
+входа, успешную и нет (требование к логированию попыток авторизации).
+\texttt{AuthService.login} перед проверкой пароля сначала считает
+недавние неудачи:
+\begin{verbatim}
+recent_failed = self.login_attempt_repo.count_recent_failed(email, window_start)
+if recent_failed >= settings.login_max_failed_attempts:   # по умолчанию 5
+    raise HTTPException(status_code=429, detail="Слишком много неудачных попыток...")
+\end{verbatim}
+Тонкость, которую легко упустить при чтении кода поверхностно: bcrypt
+всё равно выполняется, даже если email вообще не зарегистрирован
+(сравнение идёт с заранее посчитанным \texttt{_DUMMY_HASH}). Без этого
+время ответа само по себе выдавало бы, зарегистрирован ли адрес --
+запрос к несуществующему пользователю отвечал бы заметно быстрее, чем к
+существующему с неверным паролем.
+
+\textbf{Лимит частоты запросов (rate limiting).}
+\envvar{backend/app/utils/rate_limit.py} -- общий объект \texttt{limiter}
+(библиотека \texttt{slowapi}) по IP-адресу, а не по пользователю:
+\begin{verbatim}
+limiter = Limiter(key_func=client_ip)
+\end{verbatim}
+Применяется декоратором прямо на эндпоинте:
+\envvar{@limiter.limit(settings.rate_limit_register)} на регистрации
+(\texttt{"5/hour"}), \envvar{rate_limit_booking} на создании записи
+(\texttt{"20/minute"}), \envvar{rate_limit_review} на отзывах
+(\texttt{"10/hour"}). Привязка по IP, а не по пользователю, неслучайна:
+\texttt{slowapi} проверяет лимит \emph{до} того, как FastAPI успевает
+прогнать остальные \texttt{Depends()} эндпоинта -- на этом этапе
+\texttt{current_user} ещё физически недоступен. \texttt{client_ip()}
+(не \texttt{request.client.host}) берёт реальный IP из
+\texttt{X-Forwarded-For} -- без этого за цепочкой прокси Caddy $\to$
+nginx все запросы выглядели бы приходящими с одного и того же
+внутреннего IP контейнера.
+
+\subsection{Как cookie-авторизация выглядит со стороны фронтенда}
+
+Раздел~15 разбирает это подробно (файл \envvar{frontend/src/api/client.js}), но
+стоит связать с тем, что уже сказано выше: axios настроен с
+\envvar{withCredentials: true} (браузер сам прикладывает httpOnly-cookie,
+JS их не читает и не может прочитать); при ответе 401 интерцептор сам
+пробует \texttt{POST /api/auth/refresh} и повторяет исходный запрос --
+пользователь этого не замечает, пока не истечёт и refresh-токен тоже.
+Несколько одновременных 401 не запускают несколько параллельных
+\texttt{/refresh} -- один общий promise на все (single-flight, раздел~15) --
+что согласуется с ротацией refresh-токена на backend: параллельный
+второй вызов \texttt{/refresh} с уже использованным токеном закономерно
+получил бы 401.
+
+% ============================================================
+\section{База данных и миграции}
+% ============================================================
+
+\subsection{Alembic: схема БД -- это история, а не снимок}
+
+Классы в \envvar{backend/app/models/} (раздел~4) описывают, \emph{какой
+сейчас} должна быть схема БД -- но сами по себе таблицы не создают.
+Создание и любое изменение схемы -- отдельный файл-миграция в
+\envvar{backend/alembic/versions/}. Каждая миграция -- обычный Python-файл
+с двумя функциями, \texttt{upgrade()} и \texttt{downgrade()}, и ссылкой на
+предыдущую миграцию (\texttt{down_revision}) -- вместе они образуют
+цепочку версий схемы, которую можно накатить или откатить по шагам.
+Команда \texttt{alembic upgrade head} (запускается автоматически при
+старте контейнера \texttt{backend}, раздел~19) доводит базу данных до
+последней версии в этой цепочке. Отдельно от кода приложения миграции
+важны по практической причине: без них единственный способ применить
+изменение схемы на уже работающей базе с данными -- вручную писать и
+выполнять \texttt{ALTER TABLE}.
+
+\subsection{Хронология: 15 миграций проекта}
+
+Таблица~4 -- вся история схемы БД проекта, от первой миграции до
+последней. Читать её стоит по порядку сверху вниз -- она одновременно
+служит кратким пересказом истории развития функционала: сначала базовая
+схема одного барбершопа, затем блокировка/JWT-отзыв/сессии/VK
+OAuth/подтверждение email по мере появления соответствующих требований, и
+в конце -- переход на сеть из нескольких точек.
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Все миграции backend/alembic/versions/} \\
+\hline
+\textbf{Миграция} & \textbf{Что меняет} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Миграция} & \textbf{Что меняет} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{0001_initial} & Вся исходная схема одного барбершопа: \texttt{users},
+  \texttt{masters}, \texttt{services}, \texttt{master_services},
+  \texttt{schedules}, \texttt{appointments} (с ограничением
+  \texttt{EXCLUDE USING gist}, раздел~11.3), \texttt{notifications}
+  (позже удалена, см. \texttt{0005}), \texttt{reviews},
+  \texttt{password_reset_tokens}, \texttt{login_attempts}, плюс
+  SQL-функция \texttt{get_appointment_price()} (тоже позже удалена). \\
+\envvar{0002_site_settings} & Добавляет singleton-таблицу
+  \texttt{site_settings} -- изначально только фото в шапке главной
+  страницы. \\
+\envvar{0003_site_settings_content} & Заменяет узкоспециальную колонку
+  \texttt{hero_photo_url} на общую JSONB-колонку \texttt{content},
+  хранящую весь редактируемый текст сайта (см. \texttt{SiteContent} в
+  разделе~5). \\
+\envvar{0004_masters_sched_created_at} & Добавляет \texttt{created_at}
+  таблицам \texttt{masters} и \texttt{schedules} -- были единственными без
+  этого столбца. \\
+\envvar{0005_drop_notifications} & Удаляет таблицу
+  \texttt{notifications} (три enum-типа) и функцию
+  \texttt{get_appointment_price()} -- ни один сервис или роут никогда не
+  писал в эту таблицу, а цена всегда считалась в Python
+  (\texttt{AppointmentService}); мёртвая схема только вводила в
+  заблуждение. \\
+\envvar{0006_users_is_blocked} & Добавляет \texttt{users.is_blocked}
+  -- блокировка аккаунта (не мягкое удаление: аккаунт и история остаются,
+  но вход запрещён). \\
+\envvar{0007_users_token_version} & Добавляет
+  \texttt{users.token_version} -- отзыв ранее выданных JWT (раздел~10). \\
+\envvar{0008_users_vk_oauth} & \texttt{password_hash} становится
+  необязательным, добавляется \texttt{vk_user_id} -- вход через VK ID
+  создаёт пользователей без пароля. \\
+\envvar{0009_sessions} & Добавляет таблицу \texttt{sessions}
+  (refresh-токены на отдельное устройство) -- logout начинает удалять
+  ровно одну сессию вместо инвалидации всех токенов сразу. \\
+\envvar{0010_appointment_reminders} & Добавляет
+  \texttt{appointments.reminder_24h_sent_at}/\texttt{reminder_2h_sent_at}
+  -- напоминания точечно на самой записи, а не отдельной таблицей
+  уведомлений (та уже была и её снесли в \texttt{0005}). \\
+\envvar{0011_users_email_nullable} & \texttt{users.email} становится
+  необязательным -- VK ID не всегда отдаёт email при регистрации. \\
+\envvar{0012_email_verification} & Добавляет
+  \texttt{users.email_verified_at} и таблицу
+  \texttt{email_verification_tokens} -- подтверждение email тем же
+  паттерном, что и сброс пароля (хеш токена в БД, сам токен -- в письме). \\
+\envvar{0013_salons} & Первый шаг функционала «сеть точек»: создаёт
+  таблицу \texttt{salons} и переносит уже сохранённые данные
+  \texttt{site_settings.content} в одну строку-заглушку («Салон~№1»).
+  Поведение приложения ещё не меняется -- таблицу пока никто не читает. \\
+\envvar{0014_user_role_owner} & Единственная строка: добавляет
+  значение \texttt{'owner'} в enum \texttt{user_role}. Намеренно
+  отдельная миграция -- PostgreSQL запрещает использовать значение enum,
+  добавленное \texttt{ALTER TYPE ... ADD VALUE}, в той же транзакции, где
+  оно добавлено; следующая миграция уже увидит \texttt{'owner'}
+  закоммиченным. \\
+\envvar{0015_salon_scoping} & Добавляет \texttt{salon_id} пользователям
+  (обязателен только для \texttt{admin}) и записям, повышает всех
+  существующих \texttt{admin} до \texttt{owner}. Обязана деплоиться
+  одновременно с обновлённым \texttt{get_current_admin}/\texttt{require_role}
+  (раздел~10) -- иначе только что повышенные владельцы мгновенно теряют
+  доступ к \texttt{/api/admin/*} до раскатки нового кода. \\
+\end{xltabular}
+
+\subsection{Двойное бронирование невозможно физически, а не по вежливой просьбе}
+
+Раздел~3.3 уже показал, \emph{где} эта защита стоит в потоке кода. Вот её
+фактический SQL, добавленный вручную в \texttt{0001_initial} (SQLAlchemy
+не умеет сгенерировать такое ограничение автоматически, поэтому это
+единственный кусок сырого SQL в первой миграции):
+\begin{verbatim}
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE appointments
+ADD CONSTRAINT no_double_booking
+EXCLUDE USING gist (
+    master_id WITH =,
+    tstzrange(start_time, end_time, '[)') WITH &&
+)
+WHERE (status <> 'cancelled')
+\end{verbatim}
+Своими словами: «для одного и того же \texttt{master_id} никакие два
+временных диапазона \texttt{[start_time, end_time)} не могут
+пересекаться -- за исключением строк с \texttt{status = 'cancelled'}».
+\texttt{EXCLUDE USING gist} -- ограничение целостности PostgreSQL уровня
+таблицы, того же семейства, что и обычный \texttt{UNIQUE}, но
+проверяющее не равенство значений, а пересечение диапазонов
+(\texttt{tstzrange} -- диапазон момента времени с часовым поясом).
+\texttt{WHERE (status <> 'cancelled')} -- частичное ограничение: отменённая
+запись не блокирует слот навсегда, к нему снова можно записаться. Это
+единственное место во всём проекте, где требование «0 инцидентов
+двойного бронирования» гарантируется \emph{в принципе}, а не только
+проверкой в коде приложения перед вставкой строки, которая при
+параллельных запросах подвержена состоянию гонки -- сравнение с
+предварительной проверкой на уровне сервиса (шаг~5 раздела~3.3) и
+приёмочный тест на настоящем Postgres -- раздел~12.
+
+\subsection{\texttt{backend/schema.sql} -- читаемый снимок, не источник истины}
+
+В корне \envvar{backend/} рядом с \texttt{alembic/} лежит ещё один файл --
+\texttt{schema.sql}, обычный SQL-дамп «как выглядит вся схема целиком».
+Он сам предупреждает о своей роли в собственном заголовке:
+\begin{verbatim}
+-- Сгенерировано по факту применения всех Alembic-миграций
+-- (backend/alembic/versions/0001..0007) — это снимок итоговой схемы,
+-- а не замена миграций. Для реального развёртывания используйте
+-- `alembic upgrade head`; этот файл — читаемый обзор структуры БД,
+-- пригодный для импорта в dbdiagram.io (Import from SQL → PostgreSQL).
+\end{verbatim}
+Важная деталь для новичка: комментарий honestly говорит «0001..0007» --
+файл описывает состояние схемы \emph{после седьмой} миграции, а не после
+пятнадцатой. Он не обновлялся при добавлении \texttt{sessions},
+подтверждения email и всего функционала сети точек. Единственный
+источник правды о текущей схеме БД -- цепочка миграций в
+\texttt{alembic/versions/} (или сама работающая база данных); этот файл
+пригоден только для быстрого визуального обзора \emph{ранней} версии
+структуры, не для реальной работы с проектом.
+
+% ============================================================
+\section{Тесты бэкенда}
+% ============================================================
+
+\subsection{Два принципиально разных набора тестов}
+
+\envvar{backend/tests/conftest.py} прямо в докстринге объясняет главное
+архитектурное решение тестов проекта:
+\begin{verbatim}
+"""Юнит-тесты без БД: сервисы получают фейковые репозитории, схемы и чистые
+функции тестируются напрямую. Интеграционных тестов с PostgreSQL нет —
+ключевая защита от двойного бронирования на уровне БД (EXCLUDE USING gist)
+проверяется вручную/на стенде."""
+\end{verbatim}
+Это было верно на момент написания докстринга -- позже в проекте
+появился второй набор, \texttt{backend/tests/integration/}, именно для
+того, что этот комментарий называет «вручную/на стенде» (докстринг с тех
+пор не обновили, что само по себе неплохой урок -- комментарии в коде
+могут устаревать, полагаться в первую очередь стоит на то, что реально
+запускается в CI, раздел~19).
+
+\textbf{Юнит-тесты} (\texttt{backend/tests/*.py}, около двадцати файлов)
+запускаются командой \texttt{pytest -q} без каких-либо внешних
+зависимостей -- быстро, без базы данных вообще. Сервис в тесте получает
+не настоящий \texttt{UserRepository}/\texttt{AppointmentRepository}, а
+простой Python-объект с тем же набором методов, хранящий данные в
+обычном словаре или списке в памяти -- «фейковый репозиторий»
+(fake, не mock-библиотека). Это возможно именно потому, что сервисы
+(раздел~7) принимают сессию БД через конструктор, а не создают
+подключение сами -- граница между слоями, которую легко подменить в
+тесте.
+
+\textbf{Интеграционные тесты} (\texttt{backend/tests/integration/*.py},
+семь файлов) запускаются отдельной командой на настоящем PostgreSQL:
+\begin{verbatim}
+pytest -m integration tests/integration -q
+\end{verbatim}
+и требуют переменной окружения \texttt{TEST_DATABASE_URL} -- без неё
+весь пакет автоматически пропускается (\texttt{pytest.skip(...,
+allow_module_level=True)} в его \texttt{conftest.py}), так что обычный
+\texttt{pytest -q} без настроенного Postgres продолжает работать как
+раньше. \texttt{backend/pytest.ini} явно исключает эту группу из
+дефолтного прогона (\texttt{addopts = -m "not integration"}) -- юнит- и
+интеграционные тесты никогда не запускаются одной и той же командой
+случайно.
+
+\begin{verbatim}
+[pytest]
+markers =
+    integration: requires a real Postgres database (see tests/integration/conftest.py)
+addopts = -m "not integration"
+\end{verbatim}
+
+Эти тесты существуют ровно там, где фейковые репозитории структурно не
+могут ничего проверить -- ограничение \texttt{EXCLUDE} (раздел~11.3),
+частичные уникальные индексы, реальные join-запросы репозитория при
+скоупинге по точке сети, и happy path целиком через настоящий HTTP-стек
+(\texttt{httpx.AsyncClient} поверх реального ASGI-приложения). Пример --
+\texttt{test_double_booking.py}, прямое продолжение раздела~3.3 и~11.3:
+
+\begin{verbatim}
+def test_exclusion_constraint_rejects_overlapping_appointment(db_session, bookable_setup):
+    """Доказывает, что пересечение физически невозможно на уровне БД, а не
+    только что сервис вежливо отказывает при последовательных запросах."""
+    ...
+    with pytest.raises(IntegrityError) as exc_info:
+        repo.create(client_b.id, AppointmentCreate(..., start_time=overlap_start), ...)
+    assert exc_info.value.orig.diag.constraint_name == "no_double_booking"
+
+
+@pytest.mark.anyio
+async def test_concurrent_booking_requests_only_one_succeeds(client, db_session, bookable_setup):
+    """Две ОДНОВРЕМЕННЫЕ HTTP-заявки на один и тот же слот."""
+    responses = await asyncio.gather(*(
+        client.post("/api/appointments", json=payload, headers={"Authorization": f"Bearer {token}"})
+        for token in tokens
+    ))
+    statuses = sorted(r.status_code for r in responses)
+    assert statuses == [201, 409], f"unexpected statuses: {[r.text for r in responses]}"
+\end{verbatim}
+
+Второй тест -- буквально то же состояние гонки, о котором предупреждает
+раздел~3.3 (шаг~6), воспроизведённое по-настоящему: \texttt{asyncio.gather}
+отправляет два запроса на бронирование одного и того же слота
+одновременно и проверяет, что ровно один получает 201, а второй -- 409 (и
+никогда не 500).
+
+\subsection{Каталог тестов}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{backend/tests/ -- юнит-тесты (без БД)} \\
+\hline
+\textbf{Файл} & \textbf{Что проверяет} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Что проверяет} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{test_auth_unit.py} & Хеширование/проверка паролей и
+  RBAC-зависимости (\texttt{require_role}). \\
+\envvar{test_admin_role_assignment.py} & \texttt{AdminService}: сетевая
+  иерархия ролей -- назначить \texttt{admin}/\texttt{owner} может только
+  \texttt{owner}. \\
+\envvar{test_admin_session_revocation.py} & События безопасности
+  (смена пароля, блокировка, удаление) отзывают и \texttt{token_version},
+  и все refresh-сессии разом. \\
+\envvar{test_admin_master_profile.py} & Реактивация профиля мастера
+  вместо создания нового при повторном назначении роли. \\
+\envvar{test_appointment_create_guards.py} & Лимит активных записей
+  клиента и запрет самозаписи мастера к себе. \\
+\envvar{test_appointment_reschedule.py} & \texttt{AppointmentService.reschedule()}. \\
+\envvar{test_business_hours.py} & Часы работы точки как жёсткая граница
+  и для расписаний мастеров, и для самих записей. \\
+\envvar{test_client_ip.py} & \texttt{client_ip()} -- реальный IP через
+  цепочку прокси Caddy $\to$ nginx. \\
+\envvar{test_content_filter.py} & \texttt{contains_profanity()}/\texttt{contains_link()}
+  -- в первую очередь ложные срабатывания фильтра. \\
+\envvar{test_email_verification.py} & Методы подтверждения email в
+  \texttt{AuthService}. \\
+\envvar{test_health.py} & \texttt{GET /health} возвращает 503, если БД
+  недоступна -- не только «процесс жив». \\
+\envvar{test_rate_limit.py} & Подключение лимита частоты запросов и его
+  обработчик исключения. \\
+\envvar{test_reminder_service.py} & \texttt{ReminderService.send_due_reminders()}. \\
+\envvar{test_review_schema.py} & Цензура/запрет ссылок в отзыве
+  применяются на входе схемы, до создания. \\
+\envvar{test_salon_scoping.py} & \texttt{resolve_salon_scope} --
+  ветвления по роли на фейковых репозиториях. \\
+\envvar{test_schemas.py} & Валидация схем: пароли (лимит bcrypt),
+  расписание, таймзоны, деньги. \\
+\envvar{test_setup_service.py} & Первичная настройка (создание
+  владельца сети + первой точки) на фейковом репозитории. \\
+\envvar{test_slots.py} & Генерация свободных слотов бронирования. \\
+\envvar{test_slug.py} & \texttt{slugify()}/\texttt{generate_unique_slug()}
+  -- генерация URL-слага точки сети. \\
+\envvar{test_state_machine.py} & Машина состояний записи
+  (\texttt{ALLOWED_TRANSITIONS}) и права на переходы. \\
+\envvar{test_uploads.py} & \texttt{save_uploaded_image()} -- тип/размер
+  файла и что он реально попадает на диск под сгенерированным именем. \\
+\envvar{test_vk_oauth_service.py} & VK ID OAuth (PKCE) -- без сети и
+  БД, фейковый репозиторий и подмена \texttt{httpx.post}. \\
+\end{xltabular}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{backend/tests/integration/ -- на реальном Postgres} \\
+\hline
+\textbf{Файл} & \textbf{Что проверяет} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Что проверяет} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{test_double_booking.py} & Ограничение \texttt{EXCLUDE USING gist}
+  и настоящая гонка двух одновременных запросов (раздел~11.3). \\
+\envvar{test_soft_delete_constraints.py} & Частичные уникальные
+  индексы (\texttt{WHERE deleted_at IS NULL}) реально освобождают
+  email/телефон/\texttt{vk_user_id} при мягком удалении. \\
+\envvar{test_salon_scoping_flow.py} & Скоупинг по точке сети сквозь
+  настоящий HTTP-стек и join-запросы репозитория. \\
+\envvar{test_salon_slug_uniqueness.py} & \texttt{SalonService.create()}
+  разруливает коллизию slug суффиксом через реальные повторные запросы к
+  БД. \\
+\envvar{test_admin_role_assignment_flow.py} & Полный HTTP-флоу:
+  создать пользователя $\to$ назначить точку $\to$ повысить роль. \\
+\envvar{test_fresh_install_setup.py} & Первичная настройка на пустой
+  БД -- регрессия ограничения \texttt{ck_users_admin_requires_salon}. \\
+\envvar{test_happy_path_e2e.py} & Полный сценарий целиком: регистрация
+  $\to$ свободный слот $\to$ бронирование $\to$ подтверждение $\to$
+  завершение -- через реальный HTTP-стек и БД. \\
+\end{xltabular}
+
+% ============================================================
+\section{Frontend: точка входа и маршрутизация}
+% ============================================================
+
+\subsection{\texttt{main.js} -- где всё начинается}
+
+\envvar{frontend/src/main.js} -- первый файл, который выполняется в
+браузере. Он создаёт приложение Vue, подключает Pinia и роутер, и
+настраивает две вещи, которых нет в типичном учебном примере Vue-проекта:
+
+\begin{verbatim}
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+
+setUnauthorizedHandler(() => {
+  const auth = useAuthStore()
+  if (!auth.isLoggedIn) return
+  auth.clearSession()
+  const current = router.currentRoute.value
+  if (current.path !== '/login') {
+    router.push({ path: '/login', query: { redirect: current.fullPath } })
+  }
+})
+
+app.config.errorHandler = (err, _instance, info) => {
+  console.error('[vue error]', info, err)
+  useToastStore().error('Что-то пошло не так. Обновите страницу.')
+}
+
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({ app, dsn: import.meta.env.VITE_SENTRY_DSN, tracesSampleRate: 0 })
+}
+
+app.mount('#app')
+\end{verbatim}
+
+\texttt{setUnauthorizedHandler(...)} -- та самая функция, которую вызовет
+\envvar{api/client.js} (раздел~15), когда сервер окончательно отвергнет
+токен (после неудачной попытки обновить его через refresh). Она объявлена
+именно здесь, а не внутри самого \texttt{client.js}, чтобы избежать
+циклического импорта: \texttt{client.js} $\to$ \texttt{router} $\to$
+\texttt{stores} $\to$ \texttt{client.js}. \texttt{app.config.errorHandler} --
+глобальный перехватчик необработанных ошибок рендера Vue-компонентов
+(«error boundary») -- без него исключение в шаблоне молча ломает
+страницу; здесь оно вместо этого показывает тост и пишет в консоль.
+\texttt{VITE_SENTRY_DSN} не задан по умолчанию (то же самое, что
+\texttt{SENTRY_DSN} на backend, раздел~3.1) -- пока переменная пуста,
+\texttt{Sentry.init(...)} не вызывается вовсе, и весь пакет
+\texttt{@sentry/vue} даже не попадает в собранный бандл благодаря
+tree-shaking.
+
+\subsection{\texttt{App.vue} -- корневой компонент}
+
+\envvar{frontend/src/App.vue} -- то, что реально монтируется в
+\texttt{\#app}. Он тонкий: показывает баннер неподтверждённого email,
+шапку и подвал сайта (кроме страниц с \texttt{meta.hideHeader} --
+у визарда настройки, кабинета мастера и админки есть свой макет), сам
+маршрут (\texttt{<router-view />}) и контейнер тостов; при монтировании
+загружает контент сайта и список точек сети -- они нужны публичным
+экранам (футер, секция «Наши салоны», фильтр каталога), поэтому грузятся
+здесь, а не только внутри админки.
+
+\subsection{\texttt{router/index.js} -- все маршруты в одном файле}
+
+Весь список маршрутов SPA -- один файл,
+\envvar{frontend/src/router/index.js}. Каждый компонент страницы
+подключён через \texttt{() => import(...)} -- ленивая загрузка: код
+конкретной страницы попадает в браузер отдельным чанком только когда
+пользователь на неё переходит, а не сразу при открытии сайта.
+\begin{verbatim}
+const routes = [
+  { path: '/setup', name: 'setup', component: () => import('../views/SetupWizard.vue'),
+    meta: { hideHeader: true } },
+  { path: '/', name: 'home', component: () => import('../views/HomePage.vue') },
+  { path: '/masters/:id', name: 'master-booking', component: () => import('../views/BookingPage.vue') },
+  { path: '/login', ..., meta: { guestOnly: true } },
+  { path: '/profile', ..., meta: { requiresAuth: true } },
+  {
+    path: '/dashboard',
+    component: () => import('../views/MasterDashboard.vue'),
+    meta: { requiresAuth: true, roles: ['master'], hideHeader: true },
+    children: [ /* dashboard-appointments, dashboard-schedule, dashboard-reviews */ ],
+  },
+  {
+    path: '/admin',
+    component: () => import('../views/AdminPanel.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'owner'], hideHeader: true },
+    children: [ /* admin-stats, admin-users, admin-services, admin-masters, ... */ ],
+  },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundPage.vue') },
+]
+\end{verbatim}
+Обратите внимание на маршрут \texttt{/admin/salons} внутри детей
+\texttt{/admin} -- у него собственный \texttt{meta.roles: ['owner']},
+переопределяющий более широкий \texttt{['admin', 'owner']} родителя:
+точками сети может управлять только владелец сети, хотя саму админку
+видит и обычный администратор точки.
+
+Единственный глобальный хук \texttt{router.beforeEach} -- это то место,
+где решается, пускать ли вообще на запрошенную страницу:
+\begin{verbatim}
+router.beforeEach(async (to) => {
+  const setup = useSetupStore()
+  if (!setup.checked) await setup.checkStatus()
+  if (!setup.completed) {
+    return to.name === 'setup' ? true : { name: 'setup' }
+  }
+  if (setup.completed && to.name === 'setup') return { name: 'home' }
+
+  const auth = useAuthStore()
+  if (!auth.ready) await auth.fetchMe()
+
+  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.roles && !to.meta.roles.includes(auth.user?.role)) {
+    return { name: 'home' }
+  }
+  if (to.meta.guestOnly && auth.isLoggedIn) {
+    return (typeof to.query.redirect === 'string' && to.query.redirect) || { name: 'home' }
+  }
+  return true
+})
+\end{verbatim}
+Порядок проверок здесь принципиален. Первым делом хук спрашивает
+\texttt{useSetupStore()}, завершена ли первичная настройка системы
+(раздел~8, \texttt{GET /api/setup/status}) -- если нет, \emph{любой}
+маршрут, кроме самого \texttt{/setup}, принудительно перенаправляется на
+визард: обойти мастер первого запуска, зная прямой URL другой страницы,
+невозможно. Дальше -- обычная связка «дождаться, кто я» (\texttt{auth.fetchMe()},
+раздел~14) и «имею ли право сюда попасть» по \texttt{meta.requiresAuth}/\texttt{meta.roles}.
+Раз запрошенный так и не выполненный \texttt{auth.fetchMe()} значит, что
+проверка \texttt{await} гарантированно дожидается ответа сервера прежде,
+чем решение о доступе будет принято -- иначе на быстром интернете
+защищённая страница на мгновение мигнула бы для неавторизованного
+пользователя.
+
+% ============================================================
+\section{Frontend: управление состоянием (Pinia stores)}
+% ============================================================
+
+Все хранилища в \envvar{frontend/src/stores/} написаны в
+\emph{setup-стиле} Pinia -- то есть выглядят как обычная Vue Composition
+API функция (\texttt{ref}, \texttt{computed}), а не как объект с полями
+\texttt{state}/\texttt{getters}/\texttt{actions} (более старый,
+Options-стиль Pinia). Vuex в проекте не используется вовсе.
+
+\subsection{\texttt{stores/auth.js} -- кто сейчас залогинен}
+
+Самое часто используемое хранилище проекта. Его центральная идея --
+намеренное отсутствие токена внутри:
+\begin{verbatim}
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref(null)
+  const ready = ref(false)
+
+  const isLoggedIn = computed(() => !!user.value)
+  const isOwner = computed(() => user.value?.role === 'owner')
+  const isAdmin = computed(() => user.value?.role === 'admin' || isOwner.value)
+
+  async function fetchMe() {
+    try {
+      const res = await authApi.me()
+      user.value = res.data
+    } catch (err) {
+      if (err.response?.status === 401) clearSession()
+    } finally {
+      ready.value = true
+    }
+  }
+
+  function clearSession() {
+    user.value = null
+  }
+
+  return { user, ready, isLoggedIn, isClient, isMaster, isAdmin, isOwner, salon,
+            register, login, fetchMe, updateMe, logout, clearSession }
+})
+\end{verbatim}
+Токен живёт только в httpOnly-cookie (раздел~10) -- JavaScript физически
+не может его прочитать, поэтому хранилище вообще не пытается. Сессия на
+фронтенде определяется исключительно тем, есть ли объект \texttt{user}
+или он \texttt{null}; чтобы узнать, залогинен ли вообще посетитель при
+первой загрузке страницы, единственный способ -- спросить сервер
+(\texttt{GET /api/auth/me}) -- отсюда \texttt{fetchMe()}, которую ждёт
+\texttt{router.beforeEach} перед первой навигацией. Обратите внимание,
+что \texttt{isAdmin} явно включает \texttt{isOwner.value} -- то же
+правило «\texttt{owner} $\supset$ \texttt{admin}» из раздела~1
+и~10, продублированное на фронтенде для условий в шаблонах.
+
+\subsection{Остальные хранилища}
+
+\paragraph{\envvar{frontend/src/stores/toast.js}}
+Всплывающие уведомления -- единая точка показа сообщений об успехе,
+ошибке или информации в любом месте приложения.
+\begin{verbatim}
+toasts              # ref, массив активных тостов
+push(message, variant = 'info', duration = 4000)   # добавляет тост, планирует автоскрытие
+dismiss(id)
+success(message)    # push(..., 'success')
+error(message)      # push(..., 'error')
+info(message)
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/stores/setup.js}}
+Статус визарда первого запуска -- определяет, нужно ли показать
+пользователю страницу \texttt{/setup} вместо обычных страниц сайта
+(раздел~13.3).
+\begin{verbatim}
+completed       # ref, по умолчанию true
+requiresToken   # ref
+checked         # ref
+checkStatus()   # запрашивает setupApi.status(); при сетевой ошибке считает настройку завершённой
+markCompleted() # принудительно помечает настройку завершённой после успешного /setup
+\end{verbatim}
+\textit{Особенности:} \texttt{completed} по умолчанию \texttt{true} --
+намеренное «fail-open» поведение: сетевая ошибка при проверке статуса не
+должна блокировать доступ к уже настроенному сайту.
+
+\paragraph{\envvar{frontend/src/stores/salon.js}}
+Список точек сети (салонов). Грузится один раз при старте приложения (в
+\texttt{App.vue}) и используется переключателем точки в админке, футером
+сайта и секцией «Наши салоны» на главной.
+\begin{verbatim}
+salons            # ref, полный список точек
+viewingSalonId    # ref, id точки, которую сейчас просматривает owner; null = «вся сеть»
+activeSalons      # computed, только активные (открытые) точки
+byId              # computed, словарь точек по id
+viewingSalon      # computed
+load(force = false)
+setViewing(id)
+refresh()         # load(true)
+\end{verbatim}
+\textit{Особенности:} \texttt{GET /api/salons} отдаёт разный список в
+зависимости от роли (закрытые точки видят только \texttt{admin}/\texttt{owner}),
+поэтому \texttt{AdminPanel.vue} перезапрашивает список с
+\texttt{force=true} при входе в панель, а публичные экраны читают
+\texttt{activeSalons} и остаются корректными даже с расширенным списком
+в сторе.
+
+\paragraph{\envvar{frontend/src/stores/masterProfile.js}}
+Кэширует профиль мастера текущего авторизованного пользователя. Нужен во
+всех вкладках личного кабинета мастера (записи, расписание, отзывы),
+чтобы каждая под-страница не запрашивала профиль заново.
+\begin{verbatim}
+profile           # ref
+loaded            # ref
+load(force = false)   # через mastersApi.getMe(); повторный вызов без force пропускается
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/stores/siteContent.js}}
+Редактируемый через CMS (\texttt{/admin/settings}) контент сайта --
+тексты шапки, hero-блока, секций услуг/мастеров/CTA, футера,
+SEO-метаданные и тема оформления. Значения по умолчанию дублируют
+backend-дефолты, поэтому публичные страницы выглядят правильно ещё до
+первого ответа сервера.
+\begin{verbatim}
+content           # ref
+load(force = false)  # через settingsApi.get(), затем applyTheme/applyFont/applySeo
+set(data)         # заменяет контент целиком (после сохранения в редакторе)
+\end{verbatim}
+\textit{Особенности:} \texttt{applyTheme}/\texttt{applyFont}/\texttt{applySeo}
+(раздел~18) вызываются уже в момент создания стора (на дефолтных
+значениях) и при каждой загрузке/замене -- тема и SEO-теги применяются к
+живому DOM, а не только на экране редактирования.
+
+% ============================================================
+\section{Frontend: слой API (\texttt{api/})}
+% ============================================================
+
+\subsection{\texttt{api/client.js} -- один axios на весь фронтенд}
+
+Все остальные файлы \texttt{api/} используют один и тот же настроенный
+экземпляр axios из \envvar{frontend/src/api/client.js}:
+\begin{verbatim}
+const client = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+
+let refreshPromise = null
+
+function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = axios.post('/api/auth/refresh', null, { withCredentials: true })
+      .finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
+}
+
+client.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const { config, response } = error
+    const isNoRetryEndpoint = NO_RETRY_PATHS.some((path) => config?.url?.startsWith(path))
+
+    if (response?.status === 401 && config && !config._retriedAfterRefresh && !isNoRetryEndpoint) {
+      config._retriedAfterRefresh = true
+      try {
+        await refreshAccessToken()
+        return client(config)
+      } catch { /* refresh тоже не удался — падаем ниже на onUnauthorized */ }
+    }
+    if (error.response?.status === 401 && onUnauthorized) onUnauthorized()
+    return Promise.reject(error)
+  }
+)
+\end{verbatim}
+\texttt{withCredentials: true} -- обязательное условие, чтобы браузер
+вообще прикладывал httpOnly-cookie к запросу. Интересная часть --
+\texttt{refreshPromise}: если сразу несколько запросов на странице
+получат 401 одновременно (например, несколько виджетов грузят данные
+параллельно), они не отправят несколько параллельных
+\texttt{POST /api/auth/refresh} -- второй и последующие вызовы
+\texttt{refreshAccessToken()} переиспользуют уже начатый общий promise
+вместо создания нового. Это называется \emph{single-flight} и напрямую
+связано с ротацией refresh-токена на backend (раздел~10): если бы два
+запроса на обновление ушли параллельно по-настоящему, второй получил бы
+401 на уже использованный (ротированный первым) refresh-токен.
+\texttt{config._retriedAfterRefresh} гарантирует, что повторная попытка
+происходит не более одного раза на исходный запрос -- без этого флага
+бесконечно повторяющийся 401 после неудачного refresh зациклил бы
+запросы.
+
+\subsection{Остальные файлы \texttt{api/}}
+
+Все перечисленные ниже файлы устроены одинаково -- тонкая функция на
+каждый эндпоинт backend, без собственной логики внутри (сравните с
+таблицами роутов в разделе~8 -- один файл \texttt{api/x.js} почти всегда
+соответствует одному файлу \texttt{routes/x.py}).
+
+\paragraph{\envvar{frontend/src/api/index.js}}
+Единая точка входа (barrel-файл) для всех \texttt{api}-модулей и общего
+HTTP-клиента -- остальной код импортирует конкретные \texttt{*Api}
+объекты из \texttt{../api}, а не обращается к отдельным файлам напрямую.
+
+\paragraph{\envvar{frontend/src/api/auth.js}}
+\begin{verbatim}
+register(data) -> POST /auth/register
+login(data) -> POST /auth/login
+logout() -> POST /auth/logout
+me() -> GET /auth/me
+updateMe(data) -> PATCH /auth/me
+requestPasswordReset(email) -> POST /auth/password-reset/request
+confirmPasswordReset(token, newPassword) -> POST /auth/password-reset/confirm
+confirmEmailVerification(token) -> POST /auth/email-verification/confirm
+resendEmailVerification() -> POST /auth/email-verification/resend
+vkEnabled() -> GET /auth/vk/enabled
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/appointments.js}}
+\begin{verbatim}
+create(data) -> POST /appointments
+getById(id) -> GET /appointments/{id}
+cancel(id) -> POST /appointments/{id}/cancel
+updateStatus(id, statusValue) -> PATCH /appointments/{id}/status
+reschedule(id, startTime) -> PATCH /appointments/{id}/reschedule
+listMy(params) -> GET /appointments/my
+listForMaster(masterId, params) -> GET /appointments/master/{masterId}
+listAll(params) -> GET /appointments
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/masters.js}}
+\begin{verbatim}
+list(params) -> GET /masters
+getMe() -> GET /masters/me
+getById(id) -> GET /masters/{id}
+update(id, data) -> PATCH /masters/{id}
+getServices(id) -> GET /masters/{id}/services
+addService(id, serviceId, priceOverride) -> POST /masters/{id}/services
+removeService(id, serviceId) -> DELETE /masters/{id}/services/{serviceId}
+getSchedule(id) -> GET /masters/{id}/schedule
+setSchedule(id, data) -> POST /masters/{id}/schedule
+updateSchedule(id, dayOfWeek, data) -> PATCH /masters/{id}/schedule/{dayOfWeek}
+getSlots(id, serviceId, targetDate, excludeAppointmentId) -> GET /masters/{id}/slots
+\end{verbatim}
+\textit{Особенности:} \texttt{getSlots} принимает необязательный
+\envvar{excludeAppointmentId} -- нужен при переносе существующей записи,
+чтобы её же текущий слот не считался занятым при расчёте доступности.
+
+\paragraph{\envvar{frontend/src/api/salons.js}}
+\begin{verbatim}
+list(params) -> GET /salons
+getById(id) -> GET /salons/{id}
+create(data) -> POST /salons
+update(id, data) -> PATCH /salons/{id}
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/services.js}}
+\begin{verbatim}
+list(params) -> GET /services
+getById(id) -> GET /services/{id}
+create(data) -> POST /services
+update(id, data) -> PATCH /services/{id}
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/reviews.js}}
+\begin{verbatim}
+create(data) -> POST /reviews
+listForMaster(masterId, params) -> GET /reviews/master/{masterId}
+listAll(params) -> GET /reviews
+moderate(id, isPublished) -> PATCH /reviews/{id}/publish
+remove(id) -> DELETE /reviews/{id}
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/admin.js}}
+\begin{verbatim}
+getStats(params) -> GET /admin/stats
+listUsers(params) -> GET /admin/users
+createUser(data) -> POST /admin/users
+updateUser(userId, data) -> PATCH /admin/users/{userId}
+changeUserRole(userId, role) -> PATCH /admin/users/{userId}/role
+assignUserSalon(userId, salonId) -> PATCH /admin/users/{userId}/salon
+setUserBlocked(userId, isBlocked) -> PATCH /admin/users/{userId}/block
+createMasterProfile(userId, salonId) -> POST /admin/users/{userId}/master
+deleteUser(userId) -> DELETE /admin/users/{userId}
+deleteService(serviceId) -> DELETE /admin/services/{serviceId}
+updateMasterPhoto(masterId, photoUrl) -> PATCH /admin/masters/{masterId}/photo
+uploadImage(file) -> POST /admin/uploads/image  # тело — FormData
+getReport(params) -> GET /admin/reports
+exportReport(params) -> GET /admin/reports/export  # responseType: 'blob'
+\end{verbatim}
+\textit{Особенности:} \texttt{assignUserSalon} обязана вызываться раньше
+\envvar{changeUserRole(userId, 'admin')} -- ограничение БД
+\envvar{ck_users_admin_requires_salon} требует, чтобы точка уже была
+назначена в момент повышения роли до администратора (раздел~10).
+
+\paragraph{\envvar{frontend/src/api/settings.js}}
+\begin{verbatim}
+get() -> GET /settings
+update(data) -> PATCH /settings
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/api/setup.js}}
+\begin{verbatim}
+status() -> GET /setup/status
+complete(data) -> POST /setup
+\end{verbatim}
+
+% ============================================================
+\section{Frontend: компоненты}
+% ============================================================
+
+\subsection{\texttt{components/ui/} -- переиспользуемые «кирпичики»}
+
+Самый мелкий уровень интерфейса -- кнопка, поле ввода, карточка. Ни один
+файл здесь не знает о бизнес-логике приложения, только о том, как
+выглядеть и что эмитить через \texttt{v-model}. Разберём один целиком,
+чтобы дальше читать остальные по аналогии.
+
+\envvar{frontend/src/components/ui/BaseButton.vue} -- самый простой и
+самый часто используемый компонент проекта:
+\begin{verbatim}
+<template>
+  <button :type="type" :disabled="disabled || loading"
+    class="... font-mono uppercase tracking-wider ..."
+    :class="[variants[variant] ?? variants.primary, sizes[size] ?? sizes.md]">
+    <svg v-if="loading" class="h-4 w-4 animate-spin" ...>...</svg>
+    <slot />
+  </button>
+</template>
+
+<script setup>
+defineProps({
+  variant: { type: String, default: 'primary' },
+  size: { type: String, default: 'md' },
+  loading: Boolean,
+  disabled: Boolean,
+  type: { type: String, default: 'button' },
+})
+const variants = { primary: '...', accent: '...', ghost: '...', danger: '...' }
+const sizes = { sm: '...', md: '...', lg: '...' }
+</script>
+\end{verbatim}
+Три вещи, которые повторяются в десятках других компонентов проекта:
+\texttt{<slot />} -- содержимое кнопки передаёт вызывающий код
+(\texttt{<BaseButton>Записаться</BaseButton>}), сам компонент не решает,
+какой текст показать; проп \texttt{loading} сам подставляет крутящийся
+спиннер и блокирует повторный клик -- вызывающему коду достаточно
+привязать один \texttt{ref} к состоянию запроса; словари
+\texttt{variants}/\texttt{sizes} -- готовый набор вариантов оформления
+вместо произвольных классов на каждом месте использования.
+
+Чуть сложнее -- \envvar{frontend/src/components/ui/ImageUpload.vue}:
+показывает превью картинки и сам делает запрос загрузки на сервер при
+выборе файла:
+\begin{verbatim}
+async function onFileChange(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  uploading.value = true
+  try {
+    const { data } = await adminApi.uploadImage(file)
+    emit('update:modelValue', data.url)
+  } catch (err) {
+    toast.error(extractErrorMessage(err, 'Не удалось загрузить изображение'))
+  } finally {
+    uploading.value = false
+  }
+}
+\end{verbatim}
+Компонент реализует \texttt{v-model} через связку пропа
+\texttt{modelValue} и события \texttt{update:modelValue} -- стандартный
+для Vue приём, встречающийся почти во всех \texttt{ui/}-компонентах ниже:
+родитель просто пишет \texttt{<ImageUpload v-model="master.photo_url" />}
+и не заботится, как именно внутри происходит загрузка на
+\texttt{POST /api/admin/uploads/image} (раздел~15) и получение готового
+URL обратно.
+
+Таблица~7 -- остальные 18 файлов \texttt{components/ui/}, все в том же
+духе: маленький, самодостаточный, переиспользуемый в нескольких местах.
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{components/ui/ -- остальные компоненты} \\
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{BaseCard.vue} & Базовая карточка-контейнер (рамка + паддинг) --
+  универсальный «холст» для контента по всей админке и кабинету мастера. \\
+\envvar{BaseCheckbox.vue} & Стилизованный чекбокс с \texttt{v-model} --
+  настоящий \texttt{<input type="checkbox">} остаётся в разметке (скрыт
+  визуально), видимая галочка -- отдельная иконка поверх него, чтобы
+  сохранить нативные фокус/доступность. \\
+\envvar{BaseInput.vue} & Базовое поле формы (\texttt{input} или
+  \texttt{textarea}) с лейблом, подсказкой и текстом ошибки -- основной
+  элемент ввода почти во всех формах приложения. \\
+\envvar{BaseSelect.vue} & Базовый выпадающий список с лейблом и
+  собственной нарисованной стрелкой вместо нативной. \\
+\envvar{BaseDateInput.vue} & Кастомный календарь выбора одной даты --
+  замена нативного \texttt{<input type="date">} там, где нужен
+  гарантированно русскоязычный интерфейс (нативный виджет следует локали
+  браузера/ОС, может показать формат \texttt{mm/dd/yyyy} даже при
+  \texttt{lang="ru"} на странице). \\
+\envvar{BaseTimeInput.vue} & Выбор времени двумя выпадающими списками
+  (часы/минуты) -- замена нативного \texttt{<input type="time">}, который
+  может показывать 12-часовой формат AM/PM в зависимости от локали ОС. \\
+\envvar{ConfirmDialog.vue} & Универсальное модальное окно подтверждения
+  опасного действия (например удаления) -- используется по всей админке
+  в списках. \\
+\envvar{EditableText.vue} & Текст, который в обычном режиме -- статичный
+  тег, а в режиме редактирования сайта превращается в поле,
+  редактируемое прямо на странице -- основной строительный блок
+  инлайн-редактирования контента главной страницы владельцем. \\
+\envvar{EditableLink.vue} & Ссылка-обёртка, которая в режиме
+  редактирования контента превращается из кликабельной ссылки в обычный
+  \texttt{<span>} -- чтобы клики по CTA-кнопкам на главной не уводили
+  редактора с текущей страницы. \\
+\envvar{EmptyState.vue} & Заглушка «здесь пока ничего нет» -- вместо
+  списков/таблиц, когда данных нет. \\
+\envvar{HeroPhotoUpload.vue} & Оверлей с кнопками «Выбрать»/«Убрать»
+  поверх фото в hero-блоке настроек сайта -- та же логика загрузки, что и
+  у \texttt{ImageUpload.vue} выше. \\
+\envvar{Pagination.vue} & Постраничная навигация «Назад/Далее» со
+  счётчиком «Страница X из Y» -- под списками/таблицами админки; полностью
+  скрывает себя, если страница всего одна. \\
+\envvar{Skeleton.vue} & Прямоугольник-заглушка с пульсирующей анимацией
+  -- плейсхолдер на время загрузки контента. \\
+\envvar{StarRatingInput.vue} & Выбор оценки от 1 до 5 звёзд кликом -- в
+  форме отзыва клиента; размечен как \texttt{role="radiogroup"} для
+  доступности. \\
+\envvar{StatusPill.vue} & Цветной бейдж статуса записи (ожидает /
+  подтверждена / завершена / отменена) -- везде, где показывается
+  \texttt{appointment.status}. \\
+\envvar{StepTitle.vue} & Заголовок пронумерованного шага в пошаговой
+  форме бронирования (\texttt{views/BookingPage.vue}, см. раздел~17). \\
+\envvar{ToastContainer.vue} & Контейнер всплывающих уведомлений в правом
+  нижнем углу экрана -- подключён один раз в \texttt{App.vue}
+  (раздел~13.2), читает состояние из \texttt{useToastStore} (раздел~14). \\
+\envvar{VkLoginButton.vue} & Кнопка «Войти через VK» на страницах входа
+  и регистрации. Клик -- полная навигация браузера
+  (\texttt{window.location.href = ...}), а не axios-запрос: серверу
+  нужно выставить httpOnly-cookie и сделать редирект на \texttt{id.vk.com}
+  (раздел~10), что может сделать только сам браузер. \\
+\end{xltabular}
+
+\subsection{\texttt{components/} -- составные компоненты}
+
+Крупнее, чем \texttt{ui/} -- собирают несколько «кирпичиков» вместе под
+конкретную задачу интерфейса и обычно завязаны на конкретные
+хранилища/API.
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{components/ -- составные компоненты} \\
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{AppHeader.vue} & Закреплённая сверху шапка сайта -- логотип,
+  навигация (пункты по роли пользователя) и блок авторизации. Тот же
+  компонент используется и на публичных страницах, и в редакторе
+  главной (раздел~18). \\
+\envvar{AppFooter.vue} & Подвал сайта -- бренд, редактируемый tagline,
+  список открытых точек сети, соцссылки, copyright и ссылка на страницу
+  политики обработки персональных данных. \\
+\envvar{DashboardLayout.vue} & Общий каркас для авторизованных разделов
+  (кабинет мастера и админка) -- боковое меню, мобильное меню, верхняя
+  панель с заголовком, переключателем точки сети (только для владельца)
+  и слот для контента конкретной страницы. \\
+\envvar{SidebarLink.vue} & Один пункт меню боковой панели
+  \texttt{DashboardLayout.vue} -- иконка, подпись, ссылка с подсветкой
+  активного пункта. \\
+\envvar{SalonSwitcher.vue} & Переключатель точки сети в шапке
+  \texttt{DashboardLayout.vue}. Виден только владельцу сети
+  (выпадающий список всех точек); администратор одной точки вместо
+  селекта видит статичную подпись -- бэкенд (\texttt{resolve_salon_scope},
+  раздел~10) всё равно принудительно сузит область видимости, поэтому
+  рабочий выбор для него был бы обманом интерфейса. \\
+\envvar{EmailVerificationBanner.vue} & Узкая жёлтая полоса-напоминание о
+  неподтверждённом email с кнопкой повторной отправки письма --
+  подключена один раз в \texttt{App.vue}. \\
+\envvar{HomePreview.vue} & Вся содержательная часть главной страницы --
+  hero-блок (в 3 вариантах вёрстки), бегущая строка услуг, преимущества,
+  услуги и цены, витрина мастеров, точки сети, финальный CTA. Один и тот
+  же компонент рендерит и публичную главную страницу, и её живой
+  предпросмотр в редакторе контента (раздел~18). \\
+\envvar{Hero3DRoom.vue} & Интерактивная 3D-модель интерьера барбершопа
+  для hero-блока -- один из вариантов медиа. Модель (около 13\,МБ
+  \texttt{.glb} из \texttt{3d_models/}) грузится лениво через
+  \texttt{IntersectionObserver} и плавно поворачивается вслед за
+  курсором мыши. \\
+\envvar{SalonsSection.vue} & Секция «Наши салоны» на главной странице --
+  карточки открытых точек сети с фото, адресом и часами работы. \\
+\envvar{MasterCard.vue} & Карточка мастера с фото, специализацией,
+  именем и ссылкой на страницу записи к нему -- в каталоге мастеров и на
+  главной. \\
+\envvar{AppointmentCard.vue} & Карточка одной записи -- статус-бейдж,
+  подписи, дата/время, итоговая цена; кнопки действий передаются
+  вызывающей страницей через слот. Используется и в личном кабинете
+  клиента, и в кабинете мастера. \\
+\envvar{RescheduleModal.vue} & Модальное окно переноса записи клиента на
+  другую дату/время -- выбор даты с подгрузкой свободных слотов мастера
+  под неё. \\
+\envvar{KpiCard.vue} & Небольшая карточка-метрика (иконка + подпись +
+  значение) для страниц статистики и отчётов админки. \\
+\envvar{RegistrationsChart.vue} & Линейный график регистраций новых
+  пользователей по дням на странице статистики -- нарисован вручную на
+  SVG, без сторонней библиотеки графиков (данные продублированы скрытой
+  таблицей для скринридеров). \\
+\end{xltabular}
+
+\subsection{\texttt{composables/} -- переиспользуемая логика}
+
+Composable -- функция, использующая реактивность Vue (\texttt{ref},
+\texttt{watch}), но не привязанная к конкретному компоненту -- в отличие
+от Pinia-хранилищ (раздел~14), не хранит общее состояние приложения,
+просто переиспользует небольшой кусок логики между компонентами.
+
+\paragraph{\envvar{frontend/src/composables/useFormErrors.js}}
+Хранение и управление ошибками полей формы -- реактивный объект
+\texttt{errors} и методы для его изменения; используется в паре с
+\texttt{BaseInput}/\texttt{BaseSelect} (их проп \texttt{error}) почти во
+всех формах приложения.
+\begin{verbatim}
+useFormErrors() -> { errors, setError, clearError, clearAll, setFromResponse }
+setFromResponse(err)   # разбирает detail[] из 422-ответа FastAPI, раскладывает по полям
+\end{verbatim}
+\textit{Особенности:} \texttt{setFromResponse} не занимается переводом
+сообщений сама -- делегирует его функции
+\texttt{friendlyValidationError} из \texttt{utils/errors.js} и только
+раскладывает результат по ключам формы.
+
+\paragraph{\envvar{frontend/src/composables/useDebouncedWatch.js}}
+Обёртка над Vue \texttt{watch()}, откладывающая вызов \texttt{callback}
+до тех пор, пока отслеживаемое значение не перестанет меняться в течение
+заданного времени (debounce). Используется там, где не нужно дёргать API
+на каждое нажатие клавиши (поиск, фильтры в списках админки).
+\begin{verbatim}
+useDebouncedWatch(source, callback, delay = 350)
+\end{verbatim}
+
+\paragraph{\envvar{frontend/src/utils/errors.js}}
+Перевод технических ошибок валидации FastAPI/Pydantic (422) в понятные
+пользователю сообщения на русском -- общая точка входа как для текста
+под конкретным полем формы, так и для текста в тосте об ошибке.
+\begin{verbatim}
+friendlyValidationError(item) -> { field, message }
+extractErrorMessage(err, fallback = 'Что-то пошло не так. Попробуйте ещё раз.') -> String
+\end{verbatim}
+\textit{Особенности:} для собственных серверных валидаторов
+(\envvar{raise ValueError(...)}, разделы~5, 9) сообщение берётся как
+есть, только обрезается автопрефикс Pydantic \texttt{"Value error, "} --
+считается, что оно уже написано понятным русским текстом.
+
+\paragraph{\envvar{frontend/src/utils/appointmentStatus.js}}
+Константы, описывающие жизненный цикл статуса записи на фронтенде --
+какие переходы допустимы и как подписаны кнопки действий.
+\begin{verbatim}
+ALLOWED_TRANSITIONS      # { pending: [...], confirmed: [...], done: [], cancelled: [] }
+STATUS_ACTION_LABELS     # { confirmed, done, cancelled } -> текст кнопки
+RESCHEDULABLE_STATUSES   # ['pending', 'confirmed']
+\end{verbatim}
+\textit{Особенности:} это зеркало серверной машины состояний
+(\texttt{ALLOWED_TRANSITIONS} в \texttt{appointment_service.py}, раздел~3.3
+и~7) только для отображения нужных кнопок в интерфейсе -- окончательную
+проверку допустимости перехода всегда делает сервер, а не этот файл.
+
+% ============================================================
+\section{Frontend: страницы (\texttt{views/})}
+% ============================================================
+
+\subsection{\texttt{BookingPage.vue} -- пошаговое бронирование}
+
+Самая важная страница с точки зрения бизнеса -- четыре шага (услуга,
+дата, время, подтверждение), реализующие ровно тот HTTP-запрос, который
+уже разобран в разделе~3.3.
+\begin{verbatim}
+async function selectDate(iso) {
+  selectedDate.value = iso
+  slotsLoading.value = true
+  try {
+    const { data } = await mastersApi.getSlots(route.params.id, selectedService.value.service.id, iso)
+    slots.value = data.slots
+  } finally {
+    slotsLoading.value = false
+  }
+}
+
+async function book() {
+  if (!auth.user?.email && !emailInput.value) {
+    toast.error('Укажите email, чтобы оформить запись')
+    return
+  }
+  bookingLoading.value = true
+  try {
+    if (!auth.user?.email) await auth.updateMe({ email: emailInput.value })
+    await appointmentsApi.create({
+      master_id: route.params.id,
+      service_id: selectedService.value.service.id,
+      start_time: selectedSlot.value.start_time,
+    })
+    booked.value = true
+  } finally {
+    bookingLoading.value = false
+  }
+}
+\end{verbatim}
+Проверка \texttt{!auth.user?.email} перед отправкой -- то же самое
+правило, что и на backend (раздел~3.3, шаг~1): клиент, зарегистрированный
+через VK без email, обязан указать его перед первой записью, и страница
+сама предлагает поле ввода прямо на шаге подтверждения, а не откатывает
+пользователя на страницу профиля. Список доступных дат
+(\texttt{availableDates}) строится на 14 дней вперёд по календарю UTC
+(\texttt{d.setUTCDate}, \texttt{d.getUTCDay()}), а не по локальному
+календарю браузера -- согласуется с тем, что расписание точки хранится
+как «настенные часы» в UTC (раздел~3.3, \texttt{_validate_within_schedule}):
+\begin{verbatim}
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+}
+\end{verbatim}
+Тот же приём \texttt{timeZone: 'UTC'} встретится ещё в нескольких
+местах (\texttt{AppointmentCard.vue}, \texttt{RegistrationsChart.vue}) --
+запомнив его здесь один раз, дальше он не будет удивлять.
+
+\subsection{Остальные страницы}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{views/ -- страницы верхнего уровня (по одной на маршрут)} \\
+\hline
+\textbf{Файл} & \textbf{Назначение и доступ} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Назначение и доступ} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{HomePage.vue} & Публичная главная -- тонкая обёртка вокруг
+  \texttt{HomePreview.vue} (раздел~16) с контентом из
+  \texttt{useSiteContentStore}. Доступна всем. \\
+\envvar{MastersPage.vue} & Публичный каталог мастеров: поиск по
+  специализации, фильтры по услуге и точке, сортировка, пагинация.
+  Фильтр по точке двусторонне синхронизирован с query-параметром URL
+  через \texttt{router.replace} (не \texttt{push}, чтобы не засорять
+  историю переходов). Доступна всем. \\
+\envvar{LoginPage.vue} & Вход по email/паролю с клиентской валидацией,
+  плюс вход через VK ID. Отдельно обрабатывает
+  \texttt{route.query.error} -- код ошибки VK-редиректа приходит
+  query-параметром, а не HTTP-статусом, потому что пользователь к этому
+  моменту уже находится в браузере посреди редиректа. Доступна
+  неавторизованным (\texttt{guestOnly}). \\
+\envvar{RegisterPage.vue} & Регистрация нового клиента -- имя, фамилия,
+  email, телефон, пароль с подтверждением, обязательное согласие на
+  обработку персональных данных; плюс регистрация/вход через VK ID.
+  Доступна неавторизованным. \\
+\envvar{PasswordResetPage.vue} & Двухрежимная страница: без токена в URL
+  -- форма запроса ссылки на email, с токеном -- форма ввода нового
+  пароля. Сообщение после запроса ссылки одинаковое независимо от того,
+  зарегистрирован ли email -- защита от перебора пользователей (раздел~10). \\
+\envvar{VerifyEmailPage.vue} & Подтверждение email по ссылке из письма
+  -- трёхсостояньевый экран (загрузка/успех/ошибка). Доступна и
+  авторизованным, и нет -- ссылка может быть открыта в любой сессии
+  браузера. \\
+\envvar{ProfilePage.vue} & Личный кабинет клиента -- просмотр/редактирование
+  своих данных, список своих записей с фильтром по статусу, отмена
+  записи, отзыв на завершённую услугу. Раздел записей скрыт для роли
+  \texttt{master}. Доступна авторизованным. \\
+\envvar{PrivacyPolicyPage.vue} & Статическая страница политики обработки
+  персональных данных (152-ФЗ, раздел~2) -- название бренда и адрес
+  подставляются из контента сайта. Раздел реквизитов оператора --
+  намеренная плашка-заглушка с явным предупреждением, что документ не
+  имеет юридической силы до заполнения реальными данными. \\
+\envvar{NotFoundPage.vue} & Страница-заглушка 404 -- сообщение об ошибке
+  и кнопка перехода в каталог мастеров. \\
+\envvar{SetupWizard.vue} & Четырёхшаговый визард первого запуска --
+  владелец сети, первая точка, базовые настройки бренда, подтверждение
+  (раздел~8, \texttt{POST /api/setup}). Показывается вместо обычных
+  страниц, пока сайт не настроен (раздел~13.3). \\
+\envvar{AdminPanel.vue} & Каркас админ-панели (на \texttt{DashboardLayout.vue}) --
+  боковое меню (статистика, пользователи, услуги, мастера, точки сети,
+  отзывы, отчёты, настройки), \texttt{router-view} для вложенных страниц
+  ниже. Пункты «Точки сети» и «Настройки» видны только владельцу.
+  Доступна \texttt{admin}/\texttt{owner}. \\
+\envvar{MasterDashboard.vue} & Каркас кабинета мастера -- боковое меню
+  (записи, расписание, отзывы), \texttt{router-view}; ждёт загрузки
+  профиля мастера прежде, чем показать вложенные страницы. Доступна
+  \texttt{master}. \\
+\end{xltabular}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{views/admin/ -- вложенные страницы админ-панели} \\
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{AdminStats.vue} & Главный экран (дашборд) -- KPI-плитки
+  (пользователи, клиенты, мастера, услуги, записи, выручка за месяц) и
+  график регистраций за 30 дней. \\
+\envvar{AdminUsers.vue} & Список всех пользователей -- поиск, фильтр по
+  роли и точке, создание, смена роли, назначение точки, блокировка,
+  удаление. Повышение до \texttt{admin} -- двухшаговая операция
+  (сначала назначить точку, потом сменить роль) из-за ограничения БД
+  \texttt{ck_users_admin_requires_salon}. \\
+\envvar{AdminServices.vue} & Каталог услуг сети -- поиск, фильтр по
+  активности; полный CRUD только для владельца (общий актив сети),
+  администратор точки видит список только для чтения. \\
+\envvar{AdminMasters.vue} & Список мастеров текущей/выбранной точки --
+  раскрываемые блоки редактирования привязанных услуг, расписания по
+  дням недели и фото. \\
+\envvar{AdminSalons.vue} & Список точек сети -- создание, редактирование,
+  открытие/закрытие. Доступна только владельцу. У точек намеренно нет
+  операции удаления (мастера/записи ссылаются на неё с
+  \texttt{ondelete=RESTRICT}) -- только «закрытие». \\
+\envvar{AdminReviews.vue} & Все отзывы сети с фильтрами по статусу
+  публикации и минимальному рейтингу, модерация (публикация/скрытие). \\
+\envvar{AdminReports.vue} & Финансовые и операционные отчёты -- KPI,
+  линейный график выручки и столбчатая диаграмма по услугам (ручной
+  SVG, без библиотеки), таблица по мастерам, экспорт в Excel
+  (\texttt{adminApi.exportReport}, раздел~7 -- \texttt{ReportService.export_excel}). \\
+\envvar{AdminSettingsLive.vue} & Визуальный live-редактор контента и
+  оформления сайта -- редактирование прямо поверх предпросмотра
+  (\texttt{HomePreview.vue}, раздел~16), выбор темы/шрифта/SEO-полей.
+  Изменения применяются к живому DOM сразу, ещё до сохранения, и
+  откатываются при уходе со страницы без сохранения. Только владелец
+  (см. раздел~18). \\
+\end{xltabular}
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{views/dashboard/ -- вложенные страницы кабинета мастера} \\
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Файл} & \textbf{Назначение} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{DashboardAppointments.vue} & Список записей клиентов к этому
+  мастеру -- фильтр по статусу и датам, смена статуса, перенос записи
+  (кнопки -- из общих констант \texttt{utils/appointmentStatus.js},
+  раздел~16). \\
+\envvar{DashboardSchedule.vue} & Редактирование собственного расписания
+  по дням недели -- рабочий день/выходной, время начала и окончания;
+  каждый день сохраняется отдельным независимым запросом. \\
+\envvar{DashboardReviews.vue} & Отзывы клиентов о мастере -- только
+  просмотр, без модерации. \\
+\end{xltabular}
+
+% ============================================================
+\section{Frontend: тема оформления}
+% ============================================================
+
+Один и тот же собранный фронтенд обслуживает разные точки сети с разным
+оформлением без пересборки -- этого удаётся достичь тем, что цвета
+бренда объявлены не фиксированными значениями Tailwind, а CSS custom
+properties, переключаемыми в рантайме.
+
+\envvar{frontend/src/theme/presets.js} задаёт три готовых цветовых
+пресета и функцию применения:
+\begin{verbatim}
+export const THEME_TOKENS = [
+  { key: 'brand_900', label: 'Основной тёмный (кнопки, текст)' },
+  { key: 'accent_400', label: 'Акцент' },
+  ...
+]
+
+export const THEME_PRESETS = {
+  default: { label: 'Чёрный и бежевый', colors: { brand_900: '#111111', ... } },
+  coffee:  { label: 'Кофе и карамель',  colors: { brand_900: '#2B1B12', ... } },
+  slate:   { label: 'Графит и бирюза',  colors: { brand_900: '#1E2530', ... } },
+}
+
+export function applyTheme(colors) {
+  const root = document.documentElement
+  for (const { key } of THEME_TOKENS) {
+    if (!colors[key]) continue
+    root.style.setProperty(`--color-${key.replace(/_/g, '-')}`, hexToRgbTriplet(colors[key]))
+  }
+}
+\end{verbatim}
+\texttt{applyTheme} не подставляет HEX-строку напрямую, а переводит её в
+триплет чисел \texttt{"R G B"} (\texttt{hexToRgbTriplet}) -- это
+устройство Tailwind-переменных: определив CSS-переменную как
+\texttt{--color-brand-900: 17 17 17}, сами утилитные классы Tailwind
+(\texttt{bg-brand-900}, \texttt{text-brand-900} и т.\,д.) подключают её
+через \envvar{rgb(var(--color-brand-900) / <alpha-value>)} -- то есть
+поддерживают ещё и прозрачность (\texttt{bg-brand-900/60}), что было бы
+недоступно, храни функция в переменной готовую CSS-строку цвета.
+\texttt{matchPreset(colors)} делает обратное -- определяет, совпадает ли
+текущий набор цветов с одним из трёх пресетов, или это уже
+кастомизированная вручную тема (тогда переключатель в
+\texttt{AdminSettingsLive.vue}, раздел~17, показывает «Свой цвет», а не
+один из трёх пресетов).
+
+\paragraph{\envvar{frontend/src/theme/fonts.js}}
+Набор из пяти готовых пар шрифтов (заголовочный + моноширинный),
+настраиваемых в «Админка $\to$ Настройки $\to$ Тема», плюс функция
+применения выбранной пары к странице.
+\begin{verbatim}
+FONT_PRESETS   # ключи golos/archivo/manrope/grotesk/inter, у каждого { label, display, mono, href }
+applyFont(key)
+\end{verbatim}
+\textit{Особенности:} набор шрифтов закрытый, без свободного ввода
+названия -- иначе можно было бы задать невалидный Google Fonts URL и
+сломать первую отрисовку страницы; \texttt{applyFont} меняет CSS custom
+properties и подгружает нужный \texttt{<link>} на Google Fonts, создавая
+его при первом вызове и переиспользуя дальше.
+
+\paragraph{\envvar{frontend/src/theme/seo.js}}
+Применяет SEO-настройки сайта (заголовок вкладки, meta-описание,
+favicon), заданные владельцем, к текущей открытой странице.
+\begin{verbatim}
+applySeo(seo)
+\end{verbatim}
+\textit{Особенности:} поскольку это SPA без серверного рендеринга,
+\texttt{index.html} хранит статичные значения по умолчанию для первой
+отрисовки и краулеров без JS, а \texttt{applySeo} донастраивает DOM уже
+после загрузки данных из БД.
+
+% ============================================================
+\section{Инфраструктура и деплой}
+% ============================================================
+
+\subsection{Два \texttt{Dockerfile}}
+
+\envvar{backend/Dockerfile} -- один этап: устанавливает зависимости из
+\texttt{requirements.txt}, копирует код, создаёт непривилегированного
+пользователя \texttt{appuser} (контейнер не работает от \texttt{root}) и
+при старте сначала накатывает миграции, потом поднимает сервер:
+\begin{verbatim}
+RUN mkdir -p /app/uploads && chown appuser:appuser /app/uploads
+USER appuser
+EXPOSE 8000
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+\end{verbatim}
+Каталог \texttt{/app/uploads} создаётся и передаётся во владение
+\texttt{appuser} \emph{до} первого монтирования именованного тома --
+новый именованный том Docker наследует права того, что уже лежит по
+этому пути в образе.
+
+\envvar{frontend/Dockerfile} -- собран из двух этапов
+(multi-stage build): сначала \texttt{node:26-alpine} собирает статику
+(\texttt{npm run build}), затем результат копируется в чистый
+\texttt{nginx:alpine} -- финальный образ не содержит ни Node.js, ни
+исходников, только готовые файлы и nginx:
+\begin{verbatim}
+FROM node:26-alpine AS build
+...
+ARG VITE_SENTRY_DSN
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+USER nginx
+EXPOSE 8080
+\end{verbatim}
+\texttt{VITE_SENTRY_DSN} передаётся как \texttt{ARG} сборки, а не
+обычная переменная окружения контейнера -- значения
+\texttt{import.meta.env.VITE_*} у Vite запекаются прямо в JS-бандл на
+этапе \texttt{npm run build} (раздел~13.1) и не читаются заново при
+старте контейнера; смена DSN требует пересборки образа, одного
+\texttt{restart} недостаточно.
+
+\envvar{frontend/nginx.conf} внутри этого контейнера решает две задачи:
+отдаёт собранный SPA (\texttt{index.html} на любой путь -- Vue Router
+работает в history-режиме) и прозрачно проксирует \texttt{/api/*}
+дальше на контейнер \texttt{backend:8000} -- благодаря этому браузер
+всегда обращается к одному и тому же origin, и настоящий CORS между
+фронтендом и API вообще не участвует в проде.
+
+\subsection{\texttt{docker-compose.yml}: пять сервисов плюс бэкапы}
+
+Продовая сборка всего стека одной командой
+(\texttt{docker compose up --build -d}) поднимает:
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Сервисы docker-compose.yml} \\
+\hline
+\textbf{Сервис} & \textbf{Роль} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Сервис} & \textbf{Роль} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{db} & \texttt{postgres:16-alpine}. \texttt{healthcheck} --
+  \texttt{pg_isready} -- остальные сервисы ждут именно его, не просто
+  запуска контейнера. \\
+\envvar{backend} & Собирается из \texttt{backend/Dockerfile}. Требует
+  обязательных \texttt{SECRET_KEY}/\texttt{SETUP_TOKEN} в переменных
+  окружения -- синтаксис \texttt{\$\{SECRET_KEY:?Задайте...\}} в
+  compose-файле сам не даст стеку подняться без них (раздел~3.1). \\
+\envvar{frontend} & Собирается из \texttt{frontend/Dockerfile}, ждёт
+  здорового \texttt{backend}. \\
+\envvar{caddy} & Единственный сервис, торчащий наружу (порты 80/443).
+  Реверс-прокси и автоматический TLS-сертификат Let's Encrypt -- раздел~19.3. \\
+\envvar{backup-local} & Ежедневный сжатый \texttt{pg_dump} в
+  \texttt{./backups} (bind-mount, не именованный том -- бэкапы видны и
+  забираются снаружи Docker). Включён всегда, донастройки не требует. \\
+\envvar{backup-s3} & Тот же дамп в S3-совместимое хранилище --
+  переживает потерю самого VPS. Выключен по умолчанию
+  (\texttt{profiles: ["s3-backup"]}) -- без заполненных
+  \texttt{S3_BACKUP_*} в \texttt{.env} включать не нужно. \\
+\end{xltabular}
+
+Все пять «рабочих» сервисов используют \texttt{depends_on:
+condition: service_healthy}, а не просто порядок запуска -- backend
+не стартует, пока Postgres не готов принимать соединения;
+frontend -- пока backend не ответит 200 на \texttt{/health} (раздел~3.1);
+Caddy -- пока не поднимется frontend. \texttt{healthcheck} самого
+\texttt{backend} использует \texttt{127.0.0.1}, а не \texttt{localhost} --
+в контейнере от непривилегированного пользователя IPv6-листенер не
+всегда успевает подняться, и \texttt{localhost} может резолвиться в
+\texttt{::1} первым, получая \texttt{connection refused}, хотя сервис
+реально слушает на IPv4 (задокументированное наблюдение из самого файла).
+
+\subsection{Caddy и nginx: кто кого проксирует}
+
+Путь запроса от браузера до backend проходит два прокси подряд:
+\texttt{браузер} $\to$ \texttt{Caddy (80/443)} $\to$
+\texttt{frontend (nginx, 8080)} $\to$ \texttt{backend (uvicorn, 8000)}.
+\envvar{Caddyfile} в корне репозитория -- единственная точка входа
+снаружи, поэтому и единственное место, где выставляются
+security-заголовки на весь сайт разом:
+\begin{verbatim}
+{$SITE_ADDRESS} {
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://mc.yandex.ru; ..."
+        -Server
+    }
+    reverse_proxy frontend:8080
+}
+\end{verbatim}
+\texttt{\{\$SITE_ADDRESS\}} -- без домена (переменная не задана,
+дефолт \texttt{":80"}) Caddy отдаёт обычный HTTP на 80-м порту -- так
+работает самый первый деплой по голому IP сервера. Как только домен
+указывает на сервер (A-запись DNS), достаточно задать
+\texttt{SITE_ADDRESS=your-domain.ru} в \texttt{.env} и перезапустить
+Caddy -- сертификат Let's Encrypt получается автоматически, без единой
+правки самого \texttt{Caddyfile}.
+
+\subsection{CI: восемь параллельных проверок}
+
+\envvar{.github/workflows/ci.yml} запускает восемь независимых job'ов на
+каждый push/PR в \texttt{main} -- в основном те же команды, что уже
+встречались в разделе~12, только теперь на настоящем CI-раннере, а не на
+машине разработчика:
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Job'ы GitHub Actions} \\
+\hline
+\textbf{Job} & \textbf{Что делает} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Job} & \textbf{Что делает} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{backend-tests} & \texttt{pytest -q} (юнит-тесты, без БД) + \texttt{pip-audit}
+  на уязвимости зависимостей. \\
+\envvar{backend-lint} & \texttt{ruff check app tests} -- только проверка,
+  без автоформатирования (раздел~21 -- почему). \\
+\envvar{backend-integration-tests} & Поднимает \texttt{postgres:16-alpine}
+  сервисом самого GitHub Actions, гоняет
+  \texttt{pytest -m integration tests/integration -q} (раздел~12). \\
+\envvar{frontend-build} & \texttt{npm run build} (ловит синтаксические
+  ошибки/битые импорты) + \texttt{npm audit --audit-level=high} (не
+  блокирует пайплайн -- известные находки в dev-зависимостях сборки, не
+  в проде). \\
+\envvar{frontend-unit-tests} & \texttt{npm run test:unit} (Vitest --
+  хранилища и composables с замоканным API). \\
+\envvar{frontend-e2e} & Поднимает Postgres, накатывает миграции,
+  запускает настоящий backend, затем \texttt{npx playwright test} --
+  сквозные сценарии в браузере и регрессия доступности (\texttt{axe-core}). \\
+\envvar{frontend-lint} & \texttt{npm run lint} (ESLint, без
+  \texttt{prettier --check}). \\
+\envvar{compose-validate} & \texttt{docker compose config --quiet} с
+  фиктивными \texttt{SECRET_KEY}/\texttt{SETUP_TOKEN} -- проверяет
+  только синтаксис и интерполяцию переменных в
+  \texttt{docker-compose.yml}, не реальный запуск. \\
+\end{xltabular}
+
+Автоматического деплоя по CI нет -- ни один из этих job'ов не
+разворачивает код на сервере, только проверяет его.
+
+\subsection{Обновление прод-версии: \texttt{scripts/deploy.sh}}
+
+Однокомандный скрипт, который забирает свежий код, пересобирает и
+перезапускает стек, дожидаясь всех \texttt{healthcheck}-ов прежде, чем
+считать деплой успешным:
+\begin{verbatim}
+git pull --ff-only
+docker compose up --build -d --wait --wait-timeout 120
+docker compose ps
+\end{verbatim}
+Флаг \texttt{--wait} -- ключевая часть: команда не завершится успешно,
+пока все сервисы не станут \texttt{healthy}, поэтому \texttt{set -euo
+pipefail} в начале скрипта гарантирует ненулевой код выхода, если
+что-то не поднялось -- сломанный деплой не остаётся тихо висеть
+незамеченным. Отдельного шага для миграций нет -- они накатываются
+автоматически при старте контейнера \texttt{backend} (раздел~19.1).
+Это осознанно упрощённая замена полноценного CD -- нет автозапуска на
+merge/push в \texttt{main} и нет автоматического отката; обновление
+прод-сервера всегда выполняется вручную запуском этого скрипта.
+
+% ============================================================
+\section{Как запустить проект локально}
+% ============================================================
+
+Кратко -- то же самое, что подробнее описано в README.md проекта
+(раздел «Быстрый старт»); здесь -- версия для читателя, который уже
+прочитал весь этот документ и понимает, что запускает.
+
+\subsection{Вариант 1: Docker, весь стек одной командой}
+
+\begin{verbatim}
+cp .env.example .env   # заполните SECRET_KEY/SETUP_TOKEN, см. комментарии в файле
+docker compose up --build -d
+\end{verbatim}
+Приложение -- \texttt{http://localhost}, Swagger --
+\envvar{http://localhost/api/docs} (раздел~19.3 объясняет, почему именно
+через Caddy, а не напрямую на порт backend). Миграции накатываются
+автоматически. Сразу после первого старта откройте
+\texttt{http://localhost/setup} -- это создаёт первого владельца сети
+(раздел~7, \texttt{SetupService}) и дальше уже недоступно повторно.
+
+\subsection{Вариант 2: backend и frontend раздельно, без Docker}
+
+Требуется Python 3.14, Node.js 18+, PostgreSQL 13+ (с правами на
+\texttt{CREATE EXTENSION} -- нужно расширение \texttt{btree_gist} для
+защиты от двойного бронирования, раздел~11.3). Backend:
+\begin{verbatim}
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # заполните под своё окружение
+alembic upgrade head   # создаёт схему, расширение btree_gist и EXCLUDE-ограничение
+python run.py          # http://localhost:8000 · Swagger: /api/docs
+\end{verbatim}
+Frontend (в отдельном терминале):
+\begin{verbatim}
+cd frontend
+npm install
+npm run dev   # http://localhost:5173, /api проксируется на :8000 (см. vite.config.js)
+\end{verbatim}
+В этом режиме проксирование \texttt{/api} делает уже не nginx (раздел~19.1),
+а сам dev-сервер Vite -- смотрите блок \texttt{server.proxy} в
+\envvar{frontend/vite.config.js}.
+
+\subsection{Письма и вход через VK ID на локальной машине}
+
+Письма (сброс пароля, подтверждение email, напоминания -- раздел~10 и~7)
+уходят по SMTP; дефолты \texttt{config.py} (раздел~3.1) уже нацелены на
+\href{https://github.com/axllent/mailpit}{Mailpit} -- фейковый
+SMTP-сервер, перехватывающий письма вместо реальной отправки:
+\begin{verbatim}
+docker compose -f docker-compose.dev.yml up -d   # поднимает mailpit
+\end{verbatim}
+Запросите сброс пароля на \texttt{/password-reset} -- письмо появится на
+\texttt{http://localhost:8025}, никуда реально не уйдёт.
+
+Вход через VK ID (раздел~10.4) требует зарегистрированное приложение на
+\href{https://id.vk.com/business}{id.vk.com/business}: redirect URI --
+\envvar{http://localhost:8000/api/auth/vk/callback} (VK ID разрешает
+\texttt{localhost} только на этапе разработки), \texttt{client_id} -- в
+переменную \texttt{VK_CLIENT_ID} (\texttt{backend/.env}). Без неё
+кнопка «Войти через VK» на фронтенде сама скрывается
+(\texttt{GET /api/auth/vk/enabled}, раздел~15) -- функциональность
+факультативна, приложение прекрасно работает и без неё.
+
+% ============================================================
+\section{Куда смотреть дальше}
+% ============================================================
+
+Этот документ разбирает \emph{код}. Если нужно что-то другое -- вот куда
+идти:
+
+\begin{xltabular}{\textwidth}{M D}
+\caption{Остальная документация проекта} \\
+\hline
+\textbf{Документ} & \textbf{Когда открывать} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Документ} & \textbf{Когда открывать} \\
+\hline
+\endhead
+\hline
+\endfoot
+\envvar{README.md} & Быстрый обзор возможностей по ролям, инструкции
+  быстрого запуска (раздел~20 этого документа -- их сокращённая версия),
+  описание тестов, деплоя, бэкапов, Sentry, известных ограничений. Первое,
+  что стоит открыть человеку, не читавшему вообще ничего о проекте. \\
+\envvar{ROADMAP.md} & Большой рабочий документ: полный аудит недостатков
+  проекта, план доработки для продакшена по фазам, подробная техническая
+  спецификация функционала «сеть точек» (роль \texttt{owner}). Рабочие
+  заметки по ходу разработки, не продуктовый документ для внешнего
+  читателя -- но полезен, если нужно понять, \emph{почему} что-то
+  устроено именно так (в коде часто встречаются ссылки вида
+  «ROADMAP.md §4.8»). \\
+\envvar{new_issues.md} & Журнал уже разобранных замечаний по проекту --
+  что было найдено и как исправлено. История, а не список открытых задач. \\
+\envvar{SECURITY.md} & Как сообщить об уязвимости (не через публичный
+  GitHub Issue). \\
+\envvar{final_report/main.tex} & Итоговый отчёт о разработке для
+  руководителя практики -- что было поставлено, как решено, какие
+  архитектурные решения приняты и почему, чем фактически реализованная
+  система отличается от изначально запланированной технического задания.
+  Читать, если нужен обзор \emph{продукта}, а не кода -- этот документ
+  специально его не дублирует. \\
+\envvar{tech_zadanie/main.tex} & Техническое задание -- первоначальная
+  постановка задачи, полный перечень функциональных требований
+  (карточки ФТ-001--ФТ-015). \\
+\envvar{user_manual/main.tex} & Руководство пользователя -- пошаговые
+  инструкции по работе с системой для всех четырёх ролей. \\
+\envvar{admin_manual/main.tex} & Руководство администратора --
+  развёртывание, эксплуатация, резервное копирование серверной части
+  (подробная версия раздела~19--20 этого документа). \\
+\envvar{notes/} & Рабочие заметки по ходу разработки (анализ
+  технологического стека, черновик спецификации требований, подсказки
+  для дальнейшей разработки). Не входит в состав официальной
+  документации проекта. \\
+\envvar{graphify-out/GRAPH_REPORT.md} & Автоматически сгенерированный
+  граф связей кода (инструмент \texttt{graphify}) -- какие классы и
+  функции сильнее всего связаны друг с другом, какие сообщества файлов
+  формируют логические модули. Полезен как альтернативная, менее
+  структурированная карта того же кода, что описан в этом документе. \\
+\end{xltabular}
+
+\end{document}
+

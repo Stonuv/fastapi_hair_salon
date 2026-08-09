@@ -1,0 +1,114 @@
+% config.tex - преамбула документа (класс, пакеты, оформление по ГОСТ 2.105).
+% Подключается из main.tex через \input{config}.
+% Копия final_report/config.tex без изменений (та же визуальная схема, что и
+% у всех документов проекта: класс, поля, шрифты, оформление таблиц/схем) -
+% этот документ не ГОСТ-документ практики, а техническое руководство по
+% коду, но переиспользует уже готовое оформление вместо нового.
+% Без ручной нумерации разделов (\gostsection) - здесь обычные нумерованные
+% \section, как в final_report/tech_zadanie, и код примеров - в verbatim,
+% как в admin_manual (см. main.tex).
+
+\documentclass[14pt]{extarticle}
+
+% ---------- Кодировка и язык ----------
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{russian}
+\setotherlanguage{english}
+
+\setmainfont{Liberation Serif}      % метрический аналог Times New Roman, есть кириллица
+\setsansfont{Liberation Sans}
+\setmonofont{Liberation Mono}
+
+% ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
+\usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{microtype}   % устраняет переполнение правого поля в justify-тексте
+\emergencystretch=3em    % последний резерв: тянуть пробелы, а не вылезать за правое поле (актуально для \texttt-идентификаторов без переносов)
+
+% ---------- Абзацы ----------
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% ---------- Заголовки разделов ----------
+% Каждый раздел верхнего уровня - с новой страницы; подразделы продолжают
+% течь в потоке, без разрыва.
+\usepackage{titlesec}
+% \clearpage раньше стоял последним (пятым) аргументом \titleformat -
+% "код перед заголовком" по документации titlesec. На практике в этой
+% версии пакета \clearpage там выполняется МЕЖДУ номером раздела и его
+% названием, а не перед всем заголовком: номер попадает на страницу ДО
+% разрыва (осиротевшим внизу предыдущей страницы или один на пустой
+% странице), а название - уже после разрыва, без номера. \pretocmd
+% (etoolbox) вместо этого пришивает \clearpage перед самим \section
+% целиком, до того как titlesec вообще начинает строить заголовок -
+% разрыв происходит раньше, чем номер и название вообще собираются.
+\usepackage{etoolbox}
+\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{}
+\pretocmd{\section}{\clearpage}{}{}
+\titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{2\baselineskip}{1\baselineskip}
+\titlespacing*{\subsection}{0pt}{1.5\baselineskip}{0.75\baselineskip}
+\titlespacing*{\subsubsection}{0pt}{1\baselineskip}{0.5\baselineskip}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+% ---------- Литеральное подчёркивание в идентификаторах (SENTRY_DSN и т.п.) ----------
+\usepackage[strings]{underscore}
+
+% ---------- Списки ----------
+\usepackage{enumitem}
+\setlist[itemize]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
+\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, itemindent=1.25cm, label=\arabic*)}
+
+% ---------- Блоки кода/команд ----------
+% См. подробное объяснение в admin_manual/config.tex - тот же приём:
+% перенос длинных строк вместо ухода за поле страницы.
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true, breakanywhere=true, fontsize=\small}
+
+% ---------- Таблицы ----------
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
+\usepackage{seqsplit}    % перенос длинных идентификаторов без дефиса, когда они не влезают в колонку
+\usepackage{caption}
+\captionsetup[table]{position=top, labelsep=endash, name=Таблица, justification=raggedright, singlelinecheck=false}
+\captionsetup[figure]{position=bottom, labelsep=endash, name=Рисунок, justification=centering}
+\renewcommand{\arraystretch}{1.15}
+
+% ---------- Схемы (архитектура, ER-модель, диаграммы последовательностей) ----------
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds}
+
+% ---------- Колонтитулы ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% ---------- Гиперссылки и оглавление ----------
+\usepackage[unicode, hidelinks, bookmarksdepth=3]{hyperref}
+\usepackage{xurl}   % длинные URL переносятся по /, ., а не вылезают за поле
+\usepackage{bookmark}
+\hypersetup{
+  pdftitle={Структура проекта CMS «Сайтама» — руководство для начинающих},
+  pdfauthor={Решетняк Владислав Александрович},
+  pdflang={ru}
+}
+
+% ---------- Колонки для справочных таблиц ----------
+\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % название/термин
+\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание
+
+% ---------- Длинные идентификаторы (переменные окружения, поля БД) ----------
+% \protect нужен здесь дополнительно к оригиналу final_report/config.tex:
+% этот документ (в отличие от final_report) использует \envvar и внутри
+% \paragraph{...} (заголовки файлов, раздел 4 и далее) - "движущийся"
+% аргумент (bookmarks/aux), где \seqsplit без \protect ломает компиляцию
+% ("Undefined control sequence" из-за \futurelet внутри seqsplit). В
+% обычном тексте/ячейках таблиц \protect - no-op, ничего не меняет.
+\newcommand{\envvar}[1]{\texttt{\protect\seqsplit{#1}}}

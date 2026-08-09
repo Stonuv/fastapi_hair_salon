@@ -26,10 +26,21 @@
 \setlength{\parskip}{0pt}
 
 % ---------- Заголовки разделов ----------
-% Каждый раздел верхнего уровня — с новой страницы (последний аргумент
-% \titleformat — код перед заголовком); подразделы продолжают течь в потоке.
+% Каждый раздел верхнего уровня — с новой страницы; подразделы продолжают
+% течь в потоке.
 \usepackage{titlesec}
-\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{\clearpage}
+% \clearpage раньше стоял последним (пятым) аргументом \titleformat —
+% "код перед заголовком" по документации titlesec. На практике в этой
+% версии пакета \clearpage там выполняется МЕЖДУ номером раздела и его
+% названием, а не перед всем заголовком: номер попадает на страницу ДО
+% разрыва (осиротевшим внизу предыдущей страницы или один на пустой
+% странице), а название — уже после разрыва, без номера. \pretocmd
+% (etoolbox) вместо этого пришивает \clearpage перед самим \section
+% целиком, до того как titlesec вообще начинает строить заголовок —
+% разрыв происходит раньше, чем номер и название вообще собираются.
+\usepackage{etoolbox}
+\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{}
+\pretocmd{\section}{\clearpage}{}{}
 \titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
 \titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
 \titlespacing*{\section}{0pt}{2\baselineskip}{1\baselineskip}
