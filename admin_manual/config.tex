@@ -1,0 +1,119 @@
+% config.tex — преамбула документа (класс, пакеты, оформление по ГОСТ 2.105).
+% Подключается из main.tex через \input{config}.
+% Адаптировано из user_manual/config.tex (тот, в свою очередь — из
+% tech_zadanie/config.tex), чтобы все три документа проекта визуально
+% совпадали: тот же класс, поля, шрифты, оформление.
+
+\documentclass[14pt]{extarticle}
+
+% ---------- Кодировка и язык ----------
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{russian}
+\setotherlanguage{english}
+
+\setmainfont{Liberation Serif}      % метрический аналог Times New Roman, есть кириллица
+\setsansfont{Liberation Sans}
+\setmonofont{Liberation Mono}
+
+% ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
+\usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ---------- Абзацы ----------
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% ---------- Заголовки разделов ----------
+% Каждый раздел верхнего уровня — с новой страницы (последний аргумент
+% \titleformat — код перед заголовком); подразделы продолжают течь в потоке.
+\usepackage{titlesec}
+\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{\clearpage}
+\titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{2\baselineskip}{1\baselineskip}
+\titlespacing*{\subsection}{0pt}{1.5\baselineskip}{0.75\baselineskip}
+\titlespacing*{\subsubsection}{0pt}{1\baselineskip}{0.5\baselineskip}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+% ---------- Литеральное подчёркивание в идентификаторах (SECRET_KEY и т.п.) ----------
+\usepackage[strings]{underscore}
+
+% ---------- Списки ----------
+\usepackage{enumitem}
+\setlist[itemize]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
+\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, itemindent=1.25cm, label=\arabic*)}
+
+% ---------- Блоки команд ----------
+% Обычный verbatim никогда не переносит длинные строки — команды
+% деплоя/восстановления в этом документе местами длиннее ширины текста.
+% fvextra (расширение fancyvrb) добавляет опции breaklines/breakanywhere:
+% verbatim-блок переносится по словам/символам вместо ухода за поле,
+% вместо ручной построчной разбивки каждой команды в main.tex.
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true, breakanywhere=true, fontsize=\small}
+
+% ---------- Таблицы ----------
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
+\usepackage{seqsplit}    % перенос длинных идентификаторов (ACCESS_TOKEN_EXPIRE_MINUTES
+                         % и т.п.) без дефиса, когда они не влезают в узкую колонку
+\usepackage{caption}
+\captionsetup[table]{position=top, labelsep=endash, name=Таблица, justification=raggedright, singlelinecheck=false}
+\renewcommand{\arraystretch}{1.15}
+
+% ---------- Схемы и заглушки схем ----------
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds}
+
+% ---------- Колонтитулы ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% ---------- Гиперссылки и оглавление ----------
+\usepackage[unicode, hidelinks, bookmarksdepth=3]{hyperref}
+\usepackage{bookmark}
+\hypersetup{
+  pdftitle={Руководство администратора CMS для парикмахерских и барбершопов «Сайтама»},
+  pdfauthor={Решетняк Владислав Александрович},
+  pdflang={ru}
+}
+
+% ---------- Колонки для справочных таблиц ----------
+\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % название параметра/сообщения
+\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание/действие
+
+% ---------- Ручная нумерация разделов по схеме for_user_manual.md (3.1 ... 3.5) ----------
+% См. подробное объяснение приёма в user_manual/config.tex — здесь тот же
+% механизм: номер печатается как текст, запись в оглавление — вручную.
+\newcommand{\gostsection}[2]{\section*{#1\quad #2}\addcontentsline{toc}{section}{#1\quad #2}}
+\newcommand{\gostsubsection}[2]{\subsection*{#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
+\newcommand{\gostsubsubsection}[2]{\subsubsection*{#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}
+
+% ---------- Длинные идентификаторы (переменные окружения, пути) ----------
+% Обычный \texttt{} не переносит строку внутри длинного identifier'а без
+% пробелов — в узкой колонке таблицы это даёт либо "наезд" на соседнюю
+% колонку, либо некрасивый перенос с дефисом на подчёркивании. seqsplit
+% допускает разрыв в любом месте без дефиса.
+\newcommand{\envvar}[1]{\texttt{\seqsplit{#1}}}
+
+% ---------- Заглушка схемы ----------
+% По просьбе заказчика документа — везде, где по смыслу нужна схема
+% (топология развёртывания, поток обновления и т.п.), вместо готового
+% рисунка вставляется помеченная рамка-заглушка с описанием того, что на
+% схеме должно быть показано, чтобы её можно было отрисовать позже отдельно.
+\newcommand{\diagramplaceholder}[2]{%
+\begin{center}
+\begin{tikzpicture}
+\node[draw, dashed, thick, inner sep=10pt,
+      text width=0.82\textwidth, align=center, font=\itshape\small,
+      minimum height=#1] {#2};
+\end{tikzpicture}
+\end{center}%
+}

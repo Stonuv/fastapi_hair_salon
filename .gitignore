@@ -20,3 +20,17 @@ ROADMAP.md
 SECURITY.md
 new_issues.md
 claude_design_examples/
+tech_zadanie/
+final_report/
+
+# user_manual/ и admin_manual/ отслеживаются, но не мусор компиляции LaTeX
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.toc
+*.xdv
+# Референсы для стиля, не часть документа
+user_manual/rukovodstvo-polzovatelya-esia-versiya-259.pdf
+user_manual/SantaFoxDoc.pdf
+
