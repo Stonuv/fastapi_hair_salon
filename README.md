@@ -47,6 +47,7 @@
 
 **Инлайн-WYSIWYG** в «Админ → Настройки» (`views/admin/AdminSettingsLive.vue`): рендеринг главной вынесен в переиспользуемые `components/AppHeader.vue`, `components/HomePreview.vue`, `components/AppFooter.vue`, которые получили необязательные пропы `editable`/`content` (по умолчанию `false`/из стора — публичный сайт этим не затронут). При `editable` текстовые узлы рендерятся через `components/ui/EditableText.vue` (input/автоширящийся textarea вместо текста), а ссылки/кнопки-переходы — через `components/ui/EditableLink.vue` (не-навигирующий `<span>` вместо `router-link`/`<a>`, иначе клик по редактируемому бренду/hero-кнопке уводил бы со страницы). Оба компонента мутируют тот же реактивный объект формы (то же самое, что раньше делала форма-предпросмотр) и сохраняются через `PATCH /api/settings`; поля без прямого визуального представления на странице (время работы салона, SEO) редактируются в модалке «Ещё настройки» той же панели.
 
+
 ---
 
 ## Структура репозитория
@@ -55,7 +56,38 @@
 backend/
   app/
     models/       ORM-модели (UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin)
+		__init__.py
+        appointment.py
+        email_verification_token.py
+        enums.py
+		login_attempt.py
+		master.py
+		mixins.py
+		password_reset_token.py
+		review.py
+		salon.py
+		schedule.py
+		service.py
+		session.py
+		site_settings.py
+		user.py
     repositories/ SQL-запросы (paginated() — общий хелпер пагинации)
+		__init__.py
+		_query_utils.py
+		appointment_repository.py
+		email_verification_token_repository.py
+		login_attempt_repository.py
+		master_repository.py
+		password_reset_token_repository.py
+		report_repository.py
+		review_repository.py
+		salon_repository.py
+		schedule_repository.py
+		service_repository.py
+		session_repository.py
+		site_settings_repository.py
+		stats_repository.py
+		user_repository.py
     services/     Бизнес-логика (auth, appointments, admin, reports, ...)
     routes/       FastAPI-роутеры
     schemas/      Pydantic-схемы (PageParams/PageResponse[T] для пагинации)
@@ -73,6 +105,7 @@ frontend/
 ```
 
 ---
+
 
 ## Быстрый старт
 
