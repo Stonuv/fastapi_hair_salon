@@ -54,54 +54,109 @@
 
 ```
 backend/
-  app/
-    models/       ORM-модели (UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin)
-		__init__.py
-        appointment.py
-        email_verification_token.py
-        enums.py
-		login_attempt.py
-		master.py
-		mixins.py
-		password_reset_token.py
-		review.py
-		salon.py
-		schedule.py
-		service.py
-		session.py
-		site_settings.py
-		user.py
-    repositories/ SQL-запросы (paginated() — общий хелпер пагинации)
-		__init__.py
-		_query_utils.py
-		appointment_repository.py
-		email_verification_token_repository.py
-		login_attempt_repository.py
-		master_repository.py
-		password_reset_token_repository.py
-		report_repository.py
-		review_repository.py
-		salon_repository.py
-		schedule_repository.py
-		service_repository.py
-		session_repository.py
-		site_settings_repository.py
-		stats_repository.py
-		user_repository.py
-    services/     Бизнес-логика (auth, appointments, admin, reports, ...)
-    routes/       FastAPI-роутеры
-    schemas/      Pydantic-схемы (PageParams/PageResponse[T] для пагинации)
-  alembic/        Миграции (0001_initial.py содержит raw SQL для EXCLUDE + btree_gist)
-  run.py          Точка запуска (uvicorn, reload=settings.debug)
+├── app/
+│   ├── models/          # ORM-модели (UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin)
+│   │   ├── appointment.py
+│   │   ├── email_verification_token.py
+│   │   ├── enums.py
+│   │   ├── login_attempt.py
+│   │   ├── master.py
+│   │   ├── mixins.py
+│   │   ├── password_reset_token.py
+│   │   ├── review.py
+│   │   ├── salon.py
+│   │   ├── schedule.py
+│   │   ├── service.py
+│   │   ├── session.py
+│   │   ├── site_settings.py
+│   │   └── user.py
+│   ├── repositories/    # SQL-запросы (paginated() — общий хелпер пагинации)
+│   │   ├── _query_utils.py
+│   │   ├── appointment_repository.py
+│   │   ├── email_verification_token_repository.py
+│   │   ├── login_attempt_repository.py
+│   │   ├── master_repository.py
+│   │   ├── password_reset_token_repository.py
+│   │   ├── report_repository.py
+│   │   ├── review_repository.py
+│   │   ├── salon_repository.py
+│   │   ├── schedule_repository.py
+│   │   ├── service_repository.py
+│   │   ├── session_repository.py
+│   │   ├── site_settings_repository.py
+│   │   ├── stats_repository.py
+│   │   └── user_repository.py
+│   ├── services/        # Бизнес-логика
+│   │   ├── admin_service.py
+│   │   ├── appointment_service.py
+│   │   ├── auth_service.py
+│   │   ├── master_service.py
+│   │   ├── reminder_service.py
+│   │   ├── report_service.py
+│   │   ├── review_service.py
+│   │   ├── salon_service.py
+│   │   ├── service_service.py
+│   │   ├── setup_service.py
+│   │   ├── site_settings_service.py
+│   │   ├── vk_oauth_service.py
+│   │   ├── _errors.py
+│   │   └── _salon_scope.py
+│   ├── routes/           # FastAPI-роутеры
+│   │   ├── admin.py
+│   │   ├── appointments.py
+│   │   ├── auth.py
+│   │   ├── masters.py
+│   │   ├── reviews.py
+│   │   ├── salons.py
+│   │   ├── services.py
+│   │   ├── setup.py
+│   │   └── site_settings.py
+│   ├── schemas/          # Pydantic-схемы (PageParams/PageResponse[T] для пагинации)
+│   │   ├── admin_stats.py
+│   │   ├── appointment.py
+│   │   ├── auth.py
+│   │   ├── fields.py
+│   │   ├── master.py
+│   │   ├── pagination.py
+│   │   ├── report.py
+│   │   ├── review.py
+│   │   ├── salon.py
+│   │   ├── schedule.py
+│   │   ├── service.py
+│   │   ├── setup.py
+│   │   ├── site_settings.py
+│   │   ├── upload.py
+│   │   └── user.py
+│   ├── utils/            # client_ip, rate_limit, content_filter, email, slug, uploads
+│   ├── config.py         # Настройки (Pydantic Settings)
+│   └── database.py       # Подключение к БД, session factory
+├── alembic/              # Миграции (0001_initial.py — raw SQL для EXCLUDE + btree_gist)
+├── tests/
+│   ├── unit/             # Юнит-тесты с фейковыми репозиториями
+│   └── integration/      # Интеграционные тесты (реальный Postgres)
+├── .env.example
+├── requirements.txt
+└── run.py                # Точка запуска (uvicorn, reload=settings.debug)
 
 frontend/
-  src/
-    views/        Страницы (публичные, /dashboard, /admin)
-    components/   UI-примитивы (BaseButton, BaseCard, Skeleton, StatusPill, ...)
-    stores/       Pinia (auth, toast, masterProfile)
-    api/          Axios-клиент + модули по ресурсам
-    router/       Vue Router с beforeEach-гардом по ролям
-  design-system/  Дизайн-система проекта (палитра, типографика, паттерны по типу страницы)
+├── src/
+│   ├── views/            # Страницы (публичные, /dashboard, /admin)
+│   │   ├── admin/
+│   │   └── dashboard/
+│   ├── components/       # UI-примитивы (BaseButton, BaseCard, Skeleton, StatusPill, ...)
+│   │   └── ui/
+│   ├── stores/           # Pinia (auth, toast, masterProfile)
+│   ├── api/              # Axios-клиент + модули по ресурсам
+│   ├── router/           # Vue Router с beforeEach-гардом по ролям
+│   ├── composables/      # useDebouncedWatch, useFormErrors
+│   ├── theme/            # fonts, presets, seo
+│   ├── utils/
+│   └── assets/
+├── tests/
+│   ├── unit/             # Vitest, сторы с замоканным API
+│   └── e2e/              # Playwright, сквозные сценарии + a11y (axe-core)
+├── design-system/        # Дизайн-система проекта (палитра, типографика, паттерны)
+└── .env.example
 ```
 
 ---
