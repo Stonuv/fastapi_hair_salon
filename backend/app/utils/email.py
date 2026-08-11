@@ -23,9 +23,13 @@ def send_email(*, to: str, subject: str, text_body: str, html_body: str | None =
     if html_body:
         message.add_alternative(html_body, subtype="html")
 
+    # Порт 465 — implicit TLS (SMTPS): TLS-рукопожатие сразу при коннекте,
+    # обычный SMTP.starttls() на нём зависает до таймаута (сервер ждёт TLS,
+    # а не открытый текст). 587/25 — STARTTLS поверх обычного соединения.
+    smtp_cls = smtplib.SMTP_SSL if settings.smtp_port == 465 else smtplib.SMTP
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-            if settings.smtp_use_tls:
+        with smtp_cls(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
+            if settings.smtp_use_tls and settings.smtp_port != 465:
                 smtp.starttls()
             if settings.smtp_user and settings.smtp_password:
                 smtp.login(settings.smtp_user, settings.smtp_password)
