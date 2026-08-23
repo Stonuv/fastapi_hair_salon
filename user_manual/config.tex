@@ -1,7 +1,10 @@
-% config.tex — преамбула документа (класс, пакеты, оформление по ГОСТ 2.105).
+% config.tex - преамбула документа (класс, пакеты, оформление по ГОСТ 2.105).
 % Подключается из main.tex через \input{config}.
-% Адаптировано из tech_zadanie/config.tex — тот же класс документа, те же поля,
-% шрифты и оформление, чтобы руководство пользователя визуально совпадало с ТЗ.
+% Адаптировано из admin_manual/config.tex (та же визуальная схема, что и у
+% всех документов проекта: класс, поля, шрифты, оформление таблиц/схем,
+% включая ручную нумерацию разделов \gostsection/\gostsubsection/
+% \gostsubsubsection) - без заглушек схем, все схемы в этом отчёте
+% нарисованы по-настоящему (tikz), а не отмечены рамкой.
 
 \documentclass[14pt]{extarticle}
 
@@ -19,23 +22,25 @@
 \usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
+\usepackage{microtype}   % устраняет переполнение правого поля в justify-тексте
+\emergencystretch=3em    % последний резерв: тянуть пробелы, а не вылезать за правое поле (актуально для \texttt-идентификаторов без переносов)
 
 % ---------- Абзацы ----------
 \setlength{\parindent}{1.25cm}
 \setlength{\parskip}{0pt}
 
 % ---------- Заголовки разделов ----------
-% Каждый раздел верхнего уровня — с новой страницы; подразделы продолжают
-% течь в потоке.
+% Каждый раздел верхнего уровня - с новой страницы; подразделы продолжают
+% течь в потоке, без разрыва.
 \usepackage{titlesec}
-% \clearpage раньше стоял последним (пятым) аргументом \titleformat —
+% \clearpage раньше стоял последним (пятым) аргументом \titleformat -
 % "код перед заголовком" по документации titlesec. На практике в этой
 % версии пакета \clearpage там выполняется МЕЖДУ номером раздела и его
 % названием, а не перед всем заголовком: номер попадает на страницу ДО
 % разрыва (осиротевшим внизу предыдущей страницы или один на пустой
-% странице), а название — уже после разрыва, без номера. \pretocmd
+% странице), а название - уже после разрыва, без номера. \pretocmd
 % (etoolbox) вместо этого пришивает \clearpage перед самим \section
-% целиком, до того как titlesec вообще начинает строить заголовок —
+% целиком, до того как titlesec вообще начинает строить заголовок -
 % разрыв происходит раньше, чем номер и название вообще собираются.
 \usepackage{etoolbox}
 \titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{}
@@ -48,23 +53,31 @@
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
 
-% ---------- Литеральное подчёркивание в идентификаторах (client_id и т.п.) ----------
+% ---------- Литеральное подчёркивание в идентификаторах (SENTRY_DSN и т.п.) ----------
 \usepackage[strings]{underscore}
 
 % ---------- Списки ----------
 \usepackage{enumitem}
-\setlist[itemize]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
-\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, itemindent=1.25cm, label=\arabic*)}
+\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
+\setlist[enumerate]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=\arabic*)}
+
+% ---------- Блоки кода/команд ----------
+% См. подробное объяснение в admin_manual/config.tex - тот же приём:
+% перенос длинных строк вместо ухода за поле страницы.
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{breaklines=true, breakanywhere=true, fontsize=\small}
 
 % ---------- Таблицы ----------
 \usepackage{graphicx}
 \usepackage{array}
-\usepackage{xltabular}   % longtable + X-колонки: таблицы сообщений переносятся между страницами
+\usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
+\usepackage{seqsplit}    % перенос длинных идентификаторов без дефиса, когда они не влезают в колонку
 \usepackage{caption}
 \captionsetup[table]{position=top, labelsep=endash, name=Таблица, justification=raggedright, singlelinecheck=false}
+\captionsetup[figure]{position=bottom, labelsep=endash, name=Рисунок, justification=centering}
 \renewcommand{\arraystretch}{1.15}
 
-% ---------- Схемы (диаграмма ролей, машина состояний записи) ----------
+% ---------- Схемы (архитектура, ER-модель, диаграммы последовательностей) ----------
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds}
 
@@ -77,23 +90,22 @@
 
 % ---------- Гиперссылки и оглавление ----------
 \usepackage[unicode, hidelinks, bookmarksdepth=3]{hyperref}
+\usepackage{xurl}   % длинные URL переносятся по /, ., а не вылезают за поле
 \usepackage{bookmark}
 \hypersetup{
-  pdftitle={Руководство пользователя CMS для парикмахерских и барбершопов «Сайтама»},
+  pdftitle={Итоговый отчёт о разработке CMS для парикмахерских и барбершопов «Сайтама»},
   pdfauthor={Решетняк Владислав Александрович},
   pdflang={ru}
 }
 
-% ---------- Колонки для карточек сообщений оператора ----------
-\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % текст сообщения
-\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание/действие
+% ---------- Колонки для справочных таблиц ----------
+\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % название/термин
+\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание
 
-% ---------- Ручная нумерация разделов по схеме for_user_manual.md (3.1 ... 3.5) ----------
-% Разделы руководства идут под номерами 3.1–3.5 не как подпункты внутри
-% раздела "3", а как самостоятельные заголовки верхнего уровня — так, как
-% задано в user_manual/for_user_manual.md. Штатные счётчики \section этого не
-% дадут, поэтому номер печатается как текст, а в оглавление запись добавляется
-% вручную (тот же приём, что и \section* в tech_zadanie/main.tex для приложения).
+% ---------- Длинные идентификаторы (переменные окружения, поля БД) ----------
+\newcommand{\envvar}[1]{\texttt{\seqsplit{#1}}}
+
+% ---------- Разделы с ручной нумерацией по ГОСТ (см. admin_manual/config.tex) ----------
 \newcommand{\gostsection}[2]{\section*{#1\quad #2}\addcontentsline{toc}{section}{#1\quad #2}}
 \newcommand{\gostsubsection}[2]{\subsection*{#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
 \newcommand{\gostsubsubsection}[2]{\subsubsection*{#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}

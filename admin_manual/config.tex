@@ -20,6 +20,8 @@
 \usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
+\usepackage{microtype}   % устраняет переполнение правого поля в justify-тексте
+\emergencystretch=3em    % последний резерв: тянуть пробелы, а не вылезать за правое поле (актуально для \texttt-идентификаторов без переносов)
 
 % ---------- Абзацы ----------
 \setlength{\parindent}{1.25cm}
