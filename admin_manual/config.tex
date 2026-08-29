@@ -14,7 +14,7 @@
 
 \setmainfont{Liberation Serif}      % метрический аналог Times New Roman, есть кириллица
 \setsansfont{Liberation Sans}
-\setmonofont{Liberation Mono}
+\setmonofont{Liberation Serif}
 
 % ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
 \usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
@@ -56,8 +56,8 @@
 
 % ---------- Списки ----------
 \usepackage{enumitem}
-\setlist[itemize]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
-\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, itemindent=1.25cm, label=\arabic*)}
+\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.5cm, labelsep=1cm, label=--}
+\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
 
 % ---------- Блоки команд ----------
 % Обычный verbatim никогда не переносит длинные строки — команды
@@ -80,7 +80,7 @@
 
 % ---------- Схемы и заглушки схем ----------
 \usepackage{tikz}
-\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds}
+\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds, calc}
 
 % ---------- Колонтитулы ----------
 \usepackage{fancyhdr}

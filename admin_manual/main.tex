@@ -9,26 +9,37 @@
 % ТИТУЛЬНЫЙ ЛИСТ
 % ============================================================
 \begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+\draw[line width=1pt] ($(current page.north west)+(1cm,-1cm)$) rectangle ($(current page.south east)+(-1cm,1cm)$);
+\end{tikzpicture}
 \centering
-\vspace*{1.5cm}
-{\large Сыктывкарский лесной институт\par}
-\vspace{3cm}
-{\Huge\bfseries РУКОВОДСТВО\\[2pt]АДМИНИСТРАТОРА\par}
+\vspace*{1cm}
+{\large Министерство науки и высшего образования Российской Федерации\par}
 \vspace{1.2em}
-{\Large CMS для парикмахерских и барбершопов «Сайтама»\par}
-\vspace{0.4em}
+{\large Сыктывкарский лесной институт (филиал) федерального государственного
+бюджетного образовательного учреждения высшего образования
+«Санкт-Петербургский государственный лесотехнический университет
+имени С.\,М.\,Кирова» (СЛИ)\par}
+\vspace{2cm}
+{\Huge\bfseries РУКОВОДСТВО\\[2pt]АДМИНИСТРАТОРА\par}
+\vspace{1em}
+{\large CMS для парикмахерских и барбершопов «Сайтама»\par}
+\vspace{0.3em}
 {\large Развёртывание и эксплуатация\par}
-\vspace{0.6em}
+\vspace{0.3em}
 {\large Версия документа 1.0\par}
+\vspace{0.8em}
+00000000.230176.001.РА.01.1-М\par
 \vfill
 \begin{tabular}{@{}p{5.5cm}p{7.5cm}@{}}
 Разработал: & Решетняк В.\,А., студент гр.\ 335б \\[2pt]
             & подпись \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \\[14pt]
-Руководитель практики: & Кирпичев А.\,Н. \\[2pt]
-            & подпись \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \\
+Руководитель практики: & Оганезова Н.\,А. \\[2pt]
+            & подпись \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \\[14pt]
+Начало практики: & 22.06.2026 \\[2pt]
+Конец практики: & 18.07.2026 \\
 \end{tabular}
 \vfill
-СЛИ\par
 Сыктывкар 2026\par
 \vspace{1cm}
 \end{titlepage}
@@ -471,12 +482,14 @@ docker compose start backend
 \subsection*{Сообщения при запуске и настройке}
 \addcontentsline{toc}{subsection}{Сообщения при запуске и настройке}
 
-\begin{xltabular}{\textwidth}{M D}
+\begin{xltabular}{\textwidth}{|M|D|}
 \caption{Сообщения при первом запуске и настройке окружения} \\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
+\hline
+\multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
@@ -512,12 +525,14 @@ docker compose start backend
 \subsection*{Сообщения при развёртывании, обновлении и работе контейнеров}
 \addcontentsline{toc}{subsection}{Сообщения при развёртывании и работе контейнеров}
 
-\begin{xltabular}{\textwidth}{M D}
+\begin{xltabular}{\textwidth}{|M|D|}
 \caption{Сообщения и ситуации при эксплуатации Docker-стека} \\
 \hline
 \textbf{Ситуация} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
+\hline
+\multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Ситуация} & \textbf{Значение и действия} \\
 \hline
@@ -611,12 +626,14 @@ Docker) -- файл указан в квадратных скобках в на�
 нативного запуска -- всегда файл \seqsplit{backend/app/config.py} в
 исходном коде; здесь -- практический минимум для администратора.
 
-\begin{xltabular}{\textwidth}{>{\raggedright\arraybackslash\footnotesize}p{4cm} D}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash\footnotesize}p{4cm}|D|}
 \caption{Переменные окружения} \\
 \hline
 \textbf{Переменная} & \textbf{Назначение и значение по умолчанию} \\
 \hline
 \endfirsthead
+\hline
+\multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Переменная} & \textbf{Назначение и значение по умолчанию} \\
 \hline
@@ -688,12 +705,14 @@ Docker) -- файл указан в квадратных скобках в на�
 \section*{ПРИЛОЖЕНИЕ Б. Состав контейнеров}
 \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ Б. Состав контейнеров}
 
-\begin{xltabular}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{1.8cm}D}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{1.8cm}|D|}
 \caption{Сервисы \texttt{docker-compose.yml}} \\
 \hline
 \textbf{Сервис} & \textbf{Порты наружу} & \textbf{Назначение} \\
 \hline
 \endfirsthead
+\hline
+\multicolumn{3}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сервис} & \textbf{Порты наружу} & \textbf{Назначение} \\
 \hline
@@ -719,12 +738,14 @@ Docker) -- файл указан в квадратных скобках в на�
 \section*{ПРИЛОЖЕНИЕ В. Глоссарий терминов}
 \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ В. Глоссарий терминов}
 
-\begin{xltabular}{\textwidth}{>{\raggedright\arraybackslash}p{4cm} D}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{4cm}|D|}
 \caption{Термины, используемые в настоящем руководстве} \\
 \hline
 \textbf{Термин} & \textbf{Значение} \\
 \hline
 \endfirsthead
+\hline
+\multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Термин} & \textbf{Значение} \\
 \hline

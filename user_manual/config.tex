@@ -16,7 +16,7 @@
 
 \setmainfont{Liberation Serif}      % метрический аналог Times New Roman, есть кириллица
 \setsansfont{Liberation Sans}
-\setmonofont{Liberation Mono}
+\setmonofont{Liberation Serif}
 
 % ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
 \usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
@@ -58,8 +58,8 @@
 
 % ---------- Списки ----------
 \usepackage{enumitem}
-\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=--}
-\setlist[enumerate]{noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=1.25cm, label=\arabic*)}
+\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.5cm, labelsep=1cm, label=--}
+\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
 
 % ---------- Блоки кода/команд ----------
 % См. подробное объяснение в admin_manual/config.tex - тот же приём:
@@ -69,6 +69,7 @@
 
 % ---------- Таблицы ----------
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{array}
 \usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
 \usepackage{seqsplit}    % перенос длинных идентификаторов без дефиса, когда они не влезают в колонку
@@ -79,7 +80,7 @@
 
 % ---------- Схемы (архитектура, ER-модель, диаграммы последовательностей) ----------
 \usepackage{tikz}
-\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds}
+\usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds, calc}
 
 % ---------- Колонтитулы ----------
 \usepackage{fancyhdr}
@@ -93,7 +94,7 @@
 \usepackage{xurl}   % длинные URL переносятся по /, ., а не вылезают за поле
 \usepackage{bookmark}
 \hypersetup{
-  pdftitle={Итоговый отчёт о разработке CMS для парикмахерских и барбершопов «Сайтама»},
+  pdftitle={Руководство пользователя},
   pdfauthor={Решетняк Владислав Александрович},
   pdflang={ru}
 }
