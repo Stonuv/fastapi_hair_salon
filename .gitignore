@@ -20,8 +20,6 @@ ROADMAP.md
 SECURITY.md
 new_issues.md
 claude_design_examples/
-tech_zadanie/
-final_report/
 
 # user_manual/ и admin_manual/ отслеживаются, но не мусор компиляции LaTeX
 *.aux

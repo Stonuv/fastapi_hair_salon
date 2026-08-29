@@ -8,35 +8,40 @@
 % ТИТУЛЬНЫЙ ЛИСТ
 % ============================================================
 \begin{titlepage}
-\begin{tikzpicture}[remember picture, overlay]
-\draw[line width=1pt] ($(current page.north west)+(1cm,-1cm)$) rectangle ($(current page.south east)+(-1cm,1cm)$);
-\end{tikzpicture}
-\centering
-\vspace*{1cm}
-{\large МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\par}
-\vspace{1.2em}
-{\large Сыктывкарский лесной институт (филиал) федерального государственного
-бюджетного образовательного учреждения высшего образования
-«Санкт-Петербургский государственный лесотехнический университет
-имени С.\,М.\,Кирова» \\(СЛИ)\par}
-\vspace{3cm}
-{\Huge\bfseries РУКОВОДСТВО\\[2pt]ПОЛЬЗОВАТЕЛЯ\par}
-\vspace{1.2em}
-{\large CMS для парикмахерских и барбершопов «Сайтама»\par}
-\vfill
-\begin{tabular}{@{}p{5.5cm}p{7.5cm}@{}}
-Разработал: & Решетняк В.\,А., студент гр.\ 335б \\[2pt]
-            & подпись \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \\[14pt]
-Руководитель практики: & Оганезова Н.\,А. \\[2pt]
-            & подпись \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \\[14pt]
-\end{tabular}
-\vfill
-Сыктывкар 2026\par
-\vspace{1cm}
+
+    \begin{tikzpicture}[remember picture, overlay]
+    \draw[line width=1pt] ($(current page.north west)+(2cm, -1cm)$) rectangle ($(current page.south east)+(-1cm,1cm)$);
+    \end{tikzpicture}
+
+    \centering
+    \vspace*{0.3cm}
+    {\large МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\par}
+    \vspace{1cm}
+    {\large Сыктывкарский лесной институт (филиал) федерального государственного
+    бюджетного образовательного учреждения высшего образования
+    «Санкт-Петербургский государственный лесотехнический университет
+    имени С.\,М.\,Кирова» \\(СЛИ)\par}
+    \vspace{3cm}
+    {\huge РУКОВОДСТВО ПОЛЬЗОВАТЕЛЯ\par}
+    \vspace{3cm}
+    {\large CMS для парикмахерских и барбершопов «Сайтама»\par}
+
+    \vfill
+    \noindent
+    \begin{tabular}{@{}p{5.5cm}@{\hspace{7cm}}p{6cm}@{}}
+        {\fontsize{15.5}{19}\selectfont Исполнитель} & {\fontsize{15.5}{19}\selectfont В.\,А. Решетняк} \\[4pt]
+        {\fontsize{15.5}{19}\selectfont Руководитель практики} & {\fontsize{15.5}{19}\selectfont Н.\,А. Оганезова} \\
+    \end{tabular}
+
+    \vspace{4cm}
+    {\fontsize{15.5}{19}\selectfont Сыктывкар 2026\par}
+    \vspace*{0.3cm}
+
 \end{titlepage}
+\setcounter{page}{2}
 
 % ============================================================
-\section*{АННОТАЦИЯ}
+\section*{\hspace*{\gostindent}АННОТАЦИЯ}
 \addcontentsline{toc}{section}{АННОТАЦИЯ}
 % ============================================================
 
@@ -51,11 +56,15 @@ CMS «Сайтама») -- веб-приложения для онлайн-за�
 данные сведения приведены в руководстве администратора.
 
 \newpage
+\renewcommand{\contentsname}{СОДЕРЖАНИЕ}
+\begingroup
+\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{}
 \tableofcontents
+\endgroup
 \newpage
 
 % ============================================================
-\section*{ВВЕДЕНИЕ}
+\section*{\hspace*{\gostindent}ВВЕДЕНИЕ}
 \addcontentsline{toc}{section}{ВВЕДЕНИЕ}
 % ============================================================
 
@@ -426,9 +435,10 @@ VK и учётной записи с таким email ещё нет -- она с
 Ряд функций описан через жизненный цикл записи на услугу -- её статус
 меняется по следующей схеме:
 
-\begin{center}
+\begin{figure}[H]
+\centering
 \begin{tikzpicture}[
-  st/.style={draw, thick, rounded corners, minimum width=2.7cm, minimum height=1cm, align=center, font=\small},
+  st/.style={draw, thick, minimum width=2.7cm, minimum height=1cm, align=center, font=\small},
   arr/.style={-{Stealth[length=2.5mm]}, thick}
 ]
 \node[st] (pending) {pending\\(ожидает подтверждения)};
@@ -441,7 +451,8 @@ VK и учётной записи с таким email ещё нет -- она с
 \draw[arr] (pending.south east) -- node[below left, font=\scriptsize]{отменить} (cancelled.north west);
 \draw[arr] (confirmed.south) -- node[right, font=\scriptsize]{отменить} (cancelled.north);
 \end{tikzpicture}
-\end{center}
+\caption{Схема статусов записи на услугу}
+\end{figure}
 
 Статусы «завершена» и «отменена» -- конечные: изменить их или отменить
 уже нельзя. Право менять статус записи и переносить её время -- у мастера
@@ -934,7 +945,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
@@ -984,7 +994,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
@@ -1018,7 +1027,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
@@ -1072,7 +1080,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
@@ -1127,7 +1134,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Сообщение} & \textbf{Значение и действия} \\
@@ -1183,7 +1189,7 @@ VK и учётной записи с таким email ещё нет -- она с
 \renewcommand{\thefigure}{\Alph{section}.\arabic{figure}}
 % ============================================================
 
-\section*{ПРИЛОЖЕНИЕ А. Глоссарий терминов}
+\section*{\hspace*{\gostindent}ПРИЛОЖЕНИЕ А. Глоссарий терминов}
 \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ А. Глоссарий терминов}
 
 \begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{4cm}|D|}
@@ -1192,7 +1198,6 @@ VK и учётной записи с таким email ещё нет -- она с
 \textbf{Термин} & \textbf{Значение} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Термин} & \textbf{Значение} \\
@@ -1237,7 +1242,7 @@ VK ID & Способ входа в систему через учётную за
   автоматически. \\
 \end{xltabular}
 
-\section*{ПРИЛОЖЕНИЕ Б. Справочные таблицы}
+\section*{\hspace*{\gostindent}ПРИЛОЖЕНИЕ Б. Справочные таблицы}
 \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ Б. Справочные таблицы}
 
 \begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{7.5cm}|D|}
@@ -1246,7 +1251,6 @@ VK ID & Способ входа в систему через учётную за
 \textbf{Параметр} & \textbf{Значение} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Параметр} & \textbf{Значение} \\
@@ -1284,7 +1288,6 @@ VK ID & Способ входа в систему через учётную за
 \textbf{Раздел} & \textbf{Администратор точки / Владелец сети} \\
 \hline
 \endfirsthead
-\hline
 \multicolumn{2}{l}{Продолжение таблицы \arabic{table}}\\
 \hline
 \textbf{Раздел} & \textbf{Администратор точки / Владелец сети} \\
@@ -1310,7 +1313,7 @@ VK ID & Способ входа в систему через учётную за
 Настройки сайта & Недоступно / Полное управление \\
 \end{xltabular}
 
-\section*{ПРИЛОЖЕНИЕ В. Пример работы с системой}
+\section*{\hspace*{\gostindent}ПРИЛОЖЕНИЕ В. Пример работы с системой}
 \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ В. Пример работы с системой}
 
 Сквозной пример иллюстрирует связь операций разных ролей на одном

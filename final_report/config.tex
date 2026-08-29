@@ -1,10 +1,10 @@
 % config.tex - преамбула документа (класс, пакеты, оформление по ГОСТ 2.105).
 % Подключается из main.tex через \input{config}.
 % Адаптировано из admin_manual/config.tex (та же визуальная схема, что и у
-% всех документов проекта: класс, поля, шрифты, оформление таблиц/схем,
-% включая ручную нумерацию разделов \gostsection/\gostsubsection/
-% \gostsubsubsection) - без заглушек схем, все схемы в этом отчёте
-% нарисованы по-настоящему (tikz), а не отмечены рамкой.
+% всех документов проекта: класс, поля, шрифты, оформление таблиц/схем).
+% Без ручной нумерации разделов (\gostsection) - здесь обычные нумерованные
+% \section, как в tech_zadanie/config.tex, и без заглушек схем - все схемы
+% в этом отчёте нарисованы по-настоящему (tikz), а не отмечены рамкой.
 
 \documentclass[14pt]{extarticle}
 
@@ -28,10 +28,6 @@
 % ---------- Абзацы ----------
 \setlength{\parindent}{1.25cm}
 \setlength{\parskip}{0pt}
-% Отдельная длина с тем же значением: titlesec обнуляет \parindent внутри
-% заголовков, поэтому для отступа номера главы/подраздела нужна своя копия.
-\newlength{\gostindent}
-\setlength{\gostindent}{\parindent}
 
 % ---------- Заголовки разделов ----------
 % Каждый раздел верхнего уровня - с новой страницы; подразделы продолжают
@@ -47,7 +43,7 @@
 % целиком, до того как titlesec вообще начинает строить заголовок -
 % разрыв происходит раньше, чем номер и название вообще собираются.
 \usepackage{etoolbox}
-\titleformat{\section}{\bfseries\raggedright}{\thesection}{0.5em}{}
+\titleformat{\section}{\bfseries\centering}{\thesection}{0.5em}{}
 \pretocmd{\section}{\clearpage}{}{}
 \titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
 \titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
@@ -73,7 +69,6 @@
 
 % ---------- Таблицы ----------
 \usepackage{graphicx}
-\usepackage{float}
 \usepackage{array}
 \usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
 \usepackage{seqsplit}    % перенос длинных идентификаторов без дефиса, когда они не влезают в колонку
@@ -86,6 +81,54 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.multipart, fit, backgrounds, calc}
 
+% ---------- Диаграммы последовательностей (UML sequence) ----------
+% Тот же макро-набор, что и в tech_zadanie/config.tex (Приложение Б) --
+% курсор \seqcur сам отступает вниз на нужную величину после каждой
+% команды, поэтому y-координаты не считаются вручную.
+\tikzset{
+  seqactor/.style={draw, rectangle, minimum width=2.9cm, minimum height=0.9cm, text width=2.6cm, align=center, font=\small, fill=white},
+  seqlife/.style={dashed, gray!60!black},
+  seqact/.style={draw, fill=white},
+  seqmsg/.style={-{Stealth}, font=\scriptsize, align=center},
+  seqret/.style={-{Stealth}, dashed, font=\scriptsize, align=center},
+}
+\newlength{\seqcur}
+\newcommand{\seqinit}{\setlength{\seqcur}{-0.45cm}}
+\newcommand{\seqhead}[2]{\node[seqactor] at (#1,0) {#2};}
+\newcommand{\seqfoot}[3]{%
+  \node[seqactor] at (#1,#3) {#2};
+  \draw[seqlife] (#1,-0.45) -- (#1,#3+0.45);
+}
+\newcommand{\seqpad}[1]{\addtolength{\seqcur}{-#1cm}}
+\newcommand{\seqmark}[1]{\pgfmathsetmacro{#1}{\seqcur/1cm}}
+\newcommand{\seqmsgA}[3]{\seqpad{0.75}\seqmark{\seqy}\draw[seqmsg] (#1,\seqy) -- (#2,\seqy) node[midway, above] {#3};}
+\newcommand{\seqretA}[3]{\seqpad{0.75}\seqmark{\seqy}\draw[seqret] (#1,\seqy) -- (#2,\seqy) node[midway, above] {#3};}
+\newcommand{\seqmsgB}[3]{\seqpad{1.1}\seqmark{\seqy}\draw[seqmsg] (#1,\seqy) -- (#2,\seqy) node[midway, above] {#3};}
+\newcommand{\seqretB}[3]{\seqpad{1.1}\seqmark{\seqy}\draw[seqret] (#1,\seqy) -- (#2,\seqy) node[midway, above] {#3};}
+\newcommand{\seqcond}[2]{\seqpad{0.55}\seqmark{\seqy}\node[font=\scriptsize\itshape, align=center] at (#1,\seqy) {[#2]};}
+\newcommand{\seqselfA}[2]{%
+  \seqpad{0.3}\seqmark{\seqy}
+  \draw[seqmsg] (#1+0.09,\seqy) -- ++(0.8,0) -- ++(0,-0.4) -- (#1+0.09,\seqy-0.4);
+  \node[font=\scriptsize, align=left, anchor=north west, inner sep=0pt] at (#1+0.95,\seqy-0.4) {#2};
+  \seqpad{0.75}
+}
+\newcommand{\seqselfB}[2]{%
+  \seqpad{0.3}\seqmark{\seqy}
+  \draw[seqmsg] (#1+0.09,\seqy) -- ++(0.8,0) -- ++(0,-0.4) -- (#1+0.09,\seqy-0.4);
+  \node[font=\scriptsize, align=left, anchor=north west, inner sep=0pt] at (#1+0.95,\seqy-0.4) {#2};
+  \seqpad{1.1}
+}
+% На фоновом слое -- иначе полоска рисуется поверх подписи условия alt,
+% когда та выравнивается по x с лайнлайном участника.
+\newcommand{\seqact}[3]{\begin{pgfonlayer}{background}\draw[seqact] (#1-0.09,#2) rectangle (#1+0.09,#3);\end{pgfonlayer}}
+\newcommand{\seqframe}[5]{%
+  \draw (#2,#4) rectangle (#3,#5);
+  \node[anchor=north west, font=\scriptsize\bfseries, inner sep=2pt] at (#2,#4) {#1};
+}
+\newcommand{\seqaltframe}[4]{\seqframe{alt}{#1}{#2}{#3}{#4}}
+\newcommand{\seqloopframe}[4]{\seqframe{loop}{#1}{#2}{#3}{#4}}
+\newcommand{\seqsep}[3]{\draw[seqlife] (#1,#2) -- (#3,#2);}
+
 % ---------- Колонтитулы ----------
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -93,36 +136,12 @@
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0pt}
 
-% ---------- Оглавление: точки-заполнители до номера страницы у разделов ----------
-% По умолчанию в article.cls у \l@section (в отличие от \l@subsection) нет
-% отточия -- копия стандартного определения с добавленным \leaders, как у
-% \l@subsection.
-\makeatletter
-\renewcommand*\l@section[2]{%
-  \ifnum \c@tocdepth >\z@
-    \addpenalty\@secpenalty
-    \addvspace{1.0em \@plus\p@}%
-    \setlength\@tempdima{1.5em}%
-    \begingroup
-      \parindent \z@ \rightskip \@pnumwidth
-      \parfillskip -\@pnumwidth
-      \leavevmode \bfseries
-      \advance\leftskip\@tempdima
-      \hskip -\leftskip
-      #1\nobreak
-      \leaders\hbox{$\m@th\mkern \@dotsep mu.\mkern\@dotsep mu$}\hfill
-      \nobreak\hb@xt@\@pnumwidth{\hss #2}\par
-      \penalty\@highpenalty
-    \endgroup
-  \fi}
-\makeatother
-
 % ---------- Гиперссылки и оглавление ----------
 \usepackage[unicode, hidelinks, bookmarksdepth=3]{hyperref}
 \usepackage{xurl}   % длинные URL переносятся по /, ., а не вылезают за поле
 \usepackage{bookmark}
 \hypersetup{
-  pdftitle={Руководство пользователя},
+  pdftitle={Итоговый отчёт},
   pdfauthor={Решетняк Владислав Александрович},
   pdflang={ru}
 }
@@ -133,8 +152,3 @@
 
 % ---------- Длинные идентификаторы (переменные окружения, поля БД) ----------
 \newcommand{\envvar}[1]{\texttt{\seqsplit{#1}}}
-
-% ---------- Разделы с ручной нумерацией по ГОСТ (см. admin_manual/config.tex) ----------
-\newcommand{\gostsection}[2]{\section*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{section}{#1\quad #2}}
-\newcommand{\gostsubsection}[2]{\subsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
-\newcommand{\gostsubsubsection}[2]{\subsubsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}
