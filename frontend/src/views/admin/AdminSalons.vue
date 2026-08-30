@@ -83,7 +83,7 @@
         ? `«${salonToToggle?.name}» исчезнет с публичного сайта. Мастера, записи и отчёты сохранятся — точку можно открыть обратно.`
         : `«${salonToToggle?.name}» снова появится на публичном сайте.`"
       @confirm="toggleActive"
-      @cancel="salonToToggle = null"
+      @update:open="salonToToggle = null"
     />
   </div>
 </template>
