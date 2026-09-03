@@ -78,6 +78,7 @@
 % ---------- Таблицы ----------
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{rotating}   % повёрнутые на всю страницу рисунки: sidewaysfigure поворачивает рисунок и подпись как единый блок, а колонтитул (номер страницы) остаётся на обычном месте внизу страницы -- под повёрнутым рисунком
 \usepackage{array}
 \usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
 \usepackage{seqsplit}    % перенос длинных идентификаторов без дефиса, когда они не влезают в колонку
@@ -85,6 +86,27 @@
 \captionsetup[table]{position=top, labelsep=endash, name=Таблица, justification=raggedright, singlelinecheck=false}
 \captionsetup[figure]{position=bottom, labelsep=endash, name=Рисунок, justification=centering}
 \renewcommand{\arraystretch}{1.15}
+
+% ---------- Узкие таблицы: подпись по левому краю самой таблицы ----------
+% \caption (justification=raggedright выше) выравнивается по левому краю
+% \linewidth, т.е. по полю страницы -- для таблицы уже textwidth это
+% совпадает с левым краем таблицы, но для более узкой центрированной
+% таблицы (тройка "Критерии и веса...", "Итоговые результаты...") подпись
+% съезжает левее самой таблицы. \gosttablebox измеряет фактическую ширину
+% таблицы (\lrbox), после чего подпись и таблица кладутся в minipage той
+% же ширины -- у обеих общий левый край, а minipage целиком центрируется
+% на странице тем же \centering, что раньше центрировал только таблицу.
+\newsavebox{\gosttablebox}
+\newenvironment{gosttable}[1]{%
+  \def\gosttablecaption{#1}%
+  \begin{lrbox}{\gosttablebox}%
+}{%
+  \end{lrbox}%
+  \begin{minipage}{\wd\gosttablebox}
+  \caption{\gosttablecaption}
+  \usebox{\gosttablebox}
+  \end{minipage}%
+}
 
 % ---------- Схемы (архитектура, ER-модель, диаграммы последовательностей) ----------
 \usepackage{tikz}
