@@ -32,3 +32,11 @@ claude_design_examples/
 user_manual/rukovodstvo-polzovatelya-esia-versiya-259.pdf
 user_manual/SantaFoxDoc.pdf
 
+
+# Приватные ключи (SSH/TLS) — никогда не в git.
+*.pem
+*.key
+id_rsa*
+id_ecdsa*
+id_ed25519*
+keys
