@@ -17,14 +17,32 @@
 \setmonofont{Liberation Serif}
 
 % ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
-\usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+% Поля по п. 2.9 методического пособия СЛИ (лист без рамки): левое 30 мм,
+% правое 10 мм, верхнее и нижнее по 20 мм.
+\usepackage[a4paper,left=30mm,right=10mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
 \usepackage{microtype}   % устраняет переполнение правого поля в justify-тексте
 \emergencystretch=3em    % последний резерв: тянуть пробелы, а не вылезать за правое поле (актуально для \texttt-идентификаторов без переносов)
 
+% ---------- Переносы слов (ГОСТ 2.105, п. 2.12: не рекомендуются) ----------
+% Полный запрет не годится: без переноса TeX не может разбить длинное слово,
+% и строка вылезает за правое поле (overfull hbox -- видимый дефект, хуже
+% переноса). Штраф именно 10000 TeX трактует как "точка переноса запрещена
+% вовсе"; 5000 -- всё ещё огромный штраф (перенос только там, где иначе
+% строка не верстается), но конечный. \tolerance разрешает сильнее тянуть
+% межсловные пробелы, лишь бы обойтись без переноса.
+\hyphenpenalty=5000
+\exhyphenpenalty=5000
+\tolerance=2000
+
+% В заголовках и ячейках таблиц перенос запрещён полностью (там строка всегда
+% разбивается по словам, overfull не возникает).
+\newcommand{\nohyphens}{\hyphenpenalty=10000\exhyphenpenalty=10000\relax}
+
 % ---------- Абзацы ----------
-\setlength{\parindent}{1.25cm}
+% Абзацный отступ -- не менее 15 мм (пп. 2.6, 2.9 методического пособия СЛИ).
+\setlength{\parindent}{1.5cm}
 \setlength{\parskip}{0pt}
 % Отдельная длина с тем же значением: titlesec обнуляет \parindent внутри
 % заголовков, поэтому для отступа номера главы/подраздела нужна своя копия.
@@ -45,12 +63,12 @@
 % целиком, до того как titlesec вообще начинает строить заголовок —
 % разрыв происходит раньше, чем номер и название вообще собираются.
 \usepackage{etoolbox}
-\titleformat{\section}{\bfseries\raggedright}{\thesection}{0.5em}{}
+\titleformat{\section}{\bfseries\raggedright\nohyphens}{\thesection}{0.5em}{}
 \pretocmd{\section}{\clearpage}{}{}
-\titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
-\titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
+\titleformat{\subsection}{\raggedright\nohyphens}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\raggedright\nohyphens}{\thesubsubsection}{0.5em}{}
 \titlespacing*{\section}{0pt}{2\baselineskip}{1\baselineskip}
-\titlespacing*{\subsection}{0pt}{1.5\baselineskip}{0.75\baselineskip}
+\titlespacing*{\subsection}{0pt}{1\baselineskip}{1\baselineskip}
 \titlespacing*{\subsubsection}{0pt}{1\baselineskip}{0.5\baselineskip}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
@@ -101,7 +119,9 @@
 \renewcommand*\l@section[2]{%
   \ifnum \c@tocdepth >\z@
     \addpenalty\@secpenalty
-    \addvspace{1.0em \@plus\p@}%
+    % 0.4em вместо стандартного 1.0em: с отбивкой в целый интервал
+    % содержание не помещается на один лист.
+    \addvspace{0.4em \@plus\p@}%
     \setlength\@tempdima{1.5em}%
     \begingroup
       \parindent \z@ \rightskip \@pnumwidth
@@ -127,12 +147,27 @@
 }
 
 % ---------- Колонки для справочных таблиц ----------
-\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % название параметра/сообщения
-\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание/действие
+\newcolumntype{M}{>{\raggedright\arraybackslash\nohyphens}p{5.7cm}}   % название параметра/сообщения
+\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt\nohyphens}X}  % описание/действие
 
 % ---------- Ручная нумерация разделов по схеме for_user_manual.md (3.1 ... 3.5) ----------
 % См. подробное объяснение приёма в user_manual/config.tex — здесь тот же
 % механизм: номер печатается как текст, запись в оглавление — вручную.
+% ---------- Заголовок приложения (пп. 12.3, 12.6 методического пособия) ----------
+% Обозначение приложения -- по центру наверху листа, заголовок -- отдельной
+% строкой симметрично тексту. Строка с характером приложения ("(справочное)",
+% п. 12.5) по решению автора не печатается.
+% #1 -- буква, #2 -- заголовок.
+\newcommand{\gostappendix}[2]{%
+  \clearpage
+  \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ #1. #2}%
+  \begin{center}
+    {\bfseries ПРИЛОЖЕНИЕ #1}\\[\baselineskip]
+    {\bfseries #2}
+  \end{center}
+  \par\vspace{0.5\baselineskip}
+}
+
 \newcommand{\gostsection}[2]{\section*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{section}{#1\quad #2}}
 \newcommand{\gostsubsection}[2]{\subsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
 \newcommand{\gostsubsubsection}[2]{\subsubsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}
