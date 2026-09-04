@@ -19,14 +19,33 @@
 \setmonofont{Liberation Serif}
 
 % ---------- Поля и межстрочный интервал (ГОСТ 2.105) ----------
-\usepackage[a4paper,left=30mm,right=15mm,top=20mm,bottom=20mm]{geometry}
+% Поля по п. 2.9 методического пособия СЛИ (лист без рамки, ГОСТ 7.32-2001):
+% левое 30 мм, правое 10 мм, верхнее и нижнее по 20 мм.
+\usepackage[a4paper,left=30mm,right=10mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
 \usepackage{microtype}   % устраняет переполнение правого поля в justify-тексте
 \emergencystretch=3em    % последний резерв: тянуть пробелы, а не вылезать за правое поле (актуально для \texttt-идентификаторов без переносов)
 
+% ---------- Переносы слов (ГОСТ 2.105, п. 2.12: не рекомендуются) ----------
+% Полный запрет (через lefthyphenmin/righthyphenmin) не годится: без переноса
+% TeX не может разбить длинное слово, и строка вылезает за правое поле
+% (overfull hbox -- реальный видимый дефект, хуже переноса). Вместо этого
+% перенос делается штрафуемым по максимуму: TeX ищет любой другой способ
+% (растяжение/сжатие пробелов) и прибегает к переносу, только если иначе
+% строка физически не влезает в поле. Штраф именно 10000 (а не чуть меньше)
+% TeX трактует как "точка переноса запрещена вовсе" (см. TeXbook) -- поэтому
+% реальный disable получался тем же самым, что и через lefthyphenmin/
+% righthyphenmin, и приводил к overfull-строкам. 5000 -- всё ещё огромный
+% штраф (обычные слова почти никогда не переносятся), но конечный: перенос
+% остаётся доступен как запасной вариант, когда иначе слово вылезет за поле.
+\hyphenpenalty=5000
+\exhyphenpenalty=5000
+\tolerance=2000
+
 % ---------- Абзацы ----------
-\setlength{\parindent}{1.25cm}
+% Абзацный отступ -- не менее 15 мм (пп. 2.6, 2.9 методического пособия СЛИ).
+\setlength{\parindent}{1.5cm}
 % Отдельная длина с тем же значением: titlesec обнуляет \parindent внутри
 % заголовков, поэтому для отступа номера главы/подраздела нужна своя копия.
 \newlength{\gostindent}
@@ -47,18 +66,22 @@
 % целиком, до того как titlesec вообще начинает строить заголовок -
 % разрыв происходит раньше, чем номер и название вообще собираются.
 \usepackage{etoolbox}
-\titleformat{\section}{\bfseries\raggedright}{\thesection}{0.5em}{}
+% \nohyphens -- п. 4.2: "Переносы слов в заголовках не допускаются" (в основном
+% тексте перенос лишь сильно штрафуется, см. блок про переносы выше, а в
+% заголовках запрещён полностью: штраф 10000 TeX трактует как запрет точки
+% переноса).
+\newcommand{\nohyphens}{\hyphenpenalty=10000\exhyphenpenalty=10000\relax}
+% У заголовков разделов шрифт полужирный (п. 4.2), у подразделов -- обычный
+% (п. 4.4).
+\titleformat{\section}{\bfseries\raggedright\nohyphens}{\thesection}{0.5em}{}
 \pretocmd{\section}{\clearpage}{}{}
-\titleformat{\subsection}{\bfseries\raggedright}{\thesubsection}{0.5em}{}
-\titleformat{\subsubsection}{\bfseries\raggedright}{\thesubsubsection}{0.5em}{}
+\titleformat{\subsection}{\raggedright\nohyphens}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\raggedright\nohyphens}{\thesubsubsection}{0.5em}{}
 \titlespacing*{\section}{0pt}{2\baselineskip}{1\baselineskip}
-\titlespacing*{\subsection}{0pt}{1.5\baselineskip}{0.75\baselineskip}
+\titlespacing*{\subsection}{0pt}{1\baselineskip}{1\baselineskip}
 \titlespacing*{\subsubsection}{0pt}{1\baselineskip}{0.5\baselineskip}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
-
-% ---------- Литеральное подчёркивание в идентификаторах (SENTRY_DSN и т.п.) ----------
-\usepackage[strings]{underscore}
 
 % ---------- Формулы (метод экспертных оценок, раздел 5) ----------
 \usepackage{amsmath}
@@ -66,8 +89,17 @@
 
 % ---------- Списки ----------
 \usepackage{enumitem}
+% п. 3.6 пособия допускает перед перечислением дефис либо строчную букву со
+% скобкой, а арабские цифры со скобкой -- для дальнейшей детализации. По
+% решению автора нумерованные перечисления везде набираются арабскими цифрами
+% со скобкой (как было изначально), маркированные -- тире.
 \setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.5cm, labelsep=1cm, label=--}
-\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
+\setlist[enumerate,1]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
+% Отдельный список для библиографического списка (п. 14.2) -- та же арабская
+% нумерация, объявлен отдельно, чтобы её нельзя было случайно переопределить
+% вместе с обычными перечислениями.
+\newlist{numlist}{enumerate}{1}
+\setlist[numlist]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
 
 % ---------- Блоки кода/команд ----------
 % См. подробное объяснение в admin_manual/config.tex - тот же приём:
@@ -191,7 +223,10 @@
 \renewcommand*\l@section[2]{%
   \ifnum \c@tocdepth >\z@
     \addpenalty\@secpenalty
-    \addvspace{1.0em \@plus\p@}%
+    % 0.4em вместо стандартного 1.0em: после добавления подраздела 5.1 и
+    % приложения А содержание перестало помещаться на один лист, а отбивка
+    % перед записями разделов -- единственный запас по вертикали.
+    \addvspace{0.4em \@plus\p@}%
     \setlength\@tempdima{1.5em}%
     \begingroup
       \parindent \z@ \rightskip \@pnumwidth
@@ -218,8 +253,28 @@
 }
 
 % ---------- Колонки для справочных таблиц ----------
-\newcolumntype{M}{>{\raggedright\arraybackslash}p{5.7cm}}   % название/термин
-\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt}X}  % описание
+% \nohyphens в текстовых графах: в узкой колонке перенос особенно заметен, а
+% п. 2.12 переносы не рекомендует; \raggedright снимает переполнение, которое
+% иначе возникло бы без переносов.
+\newcolumntype{M}{>{\raggedright\arraybackslash\nohyphens}p{5.7cm}}   % название/термин
+\newcolumntype{D}{>{\raggedright\arraybackslash\hangindent=0pt\nohyphens}X}  % описание
+\newcolumntype{T}{>{\raggedright\arraybackslash\nohyphens}p{6.3cm}}   % критерий (таблицы 1-3)
+
+% ---------- Заголовок приложения (пп. 12.3, 12.5, 12.6) ----------
+% п. 12.3: приложение начинается с нового листа, слово "Приложение" и его
+% обозначение -- наверху посередине страницы; п. 12.6: заголовок приложения --
+% отдельной строкой, симметрично тексту. Строка с характером приложения
+% ("(справочное)", п. 12.5) по решению автора не печатается.
+% #1 -- буква, #2 -- заголовок.
+\newcommand{\gostappendix}[2]{%
+  \clearpage
+  \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ #1. #2}%
+  \begin{center}
+    {\bfseries ПРИЛОЖЕНИЕ #1}\\[\baselineskip]
+    {\bfseries #2}
+  \end{center}
+  \par\vspace{0.5\baselineskip}
+}
 
 % ---------- Длинные идентификаторы (переменные окружения, поля БД) ----------
 \newcommand{\envvar}[1]{\texttt{\seqsplit{#1}}}
@@ -228,3 +283,14 @@
 \newcommand{\gostsection}[2]{\section*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{section}{#1\quad #2}}
 \newcommand{\gostsubsection}[2]{\subsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
 \newcommand{\gostsubsubsection}[2]{\subsubsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}
+
+% ---------- Литеральное подчёркивание в идентификаторах (SENTRY_DSN и т.п.) ----------
+% Загружается САМОЙ ПОСЛЕДНЕЙ в преамбуле, после tikz/fvextra и всех
+% остальных пакетов: опция [strings] делает "_" активным символом сразу
+% при загрузке, а внутренние \csname...\endcsname-конструкции у fancyvrb
+% (ключ file_ext) и у pgf (стандартная стрелка с именем "_" в
+% pgfcorearrows.code.tex) ломаются, если "_" уже активен в момент их
+% чтения. На типографику основного текста (main.tex) порядок загрузки не
+% влияет -- активация действует на весь документ независимо от того, где
+% в преамбуле она произошла, лишь бы раньше \begin{document}.
+\usepackage[strings]{underscore}
