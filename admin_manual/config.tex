@@ -94,6 +94,67 @@
 \usepackage{graphicx}
 \usepackage{array}
 \usepackage{xltabular}   % longtable + X-колонки: таблицы переносятся между страницами
+% ---------- ГОСТ 2.105: разрыв таблицы между страницами ----------
+% Требование: при переносе таблицы на следующую страницу нижнюю
+% горизонтальную линию, ограничивающую таблицу, не проводят.
+% longtable (основа xltabular) рисует каждый \hline как ДВЕ линейки подряд,
+% разделённые \LT@sep = «штраф разрыва + \vskip-\arrayrulewidth». Если
+% разрыва нет, отрицательный клей совмещает их и видна одна линия; если
+% разрыв есть, первая линейка остаётся внизу страницы (та самая лишняя
+% нижняя кромка), вторая уходит на начало следующей. Патч делает первую
+% линейку нулевой высоты (без чернил) и убирает компенсирующий клей:
+% суммарная высота и положение всех линий не меняются, но в месте переноса
+% внизу страницы линии больше нет. Проверено попиксельно: позиции всех
+% остальных линеек совпадают с непропатченным longtable.
+\makeatletter
+\ExplSyntaxOn
+\cs_if_exist:NT \tbl_gdecr_row_count:
+  {
+    \def\LT@@hline{%
+      \ifx\@let@token\hline
+        \global\let\@gtempa\@gobble
+        \gdef\LT@sep{\penalty-\@medpenalty\vskip\doublerulesep}%
+      \else
+        \global\let\@gtempa\@empty
+        \gdef\LT@sep{\penalty-\@lowpenalty}%
+      \fi
+      \ifnum0=`{\fi}%
+      \multispan\LT@cols\unskip\leaders\hrule\@height\z@\hfill\cr
+      \noalign{\tbl_gdecr_row_count:\LT@sep}%
+      \multispan\LT@cols\unskip\leaders\hrule\@height\arrayrulewidth\hfill\cr
+      \noalign{\tbl_gdecr_row_count:\penalty\@M}%
+      \@gtempa}%
+  }
+\ExplSyntaxOff
+% Разрыв нельзя делать сразу ПОСЛЕ линейки \cline -- иначе она остаётся
+% внизу страницы. Запрещаем разрыв в этом месте: TeX выбирает предыдущую
+% допустимую точку (границу перед строкой-линейкой), и линейка уходит на
+% следующую страницу вместе с продолжением таблицы. \nobreak обязан стоять
+% ДО отрицательного клея, иначе разрыв всё равно возможен на самом клее,
+% поэтому \patchcmd не годится -- определение \@cline повторено целиком
+% (array.sty) с изменённой последней строкой.
+\ExplSyntaxOn
+\cs_if_exist:NT \tbl_gdecr_row_count:
+  {
+    \def\@cline#1-#2\@nil{
+      \omit
+      \@multicnt#1
+      \advance\@multispan\m@ne
+      \ifnum\@multicnt=\@ne\@firstofone{&\omit}\fi
+      \@multicnt#2
+      \advance\@multicnt-#1
+      \advance\@multispan\@ne
+      \UseTaggingSocket{tbl/leaders/begin}
+      \leaders\hrule\@height\arrayrulewidth\hfill
+      \UseTaggingSocket{tbl/leaders/end}
+      \tbl_gdecr_row_count:
+      \cr
+      \noalign{\nobreak\vskip-\arrayrulewidth\nobreak}
+    }
+  }
+\ExplSyntaxOff
+\makeatother
+
 \usepackage{seqsplit}    % перенос длинных идентификаторов (ACCESS_TOKEN_EXPIRE_MINUTES
                          % и т.п.) без дефиса, когда они не влезают в узкую колонку
 \usepackage{caption}

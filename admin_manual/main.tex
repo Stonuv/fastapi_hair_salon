@@ -479,7 +479,6 @@ docker compose start backend
 \textbf{Сообщение} & \textbf{Значение и действия} \\
 \hline
 \endhead
-\hline
 \endfoot
 \texttt{SECRET\_KEY не задан: при DEBUG=false задайте собственный
   SECRET\_KEY через переменную окружения или backend/.env} & Контейнер
@@ -525,7 +524,6 @@ docker compose start backend
 \textbf{Ситуация} & \textbf{Значение и действия} \\
 \hline
 \endhead
-\hline
 \endfoot
 \texttt{git pull --ff-only} завершается ошибкой в
   \texttt{scripts/deploy.sh} & На сервере есть локальные изменения или
@@ -630,7 +628,6 @@ Docker) -- файл указан в квадратных скобках в на�
 \textbf{Переменная} & \textbf{Назначение и значение по умолчанию} \\
 \hline
 \endhead
-\hline
 \endfoot
 \envvar{SECRET\_KEY} & [оба] Секрет подписи JWT-токенов. Обязателен вне
   режима отладки. Без значения по умолчанию, генерируется командой
@@ -724,7 +721,6 @@ Docker) -- файл указан в квадратных скобках в на�
 \textbf{Сервис} & \textbf{Порты наружу} & \textbf{Назначение} \\
 \hline
 \endhead
-\hline
 \endfoot
 \texttt{db} & нет & PostgreSQL 16 -- основное хранилище данных. \\
 \hline
@@ -760,7 +756,6 @@ Docker) -- файл указан в квадратных скобках в на�
 \textbf{Термин} & \textbf{Значение} \\
 \hline
 \endhead
-\hline
 \endfoot
 Реверс-прокси & Сервер (в этой системе -- Caddy, а также nginx внутри
   \texttt{frontend}), принимающий внешние запросы и перенаправляющий их
