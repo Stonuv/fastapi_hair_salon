@@ -80,8 +80,14 @@
 
 % ---------- Списки ----------
 \usepackage{enumitem}
-\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.5cm, labelsep=1cm, label=--}
-\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, itemindent=2.7cm, labelsep=1cm, label=\arabic*)}
+% Метка перечисления встаёт ровно на абзацный отступ (\gostindent), то есть
+% по левому краю с номерами разделов и подразделов. enumitem кладёт метку в
+% бокс шириной \labelwidth, левый край которого = itemindent - labelsep -
+% labelwidth; при labelwidth=0pt позиция метки перестаёт зависеть от ширины
+% самой метки. Раньше labelwidth равнялась естественной ширине метки, поэтому
+% тире вставало на 1,25 см, а «1)» -- на 1,33 см вместо 1,5 см.
+\setlist[itemize]  {noitemsep, topsep=0pt, parsep=0pt, leftmargin=0pt, labelwidth=0pt, labelsep=1cm, itemindent=\dimexpr\gostindent+1cm\relax, align=left, label=--}
+\setlist[enumerate]{itemsep=0pt, topsep=0pt, parsep=0pt, leftmargin=0pt, labelwidth=0pt, labelsep=1cm, itemindent=\dimexpr\gostindent+1cm\relax, align=left, label=\arabic*)}
 
 % ---------- Блоки кода/команд ----------
 % См. подробное объяснение в admin_manual/config.tex - тот же приём:
