@@ -13,6 +13,13 @@
 \newcommand{\signline}{\rule{4.2cm}{0.5pt}}
 \newcommand{\signcap}{\makebox[4.2cm][c]{\footnotesize (подпись, дата)}}
 
+% ---------- Поля титульного листа ----------
+% Титульный лист набран по бланку и правому полю 15 мм, принятому для
+% основного текста, не подчиняется: графы подписей заданы в сантиметрах по
+% бланку и рассчитаны на полосу 170 мм. Поэтому на время титульного листа
+% правое поле остаётся прежним (10 мм), а сразу после него геометрия
+% возвращается к основной.
+\newgeometry{left=30mm,right=10mm,top=20mm,bottom=20mm}
 \begin{titlepage}
 \begin{spacing}{1.0}
     \centering
@@ -52,11 +59,7 @@
     Период прохождения: 22.06.26 -- 18.07.26
 
     \vspace{\baselineskip}
-    % Последняя графа добирает остаток полосы (\dimexpr), а не задана жёстко:
-    % при 7,6+0,3+4,2+0,3+4,4 = 16,8 см таблица вылезала за правое поле после
-    % того, как оно стало 15 мм (полоса 16,5 см). В остальных трёх документах
-    % та же задача решена через tabular*{\textwidth}.
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
         Выполнил: студент 3 курса     &            &                   \\
         очной формы обучения          &            &                   \\
         направления подготовки        & \signline  & Решетняк В.\,А.   \\
@@ -65,13 +68,13 @@
     \end{tabular}
 
     \vspace{\baselineskip}
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
         Руководитель:                 & \signline  & Оганезова Н.\,А.  \\
         к.\,э.\,н., доцент            & \signcap   &                   \\
     \end{tabular}
 
     \vspace{\baselineskip}
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
         Заведующий кафедрой           &            &                   \\
         информационных систем и       & \signline  & Плешев Д.\,А.     \\
         технологий, к.\,ф.-м.\,н., доцент & \signcap &                 \\
@@ -88,3 +91,4 @@
     Сыктывкар 2026
 \end{spacing}
 \end{titlepage}
+\restoregeometry
