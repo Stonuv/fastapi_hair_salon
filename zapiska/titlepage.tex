@@ -52,7 +52,11 @@
     Период прохождения: 22.06.26 -- 18.07.26
 
     \vspace{\baselineskip}
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
+    % Последняя графа добирает остаток полосы (\dimexpr), а не задана жёстко:
+    % при 7,6+0,3+4,2+0,3+4,4 = 16,8 см таблица вылезала за правое поле после
+    % того, как оно стало 15 мм (полоса 16,5 см). В остальных трёх документах
+    % та же задача решена через tabular*{\textwidth}.
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
         Выполнил: студент 3 курса     &            &                   \\
         очной формы обучения          &            &                   \\
         направления подготовки        & \signline  & Решетняк В.\,А.   \\
@@ -61,13 +65,13 @@
     \end{tabular}
 
     \vspace{\baselineskip}
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
         Руководитель:                 & \signline  & Оганезова Н.\,А.  \\
         к.\,э.\,н., доцент            & \signcap   &                   \\
     \end{tabular}
 
     \vspace{\baselineskip}
-    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{4.4cm}@{}}
+    \begin{tabular}{@{}p{7.6cm}@{\hspace{0.3cm}}p{4.2cm}@{\hspace{0.3cm}}p{\dimexpr\textwidth-7.6cm-4.2cm-0.6cm\relax}@{}}
         Заведующий кафедрой           &            &                   \\
         информационных систем и       & \signline  & Плешев Д.\,А.     \\
         технологий, к.\,ф.-м.\,н., доцент & \signcap &                 \\
