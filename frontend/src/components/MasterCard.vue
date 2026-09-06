@@ -8,7 +8,10 @@
     </div>
     <div class="p-4">
       <p class="font-mono text-[11px] font-medium uppercase tracking-wide text-brand-700">{{ master.specialization || 'Барбер' }}</p>
-      <h2 class="mt-1 font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ master.first_name }}</h2>
+      <!-- break-words: длинное имя в одно слово («Константин») шире колонки
+           карточки на 320 px, а у карточки overflow-hidden -- без переноса
+           имя обрезалось прямо посреди слова. -->
+      <h2 class="mt-1 break-words font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ master.first_name }}</h2>
       <p class="mt-3 flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-900 transition-colors group-hover:text-brand-700">
         Записаться
         <ArrowRightIcon class="h-4 w-4" aria-hidden="true" />
