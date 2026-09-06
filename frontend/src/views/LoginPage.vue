@@ -24,6 +24,19 @@
           @blur="validatePassword"
         />
 
+        <!-- Второй фактор админ-панели: поле появляется, только если на
+             сервере задан ADMIN_LOGIN_TOKEN. Клиенту оно не нужно -- он
+             оставляет его пустым, сервер спрашивает код лишь у владельца и
+             администратора. -->
+        <BaseInput
+          v-if="adminTokenRequired"
+          v-model="form.admin_token"
+          label="Код администратора"
+          type="password"
+          autocomplete="one-time-code"
+          hint="Только для владельца и администратора — клиенту заполнять не нужно"
+        />
+
         <BaseButton type="submit" class="w-full" :loading="loading">Войти</BaseButton>
       </form>
 
@@ -45,6 +58,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { authApi } from '../api'
 import { useFormErrors } from '../composables/useFormErrors'
 import { extractErrorMessage } from '../utils/errors'
 import { emailError } from '../utils/validators'
@@ -59,8 +73,9 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const { errors, setOrClear, validateAll, setFromResponse } = useFormErrors()
 
-const form = reactive({ email: '', password: '' })
+const form = reactive({ email: '', password: '', admin_token: '' })
 const loading = ref(false)
+const adminTokenRequired = ref(false)
 
 // Ошибки OAuth-редиректа приходят query-параметром (см. routes/auth.py
 // vk_callback: fail() редиректит на /login?error=<код>, а не 4xx/5xx —
@@ -72,11 +87,22 @@ const VK_ERROR_MESSAGES = {
   vk_token_exchange_failed: 'Не удалось войти через VK. Попробуйте ещё раз',
   vk_user_info_failed: 'Не удалось получить данные профиля VK',
   account_blocked: 'Аккаунт заблокирован. Обратитесь к администратору',
+  admin_token_required:
+    'Владельцу и администратору вход через VK недоступен, пока включён код администратора. '
+    + 'Войдите по email и паролю, указав код.',
 }
 
-onMounted(() => {
+onMounted(async () => {
   const code = route.query.error
   if (code) toast.error(VK_ERROR_MESSAGES[code] || 'Не удалось войти через VK')
+  try {
+    const { data } = await authApi.adminTokenRequired()
+    adminTokenRequired.value = data.required
+  } catch {
+    // Флаг — не повод ронять форму входа: клиентам поле всё равно не нужно,
+    // а администратор при недоступном флаге увидит «Неверный код
+    // администратора» и перезагрузит страницу.
+  }
 })
 
 const validateEmail = () => setOrClear('email', emailError(form.email))
@@ -90,7 +116,13 @@ async function submit() {
 
   loading.value = true
   try {
-    await auth.login(form)
+    // Пустой код не отправляем: полю в схеме соответствует str | None, и
+    // сервер не должен отличать «клиент не заполнял» от «админ стёр».
+    await auth.login({
+      email: form.email,
+      password: form.password,
+      admin_token: form.admin_token || undefined,
+    })
     toast.success('Добро пожаловать!')
     router.push(route.query.redirect || '/')
   } catch (err) {

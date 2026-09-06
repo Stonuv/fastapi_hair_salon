@@ -42,6 +42,8 @@ services:
       # При DEBUG=false приложение откажется стартовать без своего SECRET_KEY/SETUP_TOKEN
       SECRET_KEY: ${SECRET_KEY:?Задайте SECRET_KEY (python -c "import secrets; print(secrets.token_urlsafe(48))")}
       SETUP_TOKEN: ${SETUP_TOKEN:?Задайте SETUP_TOKEN (python -c "import secrets; print(secrets.token_urlsafe(24))")}
+      # Необязателен: пусто -- вход владельца/админа только по email и паролю.
+      ADMIN_LOGIN_TOKEN: ${ADMIN_LOGIN_TOKEN:-}
       DEBUG: "false"
       # true только после того, как перед приложением реально встал Caddy с
       # настоящим доменом (см. SITE_ADDRESS) — на голом HTTP ломает cookie.

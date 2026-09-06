@@ -12,4 +12,5 @@ export const authApi = {
   confirmEmailVerification: (token) => client.post('/auth/email-verification/confirm', { token }),
   resendEmailVerification: () => client.post('/auth/email-verification/resend'),
   vkEnabled: () => client.get('/auth/vk/enabled'),
+  adminTokenRequired: () => client.get('/auth/admin-token-required'),
 }

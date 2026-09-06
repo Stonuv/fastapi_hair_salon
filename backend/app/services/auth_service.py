@@ -51,6 +51,28 @@ def _hash_token(raw_token: str) -> str:
 # всё равно выполняется — иначе быстрый ответ выдаёт, что email не зарегистрирован.
 _DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt()).decode()
 
+
+# ── Второй фактор админ-панели (ADMIN_LOGIN_TOKEN) ───────────────
+# Код общий на всех администраторов и лежит в .env — он не заменяет
+# персональную 2FA, а поднимает цену утёкшего пароля: пароля без кода мало.
+# Клиентам и мастерам код не нужен: админ-панель им закрыта ролью.
+_ADMIN_ROLES = (UserRole.owner, UserRole.admin)
+
+
+def admin_login_token_required() -> bool:
+    """Задан ли ADMIN_LOGIN_TOKEN. Форма входа спрашивает код только тогда."""
+    return bool(settings.admin_login_token)
+
+
+def admin_token_accepted(role: UserRole, token: str | None) -> bool:
+    """True, если этой роли код не нужен либо предъявленный код верен.
+    compare_digest, а не == : сравнение за постоянное время не даёт подбирать
+    код по времени ответа (так же сверяется SETUP_TOKEN в setup_service)."""
+    if not admin_login_token_required() or role not in _ADMIN_ROLES:
+        return True
+    return bool(token) and secrets.compare_digest(token, settings.admin_login_token)
+
+
 # ── HTTPBearer схема — в Swagger появится поле "Value: <token>" ──
 # auto_error=False: токен может прийти либо в httpOnly-cookie (SPA), либо в
 # заголовке Authorization (Swagger "Authorize", внешние API-клиенты) — какой
@@ -190,7 +212,8 @@ class AuthService:
                 ) from exc
         return UserResponse.model_validate(user)
 
-    def login(self, email: str, password: str, ip_address: str | None = None) -> TokenResponse:
+    def login(self, email: str, password: str, ip_address: str | None = None,
+              admin_token: str | None = None) -> TokenResponse:
         # Временная блокировка после N неудачных попыток (защита от перебора;
         # сам журнал login_attempts — требование 5.1).
         window_start = datetime.now(timezone.utc) - timedelta(
@@ -211,8 +234,12 @@ class AuthService:
         # быть неотличим от обычного случая.
         hashed = user.password_hash if user and user.password_hash else _DUMMY_HASH
         password_ok = _verify_password(password, hashed) and user is not None
+        # Второй фактор для админ-панели (ADMIN_LOGIN_TOKEN): проверяется
+        # только после пароля и только для owner/admin — иначе сам факт
+        # "этому email нужен код" раскрывал бы роль по чужому адресу.
+        admin_token_ok = password_ok and admin_token_accepted(user.role, admin_token)
         # Верный пароль заблокированного аккаунта — это тоже неуспешный вход
-        success = password_ok and not user.is_blocked
+        success = password_ok and not user.is_blocked and admin_token_ok
 
         # Требование 5.1 — логируем каждую попытку входа, успешную и неуспешную.
         self.login_attempt_repo.create(
@@ -237,6 +264,15 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Аккаунт заблокирован. Обратитесь к администратору.",
+            )
+
+        # Неверный код — тот же 401, что и неверный пароль, и та же запись
+        # о неудачной попытке выше: подбор кода упирается в ту же блокировку
+        # после login_max_failed_attempts, что и подбор пароля.
+        if not admin_token_ok:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный код администратора",
             )
 
         return build_token_response(user)

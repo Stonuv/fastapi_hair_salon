@@ -12,9 +12,11 @@ from ..schemas.auth import (EmailVerificationConfirm, LoginRequest,
                             TokenResponse)
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 from ..services.auth_service import (REFRESH_TOKEN_COOKIE, AuthService,
-                                     clear_auth_cookie, clear_refresh_cookie,
-                                     create_session, get_current_user,
-                                     set_auth_cookie, set_refresh_cookie)
+                                     admin_login_token_required,
+                                     admin_token_accepted, clear_auth_cookie,
+                                     clear_refresh_cookie, create_session,
+                                     get_current_user, set_auth_cookie,
+                                     set_refresh_cookie)
 from ..services.vk_oauth_service import (COOKIE_MAX_AGE, COOKIE_PATH,
                                          STATE_COOKIE, VERIFIER_COOKIE,
                                          VkOAuthError, VkOAuthService,
@@ -39,10 +41,20 @@ def register(request: Request, data: UserCreate, response: Response, db: Session
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, response: Response,
           db: Session = Depends(get_db)):
-    token_response = AuthService(db).login(data.email, data.password, client_ip(request))
+    token_response = AuthService(db).login(data.email, data.password, client_ip(request),
+                                          admin_token=data.admin_token)
     set_auth_cookie(response, token_response.access_token)
     set_refresh_cookie(response, create_session(db, token_response.user.id))
     return token_response
+
+
+@router.get("/admin-token-required")
+def admin_token_required():
+    """Спрашивать ли на форме входа код администратора: сервер может быть
+    поднят и без ADMIN_LOGIN_TOKEN (тогда вход как обычно). Флаг публичен по
+    той же причине, что и /api/setup/status: без него форма не знает, какое
+    поле показать, а сам факт «код включён» ничего не даёт без кода."""
+    return {"required": admin_login_token_required()}
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -191,6 +203,13 @@ def vk_callback(
     except VkOAuthError as exc:
         db.rollback()
         return fail(exc.error_code)
+
+    # Вход через VK — обход второго фактора: кода в OAuth-потоке спросить
+    # негде. Пока ADMIN_LOGIN_TOKEN задан, владелец и администратор входят
+    # только формой; на клиентов и мастеров это не распространяется.
+    if not admin_token_accepted(token_response.user.role, None):
+        db.rollback()
+        return fail("admin_token_required")
 
     redirect = RedirectResponse(f"{settings.frontend_base_url}/")
     set_auth_cookie(redirect, token_response.access_token)

@@ -11,6 +11,12 @@ from .user import UserResponse
 class LoginRequest(BaseModel):
     email:    Annotated[NormalizedEmailStr, Field(description="Email пользователя")]
     password: Annotated[str, Field(description="Пароль")]
+    # Второй фактор для владельца и администратора, когда на сервере задан
+    # ADMIN_LOGIN_TOKEN (см. GET /api/auth/admin-token-required). Остальным
+    # ролям поле не нужно и игнорируется.
+    admin_token: Annotated[str | None, Field(
+        default=None, description="Код администратора, если он включён на сервере"
+    )]
 
 
 # ── Ответ с токеном ──────────────────────────────────────────────
