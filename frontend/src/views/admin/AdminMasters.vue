@@ -46,7 +46,16 @@
             <BaseSelect v-model="newService[m.id]" class="w-52" placeholder="Услуга">
               <option v-for="s in allServices" :key="s.id" :value="s.id">{{ s.name }}</option>
             </BaseSelect>
-            <BaseInput v-model="newServicePrice[m.id]" type="number" min="0" step="1" placeholder="Цена (необязательно)" class="w-44" />
+            <BaseInput
+              v-model="newServicePrice[m.id]"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Цена (необязательно)"
+              class="w-44"
+              :error="errors[m.id]"
+              @blur="validatePrice(m.id)"
+            />
             <BaseButton type="submit" size="sm" :disabled="!newService[m.id]">Добавить</BaseButton>
           </form>
         </div>
@@ -79,6 +88,7 @@
               >
                 Сохранить
               </BaseButton>
+              <p v-if="day.error" class="w-full text-sm text-danger">{{ day.error }}</p>
             </div>
           </div>
         </div>
@@ -98,6 +108,8 @@ import { useAuthStore } from '../../stores/auth'
 import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
+import { moneyError, timeRangeError } from '../../utils/validators'
+import { useFormErrors } from '../../composables/useFormErrors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
@@ -173,7 +185,16 @@ async function toggleExpand(masterId) {
   }
 }
 
+// price_override: PositiveMoney | None -- пустая цена означает «базовая ×
+// коэффициент», заполненная обязана быть строго больше нуля. Ключ ошибки --
+// id мастера: строка добавления услуги у каждого мастера своя.
+const { errors, setOrClear } = useFormErrors()
+
+const validatePrice = (masterId) =>
+  setOrClear(masterId, moneyError(newServicePrice[masterId], { required: false }))
+
 async function addService(master) {
+  if (!validatePrice(master.id)) return
   try {
     await mastersApi.addService(master.id, newService[master.id], newServicePrice[master.id] || undefined)
     toast.success('Услуга добавлена')
@@ -201,7 +222,9 @@ async function toggleSchedule(masterId) {
   if (expandedSchedule.value && !schedules[masterId]) {
     schedules[masterId] = {
       loading: true,
-      days: dayLabels.map((label, value) => ({ value, label, is_working: false, start_time: '09:00', end_time: '18:00' })),
+      days: dayLabels.map((label, value) => ({
+        value, label, is_working: false, start_time: '09:00', end_time: '18:00', error: '',
+      })),
     }
     try {
       const { data } = await mastersApi.getSchedule(masterId)
@@ -220,6 +243,11 @@ async function toggleSchedule(masterId) {
 }
 
 async function saveScheduleDay(master, day) {
+  // ScheduleCreate.end_after_start проверяет пару и для выходного дня -- время
+  // сохраняется в любом случае, поэтому проверяем так же, без оглядки на
+  // is_working.
+  day.error = timeRangeError(day.start_time, day.end_time, 'Конец смены должен быть позже начала')
+  if (day.error) return
   savingScheduleDay.value = `${master.id}-${day.value}`
   try {
     await mastersApi.setSchedule(master.id, {

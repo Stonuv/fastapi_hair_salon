@@ -99,8 +99,21 @@
               Заголовок вкладки браузера, описание в поисковой выдаче и иконка сайта (favicon) — служебные
               метаданные для браузера/поисковика/соцсетей, на самом сайте не отображаются.
             </p>
-            <BaseInput v-model="form.seo.title" label="Заголовок вкладки (&lt;title&gt;)" required />
-            <BaseInput v-model="form.seo.description" as="textarea" :rows="2" label="Описание для поисковиков" />
+            <BaseInput
+              v-model="form.seo.title"
+              label="Заголовок вкладки (&lt;title&gt;)"
+              required
+              :error="errors.title"
+              @blur="validateSeoTitle"
+            />
+            <BaseInput
+              v-model="form.seo.description"
+              as="textarea"
+              :rows="2"
+              label="Описание для поисковиков"
+              :error="errors.description"
+              @blur="validateSeoDescription"
+            />
             <div>
               <p class="mb-1.5 block text-sm font-medium text-ink-900">Иконка сайта (favicon)</p>
               <ImageUpload v-model="form.seo.favicon_url" />
@@ -124,6 +137,8 @@ import { settingsApi } from '../../api'
 import { useToastStore } from '../../stores/toast'
 import { useSiteContentStore } from '../../stores/siteContent'
 import { extractErrorMessage } from '../../utils/errors'
+import { textError } from '../../utils/validators'
+import { useFormErrors } from '../../composables/useFormErrors'
 import { applyTheme, THEME_PRESETS, THEME_TOKENS } from '../../theme/presets'
 import { applyFont, FONT_PRESETS } from '../../theme/fonts'
 import { applySeo } from '../../theme/seo'
@@ -183,7 +198,23 @@ function setThemeColor(key, value) {
   form.theme.colors[key] = value
 }
 
+// SeoContent: title 1..70, description до 200 символов. Остальные поля
+// редактора правятся прямо в макете страницы и ограничены серверными схемами;
+// здесь проверяем то, что вводится в диалоге «Ещё настройки».
+const { errors, setOrClear, validateAll } = useFormErrors()
+
+const validateSeoTitle = () =>
+  setOrClear('title', textError(form.seo?.title, { max: 70, message: 'Укажите заголовок вкладки' }))
+const validateSeoDescription = () =>
+  setOrClear('description', textError(form.seo?.description, { max: 200, required: false }))
+
 async function save() {
+  if (form.seo && !validateAll(validateSeoTitle, validateSeoDescription)) {
+    // Поля живут в диалоге «Ещё настройки» — без него подсветка осталась бы
+    // невидимой, и кнопка «Сохранить» молча ничего не делала бы.
+    showMore.value = true
+    return
+  }
   saving.value = true
   try {
     const { data } = await settingsApi.update(form)
@@ -191,6 +222,10 @@ async function save() {
     siteContentStore.set(data)
     toast.success('Настройки сайта сохранены')
   } catch (err) {
+    // Без раскладки 422 по полям: тело настроек вложенное (seo.title,
+    // hero.title, header.brand_name...), а setFromResponse различает поля
+    // только по последнему элементу loc -- ошибка из hero легла бы под поле
+    // SEO. Показываем читаемый текст тостом.
     toast.error(extractErrorMessage(err, 'Не удалось сохранить настройки'))
   } finally {
     saving.value = false

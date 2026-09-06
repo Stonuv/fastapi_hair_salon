@@ -113,6 +113,8 @@
               required
               placeholder="you@example.com"
               hint="Нужен для подтверждения записи и напоминаний"
+              :error="emailFieldError"
+              @blur="validateEmail"
             />
           </div>
           <BaseButton variant="accent" class="mt-4 w-full" :loading="bookingLoading" @click="book">Записаться</BaseButton>
@@ -151,6 +153,7 @@ import { mastersApi, appointmentsApi, reviewsApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { extractErrorMessage } from '../utils/errors'
+import { emailError } from '../utils/validators'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
@@ -260,6 +263,14 @@ const booked = ref(false)
 // Только для клиентов, зарегистрированных через VK без email (VK ID не
 // всегда его отдаёт) — просим указать его здесь, перед первой записью.
 const emailInput = ref('')
+const emailFieldError = ref('')
+
+// Адрес уходит в UserUpdate.email (NormalizedEmailStr) — проверяем формат
+// здесь, иначе опечатка вернётся 422-м ответом уже после нажатия «Записаться».
+function validateEmail() {
+  emailFieldError.value = emailError(emailInput.value)
+  return !emailFieldError.value
+}
 
 function selectSlot(slot) {
   selectedSlot.value = slot
@@ -267,10 +278,7 @@ function selectSlot(slot) {
 }
 
 async function book() {
-  if (!auth.user?.email && !emailInput.value) {
-    toast.error('Укажите email, чтобы оформить запись')
-    return
-  }
+  if (!auth.user?.email && !validateEmail()) return
   bookingLoading.value = true
   try {
     const emailJustAdded = !auth.user?.email

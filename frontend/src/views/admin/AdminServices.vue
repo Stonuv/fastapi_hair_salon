@@ -47,11 +47,35 @@
         <BaseCard class="relative w-full max-w-md">
           <h2 class="font-display text-lg font-bold uppercase tracking-tight text-ink-900">{{ editingId ? 'Редактировать услугу' : 'Новая услуга' }}</h2>
           <form class="mt-4 space-y-4" novalidate @submit.prevent="submitForm">
-            <BaseInput v-model="form.name" label="Название" required />
+            <BaseInput
+              v-model="form.name"
+              label="Название"
+              required
+              :error="errors.name"
+              @blur="validateName"
+            />
             <BaseInput v-model="form.description" as="textarea" label="Описание" hint="Необязательно" />
             <div class="grid grid-cols-2 gap-3">
-              <BaseInput v-model="form.price" type="number" min="1" step="1" label="Цена, ₽" required />
-              <BaseInput v-model="form.duration_min" type="number" min="5" step="5" label="Длительность, мин" required />
+              <BaseInput
+                v-model="form.price"
+                type="number"
+                min="1"
+                step="1"
+                label="Цена, ₽"
+                required
+                :error="errors.price"
+                @blur="validatePrice"
+              />
+              <BaseInput
+                v-model="form.duration_min"
+                type="number"
+                min="5"
+                step="5"
+                label="Длительность, мин"
+                required
+                :error="errors.duration_min"
+                @blur="validateDuration"
+              />
             </div>
             <BaseCheckbox v-if="editingId" v-model="form.is_active" class="text-sm text-ink-900">
               Активна в каталоге
@@ -85,6 +109,8 @@ import { adminApi, servicesApi } from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
+import { textError, moneyError, numberError } from '../../utils/validators'
+import { useFormErrors } from '../../composables/useFormErrors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
@@ -128,15 +154,25 @@ const formOpen = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
 const form = reactive({ name: '', description: '', price: '', duration_min: '', is_active: true })
+const { errors, setOrClear, clearAll, validateAll, setFromResponse } = useFormErrors()
+
+// ServiceBase: name 2..200, price > 0 (Numeric(10,2)), duration_min -- целое > 0.
+const validateName = () => setOrClear('name', textError(form.name, { min: 2, max: 200, message: 'Укажите название' }))
+const validatePrice = () => setOrClear('price', moneyError(form.price))
+const validateDuration = () => setOrClear(
+  'duration_min', numberError(form.duration_min, { integer: true, message: 'Укажите длительность' })
+)
 
 function openCreate() {
   editingId.value = null
+  clearAll()
   Object.assign(form, { name: '', description: '', price: '', duration_min: '', is_active: true })
   formOpen.value = true
 }
 
 function openEdit(service) {
   editingId.value = service.id
+  clearAll()
   Object.assign(form, {
     name: service.name,
     description: service.description || '',
@@ -148,6 +184,7 @@ function openEdit(service) {
 }
 
 async function submitForm() {
+  if (!validateAll(validateName, validatePrice, validateDuration)) return
   saving.value = true
   try {
     const payload = {
@@ -166,7 +203,7 @@ async function submitForm() {
     formOpen.value = false
     load()
   } catch (err) {
-    toast.error(extractErrorMessage(err, 'Не удалось сохранить услугу'))
+    if (!setFromResponse(err)) toast.error(extractErrorMessage(err, 'Не удалось сохранить услугу'))
   } finally {
     saving.value = false
   }

@@ -47,6 +47,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useFormErrors } from '../composables/useFormErrors'
 import { extractErrorMessage } from '../utils/errors'
+import { emailError } from '../utils/validators'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
@@ -56,7 +57,7 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const toast = useToastStore()
-const { errors, setError, clearError, setFromResponse } = useFormErrors()
+const { errors, setOrClear, validateAll, setFromResponse } = useFormErrors()
 
 const form = reactive({ email: '', password: '' })
 const loading = ref(false)
@@ -78,21 +79,14 @@ onMounted(() => {
   if (code) toast.error(VK_ERROR_MESSAGES[code] || 'Не удалось войти через VK')
 })
 
-function validateEmail() {
-  if (!form.email) return setError('email', 'Укажите email')
-  if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError('email', 'Некорректный email')
-  clearError('email')
-}
-
-function validatePassword() {
-  if (!form.password) return setError('password', 'Укажите пароль')
-  clearError('password')
-}
+const validateEmail = () => setOrClear('email', emailError(form.email))
+// На входе пароль проверяется только на «не пустой»: длину задаёт
+// PasswordStr при регистрации, а на форме входа требование «минимум 8»
+// ничего не даёт -- пароль всё равно сверяется с хешем на сервере.
+const validatePassword = () => setOrClear('password', form.password ? '' : 'Укажите пароль')
 
 async function submit() {
-  validateEmail()
-  validatePassword()
-  if (errors.email || errors.password) return
+  if (!validateAll(validateEmail, validatePassword)) return
 
   loading.value = true
   try {

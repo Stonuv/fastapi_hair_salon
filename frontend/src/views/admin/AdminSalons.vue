@@ -51,15 +51,33 @@
             {{ editing ? 'Редактировать точку' : 'Новая точка' }}
           </h2>
           <form class="mt-5 space-y-4" novalidate @submit.prevent="save">
-            <BaseInput v-model="form.name" label="Название" required :error="errors.name" />
-            <BaseInput v-model="form.address" label="Адрес" required :error="errors.address" />
-            <BaseInput v-model="form.phone" label="Телефон" hint="Необязательно" :error="errors.phone" />
+            <BaseInput
+              v-model="form.name"
+              label="Название"
+              required
+              :error="errors.name"
+              @blur="validateName"
+            />
+            <BaseInput
+              v-model="form.address"
+              label="Адрес"
+              required
+              :error="errors.address"
+              @blur="validateAddress"
+            />
+            <BaseInput
+              v-model="form.phone"
+              label="Телефон"
+              hint="Необязательно"
+              :error="errors.phone"
+              @blur="validatePhone"
+            />
             <div>
               <p class="mb-1.5 block text-sm font-medium text-ink-900">Время работы</p>
               <div class="flex items-center gap-3">
-                <BaseTimeInput v-model="form.open_time" />
+                <BaseTimeInput v-model="form.open_time" @blur="validateHours" />
                 <span class="text-ink-600">—</span>
-                <BaseTimeInput v-model="form.close_time" />
+                <BaseTimeInput v-model="form.close_time" @blur="validateHours" />
               </div>
               <p v-if="errors.hours" class="mt-1 text-sm text-danger">{{ errors.hours }}</p>
             </div>
@@ -95,6 +113,7 @@ import { salonsApi } from '../../api'
 import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
+import { requiredText, phoneError, timeRangeError } from '../../utils/validators'
 import { useFormErrors } from '../../composables/useFormErrors'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
@@ -107,7 +126,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
 const salonStore = useSalonStore()
 const toast = useToastStore()
-const { errors, setError, clearAll, setFromResponse } = useFormErrors()
+const { errors, setOrClear, clearAll, validateAll, setFromResponse } = useFormErrors()
 
 const salons = ref([])
 const loading = ref(true)
@@ -158,19 +177,15 @@ function openEdit(salon) {
   formOpen.value = true
 }
 
-function validate() {
-  clearAll()
-  if (!form.name.trim()) setError('name', 'Укажите название')
-  if (!form.address.trim()) setError('address', 'Укажите адрес')
-  // Та же граница, что CHECK ck_salons_close_after_open — ловим до запроса.
-  if (form.close_time <= form.open_time) {
-    setError('hours', 'Время закрытия должно быть позже времени открытия')
-  }
-  return !Object.keys(errors).length
-}
+// SalonBase: name 1..150, address 1..300, phone -- PhoneStr | None.
+const validateName = () => setOrClear('name', requiredText(form.name, 'Укажите название', 150))
+const validateAddress = () => setOrClear('address', requiredText(form.address, 'Укажите адрес', 300))
+const validatePhone = () => setOrClear('phone', phoneError(form.phone))
+// Та же граница, что CHECK ck_salons_close_after_open — ловим до запроса.
+const validateHours = () => setOrClear('hours', timeRangeError(form.open_time, form.close_time))
 
 async function save() {
-  if (!validate()) return
+  if (!validateAll(validateName, validateAddress, validatePhone, validateHours)) return
   saving.value = true
   const payload = {
     name: form.name,

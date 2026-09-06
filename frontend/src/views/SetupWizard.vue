@@ -92,16 +92,22 @@
             :error="errors.salon_address"
             @blur="validateField('salon_address', salon.address, 'Укажите адрес')"
           />
-          <BaseInput v-model="salon.phone" label="Телефон точки" hint="Необязательно" />
+          <BaseInput
+            v-model="salon.phone"
+            label="Телефон точки"
+            hint="Необязательно"
+            :error="errors.salon_phone"
+            @blur="validateSalonPhone"
+          />
           <div>
             <p class="mb-1.5 text-sm font-medium text-ink-900">Время работы</p>
             <p class="mb-2 text-sm text-ink-600">
               Жёсткая граница: ни расписание мастера, ни запись клиента не смогут выйти за эти рамки.
             </p>
             <div class="flex items-center gap-3">
-              <BaseTimeInput v-model="salon.open_time" />
+              <BaseTimeInput v-model="salon.open_time" @blur="validateSalonHours" />
               <span class="text-ink-600">—</span>
-              <BaseTimeInput v-model="salon.close_time" />
+              <BaseTimeInput v-model="salon.close_time" @blur="validateSalonHours" />
             </div>
             <p v-if="errors.salon_hours" class="mt-1 text-sm text-danger">{{ errors.salon_hours }}</p>
           </div>
@@ -158,6 +164,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSetupStore } from '../stores/setup'
 import { useToastStore } from '../stores/toast'
 import { useFormErrors } from '../composables/useFormErrors'
+import { requiredText, emailError, phoneError, passwordError, timeRangeError } from '../utils/validators'
 import { extractErrorMessage } from '../utils/errors'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
@@ -169,7 +176,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const setup = useSetupStore()
 const toast = useToastStore()
-const { errors, setError, clearError, clearAll, setFromResponse } = useFormErrors()
+const { errors, setError, clearError, setOrClear, clearAll, validateAll, setFromResponse } = useFormErrors()
 
 const step = ref(1)
 const loading = ref(false)
@@ -201,53 +208,41 @@ onMounted(async () => {
   }
 })
 
-function validateField(field, value, message) {
-  if (!value.trim()) return setError(field, message)
-  clearError(field)
-}
-
-function validateEmail() {
-  if (!owner.email) return setError('email', 'Укажите email')
-  if (!/^\S+@\S+\.\S+$/.test(owner.email)) return setError('email', 'Некорректный email')
-  clearError('email')
-}
-
-function validatePassword() {
-  if (owner.password.length < 8) return setError('password', 'Минимум 8 символов')
-  clearError('password')
-}
+// Границы полей повторяют серверные схемы — см. utils/validators.js.
+const validateField = (field, value, message, max) => setOrClear(field, requiredText(value, message, max))
+const validateEmail = () => setOrClear('email', emailError(owner.email))
+const validatePassword = () => setOrClear('password', passwordError(owner.password))
+const validateSalonPhone = () => setOrClear('salon_phone', phoneError(salon.phone))
+// Та же граница, что и CHECK ck_salons_close_after_open на бэкенде —
+// ловим до запроса, чтобы показать поле, а не общий тост.
+const validateSalonHours = () => setOrClear('salon_hours', timeRangeError(salon.open_time, salon.close_time))
 
 function validateConfirmPassword() {
-  if (owner.confirm_password !== owner.password) return setError('confirm_password', 'Пароли не совпадают')
-  clearError('confirm_password')
+  return setOrClear('confirm_password', owner.confirm_password !== owner.password ? 'Пароли не совпадают' : '')
 }
 
 function validateSetupToken() {
-  if (setup.requiresToken && !setupToken.value.trim()) return setError('setup_token', 'Укажите код настройки')
-  clearError('setup_token')
+  return setOrClear('setup_token', setup.requiresToken && !setupToken.value.trim() ? 'Укажите код настройки' : '')
 }
 
 function validateStep1() {
-  validateField('first_name', owner.first_name, 'Укажите имя')
-  validateField('last_name', owner.last_name, 'Укажите фамилию')
-  validateEmail()
-  validatePassword()
-  validateConfirmPassword()
-  validateSetupToken()
-  return !Object.keys(errors).length
+  return validateAll(
+    () => validateField('first_name', owner.first_name, 'Укажите имя'),
+    () => validateField('last_name', owner.last_name, 'Укажите фамилию'),
+    validateEmail,
+    validatePassword,
+    validateConfirmPassword,
+    validateSetupToken,
+  )
 }
 
 function validateStep2() {
-  validateField('salon_name', salon.name, 'Укажите название точки')
-  validateField('salon_address', salon.address, 'Укажите адрес')
-  // Та же граница, что и CHECK ck_salons_close_after_open на бэкенде —
-  // ловим до запроса, чтобы показать поле, а не общий тост.
-  if (salon.close_time <= salon.open_time) {
-    setError('salon_hours', 'Время закрытия должно быть позже времени открытия')
-  } else {
-    clearError('salon_hours')
-  }
-  return !Object.keys(errors).length
+  return validateAll(
+    () => validateField('salon_name', salon.name, 'Укажите название точки', 150),
+    () => validateField('salon_address', salon.address, 'Укажите адрес', 300),
+    validateSalonPhone,
+    validateSalonHours,
+  )
 }
 
 async function onSubmitStep() {
@@ -319,11 +314,24 @@ async function finish() {
     }
     clearAll()
     if (setFromResponse(err)) {
+      // Поля точки приходят в 422 под своими именами (loc: body.salon.name),
+      // а на форме они префиксованы salon_*, чтобы не сталкиваться с полями
+      // владельца — переносим, иначе подсветка не попадёт ни на одно поле.
+      const salonFields = [
+        ['name', 'salon_name'], ['address', 'salon_address'], ['phone', 'salon_phone'],
+        ['open_time', 'salon_hours'], ['close_time', 'salon_hours'],
+      ]
+      for (const [from, to] of salonFields) {
+        if (from in errors) {
+          setError(to, errors[from])
+          clearError(from)
+        }
+      }
       // Вернуть пользователя на тот шаг, где лежит поле с ошибкой, иначе он
       // видит подсветку на экране, который сейчас не показан.
-      if (['email', 'password', 'first_name', 'last_name', 'phone'].some((f) => f in errors)) {
+      if (['email', 'password', 'first_name', 'last_name'].some((f) => f in errors)) {
         step.value = 1
-      } else if (['name', 'address', 'open_time', 'close_time'].some((f) => f in errors)) {
+      } else if (salonFields.some(([, to]) => to in errors)) {
         step.value = 2
       }
     } else {

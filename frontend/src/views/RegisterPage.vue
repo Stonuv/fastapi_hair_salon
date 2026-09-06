@@ -37,6 +37,7 @@
           hint="Необязательно"
           autocomplete="tel"
           :error="errors.phone"
+          @blur="validatePhone"
         />
         <BaseInput
           v-model="form.password"
@@ -87,6 +88,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useFormErrors } from '../composables/useFormErrors'
 import { extractErrorMessage } from '../utils/errors'
+import { requiredText, emailError, phoneError, passwordError } from '../utils/validators'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
@@ -96,48 +98,40 @@ import VkLoginButton from '../components/ui/VkLoginButton.vue'
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
-const { errors, setError, clearError, setFromResponse } = useFormErrors()
+const { errors, setOrClear, validateAll, setFromResponse } = useFormErrors()
 
 const form = reactive({ first_name: '', last_name: '', email: '', phone: '', password: '', password_confirm: '' })
 const consent = ref(false)
 const loading = ref(false)
 
-function validateField(field, value, message) {
-  if (!value.trim()) return setError(field, message)
-  clearError(field)
-}
-
-function validateEmail() {
-  if (!form.email) return setError('email', 'Укажите email')
-  if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError('email', 'Некорректный email')
-  clearError('email')
-}
+// Границы полей повторяют серверные схемы — см. utils/validators.js.
+const validateField = (field, value, message) => setOrClear(field, requiredText(value, message))
+const validateEmail = () => setOrClear('email', emailError(form.email))
+const validatePhone = () => setOrClear('phone', phoneError(form.phone))
 
 function validatePassword() {
-  if (form.password.length < 8) return setError('password', 'Минимум 8 символов')
-  clearError('password')
+  const ok = setOrClear('password', passwordError(form.password))
   // Пароль могли поменять уже после того, как заполнили повтор — актуализируем
   // ошибку совпадения, а не оставляем последний результат прошлой проверки.
   if (form.password_confirm) validatePasswordConfirm()
+  return ok
 }
 
 function validatePasswordConfirm() {
-  if (!form.password_confirm) return setError('password_confirm', 'Повторите пароль')
-  if (form.password_confirm !== form.password) return setError('password_confirm', 'Пароли не совпадают')
-  clearError('password_confirm')
-}
-
-function validateAll() {
-  validateField('first_name', form.first_name, 'Укажите имя')
-  validateField('last_name', form.last_name, 'Укажите фамилию')
-  validateEmail()
-  validatePassword()
-  validatePasswordConfirm()
-  return !Object.keys(errors).length
+  if (!form.password_confirm) return setOrClear('password_confirm', 'Повторите пароль')
+  return setOrClear('password_confirm', form.password_confirm !== form.password ? 'Пароли не совпадают' : '')
 }
 
 async function submit() {
-  if (!validateAll()) return
+  const valid = validateAll(
+    () => validateField('first_name', form.first_name, 'Укажите имя'),
+    () => validateField('last_name', form.last_name, 'Укажите фамилию'),
+    validateEmail,
+    validatePhone,
+    validatePassword,
+    validatePasswordConfirm,
+  )
+  if (!valid) return
   if (!consent.value) {
     toast.error('Подтвердите согласие на обработку персональных данных')
     return

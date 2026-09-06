@@ -6,6 +6,7 @@
         class="w-[4.25rem] cursor-pointer appearance-none rounded-lg border border-stone-200 bg-white py-2.5 pl-3 pr-6 text-center text-base transition-colors duration-200 focus:border-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
         aria-label="Часы"
         @change="onHourChange"
+        @blur="emit('blur')"
       >
         <option v-for="h in 24" :key="h" :value="pad(h - 1)">{{ pad(h - 1) }}</option>
       </select>
@@ -18,6 +19,7 @@
         class="w-[4.25rem] cursor-pointer appearance-none rounded-lg border border-stone-200 bg-white py-2.5 pl-3 pr-6 text-center text-base transition-colors duration-200 focus:border-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-900/30"
         aria-label="Минуты"
         @change="onMinuteChange"
+        @blur="emit('blur')"
       >
         <option v-for="m in 60" :key="m" :value="pad(m - 1)">{{ pad(m - 1) }}</option>
       </select>
@@ -37,7 +39,10 @@ import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 const props = defineProps({
   modelValue: { type: String, default: '00:00' }, // "HH:MM"
 })
-const emit = defineEmits(['update:modelValue'])
+// blur пробрасывается наружу, как у BaseInput: нативный blur не всплывает,
+// поэтому listener на компоненте сам по себе не сработал бы, а формам он
+// нужен для проверки пары «начало -- конец» сразу после выбора времени.
+const emit = defineEmits(['update:modelValue', 'blur'])
 
 function pad(n) {
   return String(n).padStart(2, '0')

@@ -16,9 +16,29 @@
 
     <BaseCard v-if="editOpen" class="mt-4">
       <form class="grid gap-4 sm:grid-cols-2" novalidate @submit.prevent="saveProfile">
-        <BaseInput v-model="editData.first_name" label="Имя" required />
-        <BaseInput v-model="editData.last_name" label="Фамилия" required />
-        <BaseInput v-model="editData.phone" label="Телефон" class="sm:col-span-2" placeholder="+7 999 000 00 00" />
+        <BaseInput
+          v-model="editData.first_name"
+          label="Имя"
+          required
+          :error="errors.first_name"
+          @blur="validateFirstName"
+        />
+        <BaseInput
+          v-model="editData.last_name"
+          label="Фамилия"
+          required
+          :error="errors.last_name"
+          @blur="validateLastName"
+        />
+        <BaseInput
+          v-model="editData.phone"
+          label="Телефон"
+          class="sm:col-span-2"
+          placeholder="+7 999 000 00 00"
+          hint="Необязательно"
+          :error="errors.phone"
+          @blur="validatePhone"
+        />
         <BaseButton type="submit" class="sm:col-span-2" :loading="editLoading">Сохранить</BaseButton>
       </form>
     </BaseCard>
@@ -95,6 +115,8 @@
             as="textarea"
             label="Комментарий"
             hint="Необязательно"
+            :error="review.errors.comment"
+            @blur="validateReviewComment"
           />
           <div class="mt-6 flex justify-end gap-3">
             <BaseButton variant="ghost" size="sm" @click="reviewTarget = null">Отмена</BaseButton>
@@ -115,6 +137,8 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { appointmentsApi, reviewsApi } from '../api'
 import { extractErrorMessage } from '../utils/errors'
+import { requiredText, phoneError, textError } from '../utils/validators'
+import { useFormErrors } from '../composables/useFormErrors'
 import { useDebouncedWatch } from '../composables/useDebouncedWatch'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
@@ -143,7 +167,14 @@ const editData = reactive({
   phone: auth.user?.phone || '',
 })
 
+const { errors, setOrClear, validateAll, setFromResponse } = useFormErrors()
+
+const validateFirstName = () => setOrClear('first_name', requiredText(editData.first_name, 'Укажите имя'))
+const validateLastName = () => setOrClear('last_name', requiredText(editData.last_name, 'Укажите фамилию'))
+const validatePhone = () => setOrClear('phone', phoneError(editData.phone))
+
 async function saveProfile() {
+  if (!validateAll(validateFirstName, validateLastName, validatePhone)) return
   editLoading.value = true
   try {
     // '' -> null: PhoneStr на бэкенде допускает "не указан" только как null
@@ -153,7 +184,7 @@ async function saveProfile() {
     toast.success('Профиль обновлён')
     editOpen.value = false
   } catch (err) {
-    toast.error(extractErrorMessage(err))
+    if (!setFromResponse(err)) toast.error(extractErrorMessage(err))
   } finally {
     editLoading.value = false
   }
@@ -212,14 +243,25 @@ onMounted(() => {
 const reviewTarget = ref(null)
 const reviewForm = reactive({ rating: 0, comment: '' })
 const reviewLoading = ref(false)
+// Отдельный набор ошибок: форма отзыва живёт в своём модальном окне и с
+// формой профиля общих полей не имеет.
+const review = useFormErrors()
+
+// ReviewCreate.comment: до 2000 символов. Фильтр мата и ссылок остаётся
+// серверным (списки слов в utils/content_filter.py, дублировать их на клиенте
+// нечем) — зато его 422 раскладывается под поле, а не уходит в тост.
+const validateReviewComment = () =>
+  review.setOrClear('comment', textError(reviewForm.comment, { max: 2000, required: false }))
 
 function openReview(apt) {
   reviewTarget.value = apt
   reviewForm.rating = 0
   reviewForm.comment = ''
+  review.clearAll()
 }
 
 async function submitReview() {
+  if (!validateReviewComment()) return
   reviewLoading.value = true
   try {
     const { data } = await reviewsApi.create({
@@ -232,7 +274,7 @@ async function submitReview() {
     toast.success('Спасибо за отзыв!')
     reviewTarget.value = null
   } catch (err) {
-    toast.error(extractErrorMessage(err, 'Не удалось отправить отзыв'))
+    if (!review.setFromResponse(err)) toast.error(extractErrorMessage(err, 'Не удалось отправить отзыв'))
   } finally {
     reviewLoading.value = false
   }

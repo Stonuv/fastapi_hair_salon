@@ -86,11 +86,36 @@
           </h2>
           <form class="mt-4 space-y-4" novalidate @submit.prevent="submitForm">
             <div class="grid grid-cols-2 gap-3">
-              <BaseInput v-model="form.first_name" label="Имя" required />
-              <BaseInput v-model="form.last_name" label="Фамилия" required />
+              <BaseInput
+                v-model="form.first_name"
+                label="Имя"
+                required
+                :error="errors.first_name"
+                @blur="validateFirstName"
+              />
+              <BaseInput
+                v-model="form.last_name"
+                label="Фамилия"
+                required
+                :error="errors.last_name"
+                @blur="validateLastName"
+              />
             </div>
-            <BaseInput v-model="form.email" type="email" label="Email" required />
-            <BaseInput v-model="form.phone" label="Телефон" hint="Необязательно" />
+            <BaseInput
+              v-model="form.email"
+              type="email"
+              label="Email"
+              required
+              :error="errors.email"
+              @blur="validateEmail"
+            />
+            <BaseInput
+              v-model="form.phone"
+              label="Телефон"
+              hint="Необязательно"
+              :error="errors.phone"
+              @blur="validatePhone"
+            />
             <!-- Роль admin при создании недоступна намеренно: она требует
                  salon_id уже в момент вставки (ck_users_admin_requires_salon),
                  а это отдельный запрос — бэкенд вернул бы понятную 400.
@@ -106,6 +131,8 @@
               label="Пароль"
               hint="Минимум 8 символов"
               required
+              :error="errors.password"
+              @blur="validatePassword"
             />
             <BaseInput
               v-else
@@ -113,6 +140,8 @@
               type="password"
               label="Новый пароль"
               hint="Оставьте пустым, чтобы не менять"
+              :error="errors.new_password"
+              @blur="validateNewPassword"
             />
             <div class="flex justify-end gap-3">
               <BaseButton variant="ghost" size="sm" type="button" @click="formOpen = false">Отмена</BaseButton>
@@ -173,6 +202,8 @@ import { useAuthStore } from '../../stores/auth'
 import { useSalonStore } from '../../stores/salon'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
+import { requiredText, emailError, phoneError, passwordError } from '../../utils/validators'
+import { useFormErrors } from '../../composables/useFormErrors'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
@@ -322,15 +353,28 @@ const formOpen = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
 const form = reactive({ first_name: '', last_name: '', email: '', phone: '', password: '', new_password: '', role: 'client' })
+const { errors, setOrClear, clearAll, validateAll, setFromResponse } = useFormErrors()
+
+const validateFirstName = () => setOrClear('first_name', requiredText(form.first_name, 'Укажите имя'))
+const validateLastName = () => setOrClear('last_name', requiredText(form.last_name, 'Укажите фамилию'))
+const validateEmail = () => setOrClear('email', emailError(form.email))
+const validatePhone = () => setOrClear('phone', phoneError(form.phone))
+// При создании пароль обязателен (UserCreate.password), при редактировании
+// поле означает «сменить пароль» и пустым просто не отправляется
+// (AdminUserUpdate.new_password | None).
+const validatePassword = () => setOrClear('password', passwordError(form.password))
+const validateNewPassword = () => setOrClear('new_password', passwordError(form.new_password, { required: false }))
 
 function openCreate() {
   editingId.value = null
+  clearAll()
   Object.assign(form, { first_name: '', last_name: '', email: '', phone: '', password: '', new_password: '', role: 'client' })
   formOpen.value = true
 }
 
 function openEdit(user) {
   editingId.value = user.id
+  clearAll()
   Object.assign(form, {
     first_name: user.first_name,
     last_name: user.last_name,
@@ -344,6 +388,9 @@ function openEdit(user) {
 }
 
 async function submitForm() {
+  const checks = [validateFirstName, validateLastName, validateEmail, validatePhone]
+  checks.push(editingId.value ? validateNewPassword : validatePassword)
+  if (!validateAll(...checks)) return
   saving.value = true
   try {
     if (editingId.value) {
@@ -372,7 +419,7 @@ async function submitForm() {
     }
     formOpen.value = false
   } catch (err) {
-    toast.error(extractErrorMessage(err, 'Не удалось сохранить пользователя'))
+    if (!setFromResponse(err)) toast.error(extractErrorMessage(err, 'Не удалось сохранить пользователя'))
   } finally {
     saving.value = false
   }

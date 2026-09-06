@@ -8,7 +8,15 @@
         </p>
 
         <form class="mt-6 space-y-4" novalidate @submit.prevent="submitRequest">
-          <BaseInput v-model="email" label="Email" type="email" required autocomplete="email" :error="error" />
+          <BaseInput
+            v-model="email"
+            label="Email"
+            type="email"
+            required
+            autocomplete="email"
+            :error="errors.email"
+            @blur="validateEmail"
+          />
           <BaseButton type="submit" class="w-full" :loading="loading" :disabled="requested">
             {{ requested ? 'Ссылка отправлена' : 'Отправить ссылку' }}
           </BaseButton>
@@ -27,7 +35,8 @@
             autocomplete="new-password"
             required
             hint="Минимум 8 символов"
-            :error="error"
+            :error="errors.new_password"
+            @blur="validatePassword"
           />
           <BaseButton type="submit" class="w-full" :loading="loading">Сохранить пароль</BaseButton>
         </form>
@@ -45,7 +54,9 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '../api'
 import { useToastStore } from '../stores/toast'
+import { useFormErrors } from '../composables/useFormErrors'
 import { extractErrorMessage } from '../utils/errors'
+import { emailError, passwordError } from '../utils/validators'
 import BaseCard from '../components/ui/BaseCard.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
@@ -59,39 +70,41 @@ const email = ref('')
 const newPassword = ref('')
 const loading = ref(false)
 const requested = ref(false)
-const error = ref('')
+const { errors, setOrClear, setFromResponse } = useFormErrors()
+
+function validateEmail() {
+  return setOrClear('email', emailError(email.value))
+}
+
+function validatePassword() {
+  return setOrClear('new_password', passwordError(newPassword.value))
+}
 
 async function submitRequest() {
-  if (!email.value) {
-    error.value = 'Укажите email'
-    return
-  }
-  error.value = ''
+  if (!validateEmail()) return
   loading.value = true
   try {
     await authApi.requestPasswordReset(email.value)
     requested.value = true
     toast.info('Если этот email зарегистрирован, ссылка для сброса пароля отправлена')
   } catch (err) {
-    toast.error(extractErrorMessage(err))
+    if (!setFromResponse(err)) toast.error(extractErrorMessage(err))
   } finally {
     loading.value = false
   }
 }
 
 async function submitConfirm() {
-  if (newPassword.value.length < 8) {
-    error.value = 'Минимум 8 символов'
-    return
-  }
-  error.value = ''
+  if (!validatePassword()) return
   loading.value = true
   try {
     await authApi.confirmPasswordReset(token, newPassword.value)
     toast.success('Пароль изменён, теперь можно войти')
     router.push('/login')
   } catch (err) {
-    toast.error(extractErrorMessage(err, 'Ссылка недействительна или просрочена'))
+    // 422 по полю new_password (слишком короткий/длинный пароль) ложится под
+    // поле; протухший токен приходит строкой detail -- он показывается тостом.
+    if (!setFromResponse(err)) toast.error(extractErrorMessage(err, 'Ссылка недействительна или просрочена'))
   } finally {
     loading.value = false
   }

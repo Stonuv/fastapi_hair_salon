@@ -21,6 +21,7 @@
         >
           Сохранить
         </BaseButton>
+        <p v-if="day.error" class="w-full text-sm text-danger">{{ day.error }}</p>
       </BaseCard>
     </div>
   </div>
@@ -32,6 +33,7 @@ import { mastersApi } from '../../api'
 import { useMasterProfileStore } from '../../stores/masterProfile'
 import { useToastStore } from '../../stores/toast'
 import { extractErrorMessage } from '../../utils/errors'
+import { timeRangeError } from '../../utils/validators'
 import BaseCard from '../../components/ui/BaseCard.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseCheckbox from '../../components/ui/BaseCheckbox.vue'
@@ -43,7 +45,7 @@ const toast = useToastStore()
 
 const labels = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Субботa', 'Воскресенье']
 const days = reactive(
-  labels.map((label, value) => ({ value, label, is_working: false, start_time: '09:00', end_time: '18:00' }))
+  labels.map((label, value) => ({ value, label, is_working: false, start_time: '09:00', end_time: '18:00', error: '' }))
 )
 const loading = ref(true)
 const saving = ref(null)
@@ -65,6 +67,11 @@ onMounted(async () => {
 })
 
 async function saveDay(day) {
+  // ScheduleCreate.end_after_start проверяет пару и для выходного дня -- время
+  // сохраняется в любом случае, поэтому проверяем так же, без оглядки на
+  // is_working.
+  day.error = timeRangeError(day.start_time, day.end_time, 'Конец смены должен быть позже начала')
+  if (day.error) return
   saving.value = day.value
   try {
     await mastersApi.setSchedule(profileStore.profile.id, {
