@@ -98,7 +98,9 @@ const page = ref(1)
 const totalPages = ref(1)
 
 const filters = reactive({
-  specialization: '',
+  // Приходит из строки поиска на странице 404 (/masters?specialization=…) —
+  // по той же причине, что и salon_id ниже, начальное значение берём из query.
+  specialization: typeof route.query.specialization === 'string' ? route.query.specialization : '',
   // Приходит из ссылок секции «Наши салоны» на главной (/masters?salon_id=…),
   // поэтому начальное значение берём из query, а не из пустой строки.
   salon_id: typeof route.query.salon_id === 'string' ? route.query.salon_id : '',
@@ -139,20 +141,29 @@ async function loadServices() {
   }
 }
 
-useDebouncedWatch(() => filters.specialization, () => { page.value = 1; loadMasters() })
+useDebouncedWatch(() => filters.specialization, () => {
+  page.value = 1
+  // Тот же приём, что и для salon_id ниже, но внутри debounce, а не отдельным
+  // watch: у текстового поля иначе на каждое нажатие клавиши уходил бы вызов
+  // router.replace.
+  syncQuery('specialization', filters.specialization)
+  loadMasters()
+})
 useDebouncedWatch(() => [filters.service_id, filters.salon_id, filters.sort_by, filters.sort_order], () => { page.value = 1; loadMasters() }, 0)
 useDebouncedWatch(page, loadMasters, 0)
 
-// Держим ?salon_id= в адресе в такт с фильтром: ссылка на конкретную точку
-// должна оставаться копируемой, а «назад» из карточки мастера — возвращать
-// к тому же отфильтрованному списку. replace, не push — промежуточные
+// Держим ?specialization= и ?salon_id= в адресе в такт с фильтрами: ссылка на
+// отфильтрованный список должна оставаться копируемой, а «назад» из карточки
+// мастера — возвращать к тому же списку. replace, не push — промежуточные
 // состояния фильтра не должны копиться в истории браузера.
-watch(() => filters.salon_id, (salonId) => {
+function syncQuery(key, value) {
   const query = { ...route.query }
-  if (salonId) query.salon_id = salonId
-  else delete query.salon_id
+  if (value) query[key] = value
+  else delete query[key]
   router.replace({ query })
-})
+}
+
+watch(() => filters.salon_id, (salonId) => syncQuery('salon_id', salonId))
 
 // Навигация на /masters?salon_id=… уже находясь на этой странице (переход из
 // секции «Наши салоны») меняет только query — компонент не пересоздаётся.
