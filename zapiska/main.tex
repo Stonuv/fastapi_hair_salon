@@ -478,7 +478,7 @@ HTTP-запросов. Сервисный слой выполняет валид
         администратора: в потоке OAuth предъявить его негде, и такой вход
         обходил бы второй фактор.
   \item \textbf{Противодействие подбору учётных данных} -- каждая
-        попытка входа фиксируется в таблице \texttt{login\_attempts} с
+        попытка входа фиксируется в таблице \envvar{login\_attempt\_log} с
         указанием адреса электронной почты, IP-адреса и результата.
         После пяти неудачных попыток вход по данному адресу временно
         блокируется на 15 минут; запросы на восстановление пароля
@@ -491,7 +491,7 @@ HTTP-запросов. Сервисный слой выполняет валид
         \envvar{ADMIN\_LOGIN\_TOKEN}). Код проверяется после пароля и
         сравнивается функцией \envvar{secrets.compare\_digest},
         устойчивой к атакам по времени выполнения; неудачная проверка
-        фиксируется в том же журнале \texttt{login\_attempts}, вследствие
+        фиксируется в том же журнале \envvar{login\_attempt\_log}, вследствие
         чего подбор кода ограничен той же блокировкой, что и подбор
         пароля. При неверном пароле сообщение об ошибке не изменяется
         даже при верном коде -- в противном случае различие в ответах
@@ -770,7 +770,7 @@ limiting) и защита от подбора аутентификационны
 использования внешнего кэша Redis: лимиты запросов контролируются
 библиотекой \texttt{slowapi} в оперативной памяти процесса по
 IP-адресам, а фиксация попыток входа осуществляется в служебной таблице
-\texttt{login\_attempts} базы данных.
+\envvar{login\_attempt\_log} базы данных.
 
 \gostsubsection{3.4}{Дополнительные инструменты разработки}
 
@@ -852,25 +852,38 @@ Dependabot & Еженедельные автоматические PR на об�
 
 \gostsubsection{4.2}{Даталогическая модель}
 
+Именование объектов схемы подчинено принятому в проекте стандарту:
+идентификаторы записаны в нотации \texttt{snake\_case} строчными
+латинскими буквами, имя таблицы задаётся в единственном числе и отражает
+тип сущности, а зарезервированные слова SQL не используются -- отсюда
+\texttt{user\_account} вместо \texttt{user}. Связующая таблица
+именуется по двум связываемым сущностям в алфавитном порядке
+(\texttt{master\_service}), таблица журнала -- с суффиксом
+\texttt{\_log} (\envvar{login\_attempt\_log}). Поля внешних ключей
+следуют шаблону «имя целевой таблицы + \texttt{\_id}»; при нескольких
+связях с одной и той же таблицей добавляется префикс роли
+(\texttt{client\_id} и \texttt{master\_id} в таблице
+\texttt{appointment} -- обе ссылаются на \texttt{user\_account}).
+
 Фактическая схема БД насчитывает 13 таблиц (15 миграций Alembic [11] в
 директории \envvar{backend/alembic/versions/}):
 
 \begin{enumerate}
-  \item \texttt{salons} -- точки сети (адрес, часы работы, slug);
-  \item \texttt{users} -- учётные записи всех ролей (client/master/admin/owner);
-  \item \texttt{masters} -- профиль мастера (специализация, коэффициент к цене);
-  \item \texttt{schedules} -- рабочее расписание мастера по дням недели;
-  \item \texttt{services} -- каталог услуг (цена, длительность);
-  \item \texttt{master\_services} -- прайс услуги, индивидуальный по мастеру;
-  \item \texttt{appointments} -- записи на приём (\texttt{EXCLUDE USING gist}
+  \item \texttt{salon} -- точки сети (адрес, часы работы, slug);
+  \item \texttt{user\_account} -- учётные записи всех ролей (client/master/admin/owner);
+  \item \texttt{master} -- профиль мастера (специализация, коэффициент к цене);
+  \item \texttt{schedule} -- рабочее расписание мастера по дням недели;
+  \item \texttt{service} -- каталог услуг (цена, длительность);
+  \item \texttt{master\_service} -- прайс услуги, индивидуальный по мастеру;
+  \item \texttt{appointment} -- записи на приём (\texttt{EXCLUDE USING gist}
         -- защита от двойного бронирования на уровне СУБД);
-  \item \texttt{reviews} -- отзывы клиентов о завершённых записях;
-  \item \texttt{sessions} -- серверное хранилище refresh-сессий;
-  \item \envvar{password\_reset\_tokens} -- одноразовые токены сброса пароля;
-  \item \envvar{email\_verification\_tokens} -- одноразовые токены
+  \item \texttt{review} -- отзывы клиентов о завершённых записях;
+  \item \texttt{user\_session} -- серверное хранилище refresh-сессий;
+  \item \envvar{password\_reset\_token} -- одноразовые токены сброса пароля;
+  \item \envvar{email\_verification\_token} -- одноразовые токены
         подтверждения email;
-  \item \texttt{login\_attempts} -- аудит попыток входа;
-  \item \texttt{site\_settings} -- редактируемый контент сайта (единственная
+  \item \envvar{login\_attempt\_log} -- аудит попыток входа;
+  \item \texttt{site\_setting} -- редактируемый контент сайта (единственная
         строка, JSONB).
 \end{enumerate}
 
@@ -882,7 +895,7 @@ Dependabot & Еженедельные автоматические PR на об�
 \texttt{owner}), тип \texttt{appointment\_status} -- четыре состояния
 записи (\texttt{pending}, \texttt{confirmed}, \texttt{completed},
 \texttt{cancelled}), образующие машину состояний записи на приём. Тип
-\texttt{JSONB} использован для таблицы \texttt{site\_settings}, хранящей
+\texttt{JSONB} использован для таблицы \texttt{site\_setting}, хранящей
 редактируемый администратором контент сайта переменной структуры.
 
 Удаление данных реализовано в двух формах, различающихся по назначению.
@@ -913,9 +926,13 @@ RESTRICT} со стороны мастеров и записей.
 ограничений уникальности, схема содержит 21 явно объявленный индекс.
 Индексы создаются миграциями Alembic вместе с таблицами, к которым
 относятся, и объявлены в моделях предметной области
-(\envvar{backend/app/models/}), что исключает расхождение схемы,
-описанной в коде, и схемы, фактически существующей в базе данных.
-Назначение основных индексов приведено в соответствии с таблицей~6.
+(\envvar{backend/app/models/}), вследствие чего схема, описанная в коде,
+и схема, существующая в базе данных, не расходятся между собой. Имена
+индексов подчинены тому же стандарту, что и имена таблиц (4.2): обычный
+индекс получает префикс \texttt{idx\_}, уникальный --
+\texttt{uniq\_}, далее следуют имя таблицы и перечень полей в порядке
+их объявления. Назначение основных индексов приведено в соответствии с
+таблицей~6.
 
 \begin{xltabular}{\textwidth}{|M|D|}
 \caption{Индексы схемы данных и их назначение} \\
@@ -929,51 +946,51 @@ RESTRICT} со стороны мастеров и записей.
 \hline
 \endhead
 \endfoot
-\envvar{uq\_users\_email\_active} & Частичный уникальный индекс по адресу
+\envvar{uniq\_user\_account\_email} & Частичный уникальный индекс по адресу
   электронной почты с условием \texttt{deleted\_at IS NULL}. Обеспечивает
   уникальность адреса среди действующих учётных записей и одновременно
   обслуживает поиск пользователя при входе. Аналогично построены индексы
   по номеру телефона и идентификатору VK ID. \\\hline
-\envvar{ix\_users\_role} & Выборка пользователей по роли -- список
+\envvar{idx\_user\_account\_role} & Выборка пользователей по роли -- список
   клиентов и назначение прав в административной панели. \\\hline
-\envvar{ix\_users\_salon} & Частичный индекс по точке сети с условием
+\envvar{idx\_user\_account\_salon\_id} & Частичный индекс по точке сети с условием
   \texttt{salon\_id IS NOT NULL}: разграничение области видимости данных
   для роли \texttt{admin} (2.2). \\\hline
-\envvar{ix\_appointments\_time} & Составной индекс по границам интервала
+\envvar{idx\_appointment\_start\_time\_end\_time} & Составной индекс по границам интервала
   (\texttt{start\_time}, \texttt{end\_time}) -- расчёт свободных
   интервалов мастера, наиболее частая выборка в системе. \\\hline
-\envvar{ix\_appointments\_master} & Записи конкретного мастера --
+\envvar{idx\_appointment\_master\_id} & Записи конкретного мастера --
   личный кабинет и расписание. \\\hline
-\envvar{ix\_appointments\_client} & Записи конкретного клиента --
+\envvar{idx\_appointment\_client\_id} & Записи конкретного клиента --
   история посещений в личном кабинете. \\\hline
-\envvar{ix\_appointments\_status} & Отбор записей по состоянию: рассылка
+\envvar{idx\_appointment\_status} & Отбор записей по состоянию: рассылка
   напоминаний и отчёты по завершённым записям. \\\hline
-\envvar{ix\_appointments\_salon} & Записи в границах одной точки сети --
+\envvar{idx\_appointment\_salon\_id} & Записи в границах одной точки сети --
   статистика и отчёты филиала. \\\hline
-\envvar{ix\_masters\_salon} & Мастера, закреплённые за точкой сети. \\\hline
-\envvar{ix\_services\_name} & Поиск услуги по названию в каталоге. \\\hline
-\envvar{ix\_reviews\_master} & Отзывы о мастере и расчёт его средней
+\envvar{idx\_master\_salon\_id} & Мастера, закреплённые за точкой сети. \\\hline
+\envvar{idx\_service\_name} & Поиск услуги по названию в каталоге. \\\hline
+\envvar{idx\_review\_master\_id} & Отзывы о мастере и расчёт его средней
   оценки. \\\hline
-\envvar{ix\_reviews\_service} & Отзывы об услуге. \\\hline
-\envvar{ix\_login\_attempts\_email\_created} & Составной индекс
+\envvar{idx\_review\_service\_id} & Отзывы об услуге. \\\hline
+\envvar{idx\_login\_attempt\_log\_email\_attempted\_created\_at} & Составной индекс
   (\texttt{email\_attempted}, \texttt{created\_at}): подсчёт неудачных
   попыток входа за последние 15 минут (2.4). Выполняется при каждой
   попытке входа, вследствие чего отсутствие индекса замедляло бы
   авторизацию по мере роста журнала. \\\hline
-\envvar{ix\_sessions\_user} & Активные сессии пользователя: обновление
+\envvar{idx\_user\_session\_user\_id} & Активные сессии пользователя: обновление
   токена и отзыв всех сессий администратором. \\\hline
-\envvar{ix\_password\_reset\_tokens\_user} & Одноразовые токены сброса
+\envvar{idx\_password\_reset\_token\_user\_id} & Одноразовые токены сброса
   пароля по владельцу. \\\hline
-\envvar{ix\_email\_verification\_tokens\_user} & Одноразовые токены
+\envvar{idx\_email\_verification\_token\_user\_id} & Одноразовые токены
   подтверждения адреса электронной почты по владельцу. \\\hline
-\envvar{uq\_salons\_slug} & Уникальность и поиск точки сети по
+\envvar{uniq\_salon\_slug} & Уникальность и поиск точки сети по
   человекочитаемому идентификатору в адресе страницы. \\\hline
-\envvar{idx\_master\_services\_service} & Обратный обход связи «многие ко
+\envvar{idx\_master\_service\_service\_id} & Обратный обход связи «многие ко
   многим»: перечень мастеров, оказывающих заданную услугу. \\\hline
 \end{xltabular}
 
 Отдельно следует отметить ограничение \texttt{EXCLUDE USING gist} на
-таблице \texttt{appointments} (4.2), которое требует расширения
+таблице \texttt{appointment} (4.2), которое требует расширения
 \texttt{btree\_gist} и опирается на собственный индекс типа GiST. Это
 ограничение выполняет двойную функцию: предотвращает пересечение
 интервалов времени у одного мастера на уровне СУБД и ускоряет проверку
@@ -986,7 +1003,7 @@ ANALYZE} на плане запроса расчёта занятых интер
 
 \begin{verbatim}
 EXPLAIN ANALYZE
-SELECT start_time, end_time FROM appointments
+SELECT start_time, end_time FROM appointment
 WHERE master_id = '...' AND status <> 'cancelled'
   AND start_time >= '2026-09-08' AND start_time < '2026-09-09';
 \end{verbatim}
@@ -1276,7 +1293,7 @@ Let's Encrypt, ежедневное резервное копирование), 
   \seqpad{0.3}
   \seqcond{6.7}{email и телефон свободны}
   \seqselfA{9.0}{Хеширование пароля}
-  \seqmsgA{9.0}{13.4}{INSERT в users}
+  \seqmsgA{9.0}{13.4}{INSERT в user\_account}
   \seqmark{\dTopB}
   \seqretA{13.4}{9.0}{Пользователь создан}
   \seqmark{\dBotB}
