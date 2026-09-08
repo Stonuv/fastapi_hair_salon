@@ -27,30 +27,31 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     на уровне БД — см. Alembic-миграцию (нельзя выразить через __table_args__).
     Разрешённые переходы статуса валидируются в AppointmentService, не в модели.
     """
-    __tablename__ = "appointments"
+    __tablename__ = "appointment"
     __table_args__ = (
-        CheckConstraint("end_time > start_time", name="ck_appointments_end_after_start"),
-        CheckConstraint("final_price >= 0", name="ck_appointments_price_non_negative"),
-        Index("ix_appointments_client", "client_id"),
-        Index("ix_appointments_master", "master_id"),
-        Index("ix_appointments_time", "start_time", "end_time"),
-        Index("ix_appointments_status", "status"),
+        CheckConstraint("end_time > start_time", name="chk_appointment_end_after_start"),
+        CheckConstraint("final_price >= 0", name="chk_appointment_price_non_negative"),
+        Index("idx_appointment_client_id", "client_id"),
+        Index("idx_appointment_master_id", "master_id"),
+        Index("idx_appointment_start_time_end_time", "start_time", "end_time"),
+        Index("idx_appointment_status", "status"),
+        Index("idx_appointment_salon_id", "salon_id"),
     )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="RESTRICT"), nullable=False
     )
     master_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("masters.id", ondelete="RESTRICT"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("master.id", ondelete="RESTRICT"), nullable=False
     )
     service_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("services.id", ondelete="RESTRICT"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("service.id", ondelete="RESTRICT"), nullable=False
     )
     # Денормализовано из master.salon_id на момент создания (см.
     # AppointmentRepository.create) — снимок, как final_price: перевод
     # мастера в другую точку не переносит старые записи задним числом.
     salon_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("salon.id", ondelete="RESTRICT"), nullable=False
     )
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

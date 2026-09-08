@@ -19,20 +19,21 @@ if TYPE_CHECKING:
 
 
 class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
-    __tablename__ = "masters"
+    __tablename__ = "master"
     __table_args__ = (
-        CheckConstraint("coefficient > 0", name="ck_masters_coefficient_positive"),
-        Index("uq_masters_user_id_active", "user_id", unique=True,
+        CheckConstraint("coefficient > 0", name="chk_master_coefficient_positive"),
+        Index("uniq_master_user_id", "user_id", unique=True,
               postgresql_where=text("deleted_at IS NULL")),
+        Index("idx_master_salon_id", "salon_id"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
     )
     # Мастер физически работает в одной точке (см. ROADMAP.md §4.1) —
     # мультилокационный мастер вне периметра v1.
     salon_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("salon.id", ondelete="RESTRICT"), nullable=False
     )
     specialization: Mapped[str | None] = mapped_column(String(200))
     photo_url: Mapped[str | None] = mapped_column(String(500))
@@ -77,19 +78,19 @@ class Master(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
 
 class MasterService(Base):
     """Связь N:M — какой мастер оказывает какую услугу."""
-    __tablename__ = "master_services"
+    __tablename__ = "master_service"
     __table_args__ = (
-        CheckConstraint("price_override >= 0", name="ck_master_services_price_override_non_negative"),
+        CheckConstraint("price_override >= 0", name="chk_master_service_price_override_non_negative"),
         # Композитный PK (master_id, service_id) индексирует поиск по master_id,
         # но не по одному service_id — нужен отдельный индекс.
-        Index("idx_master_services_service", "service_id"),
+        Index("idx_master_service_service_id", "service_id"),
     )
 
     master_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("masters.id", ondelete="CASCADE"), primary_key=True
+        PgUUID(as_uuid=True), ForeignKey("master.id", ondelete="CASCADE"), primary_key=True
     )
     service_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("services.id", ondelete="CASCADE"), primary_key=True
+        PgUUID(as_uuid=True), ForeignKey("service.id", ondelete="CASCADE"), primary_key=True
     )
     # NULL → итоговая цена = services.price * masters.coefficient
     price_override: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))

@@ -17,13 +17,13 @@ class PasswordResetToken(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Токен сброса пароля. В БД хранится только SHA-256 хеш токена —
     сам токен живёт только в ссылке, отправленной (в нашем случае — залогированной) пользователю.
     """
-    __tablename__ = "password_reset_tokens"
+    __tablename__ = "password_reset_token"
     __table_args__ = (
-        Index("ix_password_reset_tokens_user", "user_id"),
+        Index("idx_password_reset_token_user_id", "user_id"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

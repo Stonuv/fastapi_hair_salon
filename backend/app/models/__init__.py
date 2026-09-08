@@ -10,6 +10,7 @@ from .schedule import Schedule
 from .appointment import Appointment
 from .review import Review
 from .password_reset_token import PasswordResetToken
+from .email_verification_token import EmailVerificationToken
 from .login_attempt import LoginAttempt
 from .site_settings import SiteSettings
 from .session import Session
@@ -26,6 +27,7 @@ __all__ = [
     "Appointment",
     "Review",
     "PasswordResetToken",
+    "EmailVerificationToken",
     "LoginAttempt",
     "SiteSettings",
     "Session",

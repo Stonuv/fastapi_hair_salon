@@ -2,7 +2,7 @@
 создать пользователя → назначить точку → повысить роль. Юнит-тесты
 (test_admin_role_assignment.py) проверяют ветвления AdminService с фейковыми
 репозиториями; этот файл — что это реально работает вместе поверх настоящего
-Postgres, включая CHECK CONSTRAINT ck_users_admin_requires_salon, который и
+Postgres, включая CHECK CONSTRAINT chk_user_account_admin_requires_salon, который и
 вынуждает двухшаговый флоу (роль меняется отдельным запросом от назначения
 точки — единая транзакция тут недостижима через два HTTP-вызова)."""
 from datetime import time

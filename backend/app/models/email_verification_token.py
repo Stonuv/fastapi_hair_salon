@@ -18,13 +18,13 @@ class EmailVerificationToken(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     сам токен живёт только в ссылке, отправленной пользователю (см.
     PasswordResetToken — тот же приём).
     """
-    __tablename__ = "email_verification_tokens"
+    __tablename__ = "email_verification_token"
     __table_args__ = (
-        Index("ix_email_verification_tokens_user", "user_id"),
+        Index("idx_email_verification_token_user_id", "user_id"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

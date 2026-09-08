@@ -17,27 +17,27 @@ if TYPE_CHECKING:
 
 class Review(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Отзыв клиента о завершённой записи. Один отзыв на одну запись."""
-    __tablename__ = "reviews"
+    __tablename__ = "review"
     __table_args__ = (
-        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_reviews_rating_range"),
-        UniqueConstraint("appointment_id", name="uq_reviews_appointment"),
-        Index("ix_reviews_master", "master_id"),
-        Index("ix_reviews_service", "service_id"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="chk_review_rating_range"),
+        UniqueConstraint("appointment_id", name="uniq_review_appointment_id"),
+        Index("idx_review_master_id", "master_id"),
+        Index("idx_review_service_id", "service_id"),
     )
 
     appointment_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("appointments.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("appointment.id", ondelete="CASCADE"), nullable=False
     )
     client_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
     )
     # Денормализованы из appointment в момент создания — позволяют выбирать
     # отзывы мастера/услуги без join через appointments.
     master_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("masters.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("master.id", ondelete="CASCADE"), nullable=False
     )
     service_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("services.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("service.id", ondelete="CASCADE"), nullable=False
     )
     rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)

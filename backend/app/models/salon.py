@@ -17,10 +17,10 @@ class Salon(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     удаляется физически (masters/appointments.salon_id ссылаются
     ondelete=RESTRICT), только is_active=false, как Service/Master."""
 
-    __tablename__ = "salons"
+    __tablename__ = "salon"
     __table_args__ = (
-        CheckConstraint("close_time > open_time", name="ck_salons_close_after_open"),
-        Index("uq_salons_slug", "slug", unique=True),
+        CheckConstraint("close_time > open_time", name="chk_salon_close_after_open"),
+        Index("uniq_salon_slug", "slug", unique=True),
     )
 
     name: Mapped[str] = mapped_column(String(150), nullable=False)

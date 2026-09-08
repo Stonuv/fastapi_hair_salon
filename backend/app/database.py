@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from .config import settings
 
@@ -33,9 +33,23 @@ SessionLocal = sessionmaker(
 )
 
 
+# ── Соглашение об именах ограничений ─────────────────────────────
+# Стандарт именования (zapiska/db_naming_standards.md) задаёт префиксы для
+# всех объектов схемы. Индексы, CHECK- и UNIQUE-ограничения именуются в
+# моделях явно, а первичные и внешние ключи имени не получают -- их
+# придумывает сама СУБД (users_pkey, appointments_client_id_fkey). Это
+# соглашение подставляет им имена по стандарту: pk_<таблица> и
+# fk_<дочерняя>_<родительская>. Без него autogenerate новых миграций
+# продолжил бы плодить системные имена в обход стандарта.
+NAMING_CONVENTION = {
+    "pk": "pk_%(table_name)s",
+    "fk": "fk_%(table_name)s_%(referred_table_name)s",
+}
+
+
 # ── Base для всех моделей (SQLAlchemy 2.0 style) ──────────────────
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
 # ── FastAPI dependency ───────────────────────────────────────────

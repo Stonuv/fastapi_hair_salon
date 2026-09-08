@@ -38,7 +38,7 @@ def _make_salon(db_session, name: str):
 
 def _make_user(db_session, *, email: str, role: UserRole, salon_id=None,
                first_name="Тест", last_name="Тестов"):
-    # ck_users_admin_requires_salon требует salon_id уже в момент, когда role
+    # chk_user_account_admin_requires_salon требует salon_id уже в момент, когда role
     # становится 'admin' — тот же порядок, что и в реальном двухшаговом флоу
     # (PATCH .../salon, затем PATCH .../role), см. test_admin_role_assignment_flow.py.
     repo = UserRepository(db_session)

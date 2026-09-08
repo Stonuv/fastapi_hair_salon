@@ -24,22 +24,22 @@ if TYPE_CHECKING:
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
-    __tablename__ = "users"
+    __tablename__ = "user_account"
     __table_args__ = (
         # Уникальность email/телефона действует только среди "живых" записей —
         # иначе мягко удалённый пользователь блокирует email от повторной регистрации.
-        Index("uq_users_email_active", "email", unique=True,
+        Index("uniq_user_account_email", "email", unique=True,
               postgresql_where=text("deleted_at IS NULL")),
-        Index("uq_users_phone_active", "phone", unique=True,
+        Index("uniq_user_account_phone", "phone", unique=True,
               postgresql_where=text("deleted_at IS NULL AND phone IS NOT NULL")),
-        Index("uq_users_vk_user_id_active", "vk_user_id", unique=True,
+        Index("uniq_user_account_vk_user_id", "vk_user_id", unique=True,
               postgresql_where=text("deleted_at IS NULL AND vk_user_id IS NOT NULL")),
-        Index("ix_users_role", "role"),
-        Index("ix_users_salon", "salon_id", postgresql_where=text("salon_id IS NOT NULL")),
+        Index("idx_user_account_role", "role"),
+        Index("idx_user_account_salon_id", "salon_id", postgresql_where=text("salon_id IS NOT NULL")),
         # Только admin обязан быть привязан к точке — owner видит всю сеть,
         # у master/client своя привязка (Master.salon_id) или её нет вовсе.
         CheckConstraint("role <> 'admin' OR salon_id IS NOT NULL",
-                        name="ck_users_admin_requires_salon"),
+                        name="chk_user_account_admin_requires_salon"),
     )
 
     # NULL — VK ID не отдал email при регистрации; такой клиент указывает его
@@ -61,11 +61,11 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     role: Mapped[UserRole] = mapped_column(
         SAEnum(UserRole, name="user_role"), nullable=False, default=UserRole.client
     )
-    # "Домашняя" точка — обязательна для admin (см. ck_users_admin_requires_salon),
+    # "Домашняя" точка — обязательна для admin (см. chk_user_account_admin_requires_salon),
     # NULL для owner (вся сеть) и client. У master своя привязка (Master.salon_id),
     # не дублируется сюда — иначе два источника истины.
     salon_id: Mapped[uuid.UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("salons.id", ondelete="RESTRICT")
+        PgUUID(as_uuid=True), ForeignKey("salon.id", ondelete="RESTRICT")
     )
     # Блокировка (ТЗ 4.2 MIN) — отличается от мягкого удаления: аккаунт и
     # история сохраняются и видны, но вход и действия по токену запрещены.

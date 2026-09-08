@@ -1,7 +1,7 @@
 """Первичная настройка на пустой БД (ROADMAP.md §4.10 Фаза D).
 
 Regression: до этой фазы /api/setup создавал пользователя с role='admin' и
-пустым salon_id, что нарушало ck_users_admin_requires_salon (миграция 0015);
+пустым salon_id, что нарушало chk_user_account_admin_requires_salon (миграция 0015);
 IntegrityError перехватывался обработчиком «дубликат email» — и свежая
 установка отвечала 409 «Пользователь с таким email уже существует» на
 заведомо пустой БД. Ни один юнит-тест этого не видел: констрейнт живёт
@@ -44,7 +44,7 @@ async def test_fresh_install_creates_owner_and_primary_salon(client, db_session)
     user = UserRepository(db_session).get_by_email("founder@example.com")
     assert user is not None
     assert user.role == UserRole.owner
-    # owner не привязан к точке — он видит всю сеть (ck_users_admin_requires_salon
+    # owner не привязан к точке — он видит всю сеть (chk_user_account_admin_requires_salon
     # касается только admin).
     assert user.salon_id is None
 

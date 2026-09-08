@@ -25,7 +25,7 @@ class LoginAttemptRepository:
 
     def count_recent_failed(self, email: str, since: datetime) -> int:
         """Неудачные попытки входа по email за окно — для временной блокировки.
-        Покрыто индексом ix_login_attempts_email_created."""
+        Покрыто индексом idx_login_attempt_log_email_attempted_created_at."""
         stmt = select(func.count()).select_from(LoginAttempt).where(
             LoginAttempt.email_attempted == email,
             LoginAttempt.success.is_(False),

@@ -66,4 +66,4 @@ def test_active_duplicate_email_rejected_at_db_level(db_session):
         )
     db_session.rollback()
 
-    assert exc_info.value.orig.diag.constraint_name == "uq_users_email_active"
+    assert exc_info.value.orig.diag.constraint_name == "uniq_user_account_email"

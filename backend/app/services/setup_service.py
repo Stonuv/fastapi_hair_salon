@@ -77,7 +77,7 @@ class SetupService:
                                 detail="Пользователь с таким номером телефона уже существует")
         try:
             # Именно owner: роль admin с введением сети salon-scoped и требует
-            # salon_id (ck_users_admin_requires_salon), которого на первом
+            # salon_id (chk_user_account_admin_requires_salon), которого на первом
             # запуске взять неоткуда — попытка создать здесь admin валила
             # /api/setup нарушением этого констрейнта.
             user = self.user_repo.create(data.owner, hash_password(data.owner.password),
@@ -89,9 +89,9 @@ class SetupService:
             # на заведомо пустой БД, что маскировало настоящую причину.
             # Сверяемся с именем констрейнта, как в остальных сервисах.
             name = constraint_name(exc)
-            if name == "uq_users_phone_active":
+            if name == "uniq_user_account_phone":
                 detail = "Пользователь с таким номером телефона уже существует"
-            elif name == "uq_users_email_active":
+            elif name == "uniq_user_account_email":
                 detail = "Пользователь с таким email уже существует"
             else:
                 raise

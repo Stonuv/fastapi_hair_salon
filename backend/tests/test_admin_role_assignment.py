@@ -104,7 +104,7 @@ class TestCreateUserRoleGuard:
         assert exc.value.status_code == 403
 
     def test_owner_still_cannot_create_admin_directly(self):
-        """role=admin требует salon_id (ck_users_admin_requires_salon), а
+        """role=admin требует salon_id (chk_user_account_admin_requires_salon), а
         AdminUserCreate его не задаёт — даже owner обязан пройти двухшаговый
         флоу (создать → назначить точку → повысить роль), см. change_role."""
         svc = make_service()

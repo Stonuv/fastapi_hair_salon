@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 
 class Service(Base, UUIDPrimaryKeyMixin, SoftDeleteMixin):
-    __tablename__ = "services"
+    __tablename__ = "service"
     __table_args__ = (
-        CheckConstraint("price >= 0", name="ck_services_price_non_negative"),
-        CheckConstraint("duration_min > 0", name="ck_services_duration_positive"),
-        Index("ix_services_name", "name"),
+        CheckConstraint("price >= 0", name="chk_service_price_non_negative"),
+        CheckConstraint("duration_min > 0", name="chk_service_duration_positive"),
+        Index("idx_service_name", "name"),
     )
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)

@@ -890,7 +890,7 @@ Review.__repr__(self) -> str
 \textit{Особенности:} \texttt{master_id} и \texttt{service_id}
 денормализованы из связанной записи \texttt{appointment} в момент
 создания отзыва -- это позволяет выбирать отзывы конкретного
-мастера/услуги без join'а через \texttt{appointments}; уникальное
+мастера/услуги без join'а через \texttt{appointment}; уникальное
 ограничение на \texttt{appointment_id} гарантирует «один отзыв на одну
 запись».
 
@@ -1871,7 +1871,7 @@ save_uploaded_image(file: UploadFile) -> str
 Вместо одного долгоживущего токена проект использует пару: короткоживущий
 JWT \textbf{access-токен} (15 минут, \texttt{settings.access_token_expire_minutes})
 и долгоживущий opaque \textbf{refresh-токен} (30 дней,
-хранится как строка в таблице \texttt{sessions}, раздел~11). Оба живут в
+хранится как строка в таблице \texttt{user\_session}, раздел~11). Оба живут в
 отдельных httpOnly-cookie, а не в \texttt{localStorage}/JS-переменной --
 так украсть их через XSS-уязвимость на фронтенде существенно сложнее
 (JavaScript их вообще не видит).
@@ -1911,7 +1911,7 @@ access-токен с прежним \texttt{ver} мгновенно перест
 
 Refresh-токен работает иначе -- он не JWT, а случайная строка
 (\texttt{secrets.token_urlsafe(32)}), хеш которой (SHA-256) хранится в
-таблице \texttt{sessions}. Каждый вызов \texttt{POST /api/auth/refresh}
+таблице \texttt{user\_session}. Каждый вызов \texttt{POST /api/auth/refresh}
 \emph{ротирует} токен -- старая сессия удаляется, выдаётся новая:
 \begin{verbatim}
 def refresh_session(self, raw_refresh_token: str) -> tuple[TokenResponse, str]:
@@ -2171,6 +2171,17 @@ OAuth/подтверждение email по мере появления соот
   одновременно с обновлённым \texttt{get_current_admin}/\texttt{require_role}
   (раздел~10) -- иначе только что повышенные владельцы мгновенно теряют
   доступ к \texttt{/api/admin/*} до раскатки нового кода. \\
+\envvar{0016_naming_standard} & Приводит имена объектов схемы к стандарту
+  именования (\envvar{zapiska/db_naming_standards.md}): таблицы в
+  единственном числе (\texttt{users} $\to$ \texttt{user\_account},
+  \texttt{appointments} $\to$ \texttt{appointment}), индексы с
+  префиксами \texttt{idx\_}/\texttt{uniq\_}, проверки с
+  \texttt{chk\_}, ключи с \texttt{pk\_}/\texttt{fk\_}. Только
+  переименование: ни одной таблицы, колонки или связи не добавлено и не
+  удалено, данные не затронуты. Имена первичных и внешних ключей
+  PostgreSQL выдавал сам, поэтому они переименовываются не по списку, а
+  выборкой из \texttt{pg\_constraint} -- системное имя зависит от
+  версии СУБД и от порядка колонок. \\
 \end{xltabular}
 
 \subsection{Двойное бронирование невозможно физически, а не по вежливой просьбе}

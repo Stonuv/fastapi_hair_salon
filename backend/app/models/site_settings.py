@@ -12,6 +12,6 @@ class SiteSettings(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     SiteContent) — JSONB, а не отдельные колонки, чтобы новые редактируемые
     поля не требовали миграции на каждое изменение."""
 
-    __tablename__ = "site_settings"
+    __tablename__ = "site_setting"
 
     content: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

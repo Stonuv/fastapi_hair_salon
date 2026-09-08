@@ -340,7 +340,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 5) При успешной валидации создаётся клиент, пароль сохраняется в виде хеша (bcrypt), клиенту сразу выдаются JWT-токены (клиент считается вошедшим в систему). Параллельно генерируется токен подтверждения email (срок действия 24 часа) и отправляется письмо со ссылкой -- подтверждение email не блокирует ни вход, ни какие-либо действия в системе (см. также ФТ-002). \\\cline{2-2}
  &
 См. также ФТ-003 -- альтернативный способ регистрации/входа через VK ID. \\\hline
-Выходные данные & JWT access- и refresh-токены (клиент сразу вошёл в систему); запись в таблице \texttt{users}; письмо на email со ссылкой подтверждения \\\hline
+Выходные данные & JWT access- и refresh-токены (клиент сразу вошёл в систему); запись в таблице \texttt{user_account}; письмо на email со ссылкой подтверждения \\\hline
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
@@ -459,7 +459,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
  &
 6) Проверка, что интервал [\texttt{start\_time}, \texttt{end\_time}) укладывается в рабочее расписание мастера на этот день недели и не выходит за часы работы точки -- иначе ошибка 400 с указанием причины (мастер не работает в этот день / запись выходит за рамки его рабочего времени). \\\cline{2-2}
  &
-7) Предварительная проверка отсутствия пересечения с другими записями мастера, затем попытка \texttt{INSERT} в таблицу \texttt{appointments} с ограничением \texttt{EXCLUDE USING gist} по пересечению временного диапазона для одного мастера -- страхует от гонки двух одновременных запросов. \\\cline{2-2}
+7) Предварительная проверка отсутствия пересечения с другими записями мастера, затем попытка \texttt{INSERT} в таблицу \texttt{appointment} с ограничением \texttt{EXCLUDE USING gist} по пересечению временного диапазона для одного мастера -- страхует от гонки двух одновременных запросов. \\\cline{2-2}
  &
 8) При конфликте (нарушение EXCLUDE-ограничения) -- возврат ошибки 409 «Выбранное время уже занято». \\\cline{2-2}
  &
@@ -515,12 +515,12 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 Требования к обработке &
 1) Валидация: цена $>$ 0, длительность -- целое число минут $>$ 0 (кратность 15 минутам не требуется), название -- от 2 до 200 символов. \\\cline{2-2}
  &
-2) Сохранение услуги в таблице \texttt{services}. \\\cline{2-2}
+2) Сохранение услуги в таблице \texttt{service}. \\\cline{2-2}
  &
-3) Привязка услуги к мастеру -- таблица \texttt{master\_services}; итоговая цена услуги у мастера = \texttt{price\_override}, если он задан явно, иначе -- базовая цена услуги, умноженная на общий коэффициент цены мастера (\texttt{coefficient}, см. 5.1.1) и округлённая до копеек. \\\cline{2-2}
+3) Привязка услуги к мастеру -- таблица \texttt{master\_service}; итоговая цена услуги у мастера = \texttt{price\_override}, если он задан явно, иначе -- базовая цена услуги, умноженная на общий коэффициент цены мастера (\texttt{coefficient}, см. 5.1.1) и округлённая до копеек. \\\cline{2-2}
  &
 4) Удаление привязки услуги к мастеру -- отдельным действием (без ограничений). Скрытие самой услуги из каталога (\texttt{is\_active = false}) -- мягкое, услугу можно вернуть в каталог повторным редактированием; физическое удаление услуги, на которую есть привязки к мастерам или записи, системой не предусмотрено. \\\hline
-Выходные данные & Карточка услуги; записи в \texttt{master\_services}; обновлённый каталог, немедленно доступный через публичный API \\\hline
+Выходные данные & Карточка услуги; записи в \texttt{master\_service}; обновлённый каталог, немедленно доступный через публичный API \\\hline
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
@@ -574,7 +574,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
  &
 3) Замена изображения сохраняет новый файл под новым именем и обновляет ссылку на него в настройках; предыдущий файл с диска не удаляется. \\\cline{2-2}
  &
-4) Обновление единственной строки конфигурации (таблица \texttt{site\_settings}, содержимое хранится в поле \texttt{content} в формате JSON). \\\hline
+4) Обновление единственной строки конфигурации (таблица \texttt{site\_setting}, содержимое хранится в поле \texttt{content} в формате JSON). \\\hline
 Выходные данные & Обновлённые настройки, немедленно отражающиеся на публичных страницах \\\hline
 Особенности & Адрес и часы работы на публичном сайте (подвал, блок «Наши салоны») эта функция не редактирует -- они берутся из данных точек сети (см. ФТ-016). \\\hline
 \end{xltabular}
@@ -707,7 +707,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 Требования к обработке &
 1) Проверка, что запись в статусе \texttt{done} и её клиент совпадает с текущим пользователем. \\\cline{2-2}
  &
-2) Проверка, что отзыв на эту запись ещё не оставлен (уникальность \texttt{appointment\_id} в \texttt{reviews}); при повторной попытке -- ошибка 409. \\\cline{2-2}
+2) Проверка, что отзыв на эту запись ещё не оставлен (уникальность \texttt{appointment\_id} в \texttt{review}); при повторной попытке -- ошибка 409. \\\cline{2-2}
  &
 3) Текст комментария автоматически проверяется на нецензурную лексику и наличие ссылок/адресов сайтов -- при обнаружении запрос отклоняется с соответствующим сообщением, отзыв не сохраняется. \\\cline{2-2}
  &
@@ -778,7 +778,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 
 \subsubsection{Состав основных сущностей}
 
-Модель построена вокруг точки сети (\texttt{salons}): пользователь, мастер и запись ссылаются на конкретную точку, что обеспечивает разграничение видимости данных администратора его точкой (см. 3.1, 4.1.4). Профиль мастера (\texttt{masters}) выделен в отдельную сущность и отделён от учётной записи пользователя (\texttt{users}) связью 1:0..1, поскольку не каждый пользователь является мастером. Помимо основных, бизнес-ориентированных сущностей, в модель включены служебные сущности, обеспечивающие безопасность: журнал попыток входа, токены сброса пароля и подтверждения email, сессии входа.
+Модель построена вокруг точки сети (\texttt{salon}): пользователь, мастер и запись ссылаются на конкретную точку, что обеспечивает разграничение видимости данных администратора его точкой (см. 3.1, 4.1.4). Профиль мастера (\texttt{master}) выделен в отдельную сущность и отделён от учётной записи пользователя (\texttt{user_account}) связью 1:0..1, поскольку не каждый пользователь является мастером. Помимо основных, бизнес-ориентированных сущностей, в модель включены служебные сущности, обеспечивающие безопасность: журнал попыток входа, токены сброса пароля и подтверждения email, сессии входа.
 
 Правило генерации идентификаторов: все первичные ключи -- \texttt{UUID v4}, генерируются на стороне приложения при создании записи (не автоинкремент -- исключает угадывание/перечисление идентификаторов через API).
 
@@ -796,26 +796,26 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \hline
 \endhead
 \endfoot
-\texttt{salons} (Точка сети) & \texttt{id}, \texttt{name}, \texttt{slug}, \texttt{address}, \texttt{phone}, \texttt{open\_time}, \texttt{close\_time}, \texttt{photo\_url}, \texttt{is\_active}, \texttt{created\_at} \\\hline
-\texttt{users} (Пользователь) & \texttt{id}, \texttt{first\_name}, \texttt{last\_name}, \texttt{phone}, \texttt{email}, \texttt{password\_hash}, \texttt{vk\_user\_id}, \texttt{email\_verified\_at}, \texttt{role}, \texttt{salon\_id} (FK, только для роли «администратор»), \texttt{is\_blocked}, \texttt{token\_version}, \texttt{deleted\_at}, \texttt{created\_at} \\\hline
-\texttt{masters} (Мастер) & \texttt{id}, \texttt{user\_id} (FK $\to$ users), \texttt{salon\_id} (FK $\to$ salons), \texttt{specialization}, \texttt{photo\_url}, \texttt{coefficient} -- множитель цены услуг мастера, \texttt{is\_active}, \texttt{deleted\_at}, \texttt{created\_at} \\\hline
-\texttt{services} (Услуга) & \texttt{id}, \texttt{name}, \texttt{description}, \texttt{price}, \texttt{duration\_min}, \texttt{is\_active}, \texttt{deleted\_at} \\\hline
-\texttt{master\_services} (Услуга мастера) & \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{price\_override} -- необязательное точечное переопределение цены (если не задано, цена = \texttt{services.price} $\times$ \texttt{masters.coefficient}) \\\hline
-\texttt{schedules} (Расписание мастера) & \texttt{id}, \texttt{master\_id} (FK), \texttt{day\_of\_week} (0--6), \texttt{start\_time}, \texttt{end\_time}, \texttt{is\_working}, \texttt{created\_at} \\\hline
-\texttt{appointments} (Запись) & \texttt{id}, \texttt{client\_id} (FK $\to$ users), \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{salon\_id} (FK), \texttt{start\_time}, \texttt{end\_time}, \texttt{final\_price}, \texttt{status}, \texttt{reminder\_24h\_sent\_at}, \texttt{reminder\_2h\_sent\_at}, \texttt{created\_at} \\\hline
-\texttt{reviews} (Отзыв) & \texttt{id}, \texttt{appointment\_id} (FK, уникальный), \texttt{client\_id} (FK), \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{rating}, \texttt{comment}, \texttt{is\_published}, \texttt{created\_at} \\\hline
-\texttt{login\_attempts} (Попытка входа) & \texttt{id}, \texttt{email\_attempted}, \texttt{user\_id} (FK, может быть пуст), \texttt{ip\_address}, \texttt{success}, \texttt{created\_at} \\\hline
-\texttt{password\_reset\_tokens} (Токен сброса пароля) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{used\_at}, \texttt{created\_at} \\\hline
-\texttt{email\_verification\_tokens} (Токен подтверждения email) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{used\_at}, \texttt{created\_at} \\\hline
-\texttt{sessions} (Сессия входа) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{created\_at} \\\hline
-\texttt{site\_settings} (Настройки сайта) & \texttt{id}, \texttt{content} (JSON: тексты, цветовая тема, шрифты, SEO), \texttt{created\_at} \\\hline
+\texttt{salon} (Точка сети) & \texttt{id}, \texttt{name}, \texttt{slug}, \texttt{address}, \texttt{phone}, \texttt{open\_time}, \texttt{close\_time}, \texttt{photo\_url}, \texttt{is\_active}, \texttt{created\_at} \\\hline
+\texttt{user_account} (Пользователь) & \texttt{id}, \texttt{first\_name}, \texttt{last\_name}, \texttt{phone}, \texttt{email}, \texttt{password\_hash}, \texttt{vk\_user\_id}, \texttt{email\_verified\_at}, \texttt{role}, \texttt{salon\_id} (FK, только для роли «администратор»), \texttt{is\_blocked}, \texttt{token\_version}, \texttt{deleted\_at}, \texttt{created\_at} \\\hline
+\texttt{master} (Мастер) & \texttt{id}, \texttt{user\_id} (FK $\to$ user\_account), \texttt{salon\_id} (FK $\to$ salon), \texttt{specialization}, \texttt{photo\_url}, \texttt{coefficient} -- множитель цены услуг мастера, \texttt{is\_active}, \texttt{deleted\_at}, \texttt{created\_at} \\\hline
+\texttt{service} (Услуга) & \texttt{id}, \texttt{name}, \texttt{description}, \texttt{price}, \texttt{duration\_min}, \texttt{is\_active}, \texttt{deleted\_at} \\\hline
+\texttt{master\_service} (Услуга мастера) & \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{price\_override} -- необязательное точечное переопределение цены (если не задано, цена = \texttt{services.price} $\times$ \texttt{masters.coefficient}) \\\hline
+\texttt{schedule} (Расписание мастера) & \texttt{id}, \texttt{master\_id} (FK), \texttt{day\_of\_week} (0--6), \texttt{start\_time}, \texttt{end\_time}, \texttt{is\_working}, \texttt{created\_at} \\\hline
+\texttt{appointment} (Запись) & \texttt{id}, \texttt{client\_id} (FK $\to$ user\_account), \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{salon\_id} (FK), \texttt{start\_time}, \texttt{end\_time}, \texttt{final\_price}, \texttt{status}, \texttt{reminder\_24h\_sent\_at}, \texttt{reminder\_2h\_sent\_at}, \texttt{created\_at} \\\hline
+\texttt{review} (Отзыв) & \texttt{id}, \texttt{appointment\_id} (FK, уникальный), \texttt{client\_id} (FK), \texttt{master\_id} (FK), \texttt{service\_id} (FK), \texttt{rating}, \texttt{comment}, \texttt{is\_published}, \texttt{created\_at} \\\hline
+\texttt{login\_attempt\_log} (Попытка входа) & \texttt{id}, \texttt{email\_attempted}, \texttt{user\_id} (FK, может быть пуст), \texttt{ip\_address}, \texttt{success}, \texttt{created\_at} \\\hline
+\texttt{password\_reset\_token} (Токен сброса пароля) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{used\_at}, \texttt{created\_at} \\\hline
+\texttt{email\_verification\_token} (Токен подтверждения email) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{used\_at}, \texttt{created\_at} \\\hline
+\texttt{user\_session} (Сессия входа) & \texttt{id}, \texttt{user\_id} (FK), \texttt{token\_hash}, \texttt{expires\_at}, \texttt{created\_at} \\\hline
+\texttt{site\_setting} (Настройки сайта) & \texttt{id}, \texttt{content} (JSON: тексты, цветовая тема, шрифты, SEO), \texttt{created\_at} \\\hline
 \end{xltabular}
 
 Во всех таблицах, хранящих токены (сброс пароля, подтверждение email, сессия), в базе данных сохраняется только SHA-256-хеш токена -- сам токен существует только в ссылке/cookie на стороне пользователя и не восстановим по содержимому базы данных.
 
 \subsubsection{Модель организации данных}
 
-Инфологическая модель разделена на две схемы для читаемости: рисунок~1 -- сущности бизнес-домена (точки, пользователи, мастера, услуги, записи, отзывы); рисунок~2 -- сущности, обеспечивающие безопасность входа, и настройки сайта. Точка сети (\texttt{salons}) -- корневая сущность сети: на неё ссылаются мастер, администратор (через \texttt{users.salon\_id}) и запись; профиль мастера отделён от учётной записи пользователя связью 1:0..1 (не каждый пользователь -- мастер); услуга мастера (\texttt{master\_services}) -- связь M:N между мастером и услугой с необязательным переопределением цены.
+Инфологическая модель разделена на две схемы для читаемости: рисунок~1 -- сущности бизнес-домена (точки, пользователи, мастера, услуги, записи, отзывы); рисунок~2 -- сущности, обеспечивающие безопасность входа, и настройки сайта. Точка сети (\texttt{salon}) -- корневая сущность сети: на неё ссылаются мастер, администратор (через \texttt{users.salon\_id}) и запись; профиль мастера отделён от учётной записи пользователя связью 1:0..1 (не каждый пользователь -- мастер); услуга мастера (\texttt{master\_service}) -- связь M:N между мастером и услугой с необязательным переопределением цены.
 
 \begin{sidewaysfigure}[htbp]
 \centering
@@ -836,7 +836,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 
 Настройки сайта (пунктирная рамка на рисунке~2) -- служебная сущность без связей с остальной моделью: это единственная строка конфигурации, не имеющая внешних ключей ни в одну другую таблицу и ни одной ссылающейся на неё.
 
-Правила ссылочной целостности: прикладной код никогда не выполняет физическое (\texttt{DELETE}) удаление строк \texttt{users}/\texttt{masters}/\texttt{services} -- вместо этого используется мягкое удаление (поле \texttt{deleted\_at}) или деактивация (\texttt{is\_active = false}), история операций сохраняется. Ограничения внешних ключей на уровне БД -- защитный рубеж на случай прямого изменения данных в обход приложения: удаление \texttt{users}/\texttt{masters}/\texttt{services}, на которые ссылаются \texttt{appointments}, запрещено (\texttt{ON DELETE RESTRICT}); зависимые записи \texttt{masters} (\texttt{schedules}, \texttt{master\_services}), \texttt{users} (\texttt{sessions}, токены, отзывы) и \texttt{appointments} (\texttt{reviews}) удаляются каскадно (\texttt{ON DELETE CASCADE}) только вместе со своим родителем.
+Правила ссылочной целостности: прикладной код никогда не выполняет физическое (\texttt{DELETE}) удаление строк \texttt{user_account}/\texttt{master}/\texttt{service} -- вместо этого используется мягкое удаление (поле \texttt{deleted\_at}) или деактивация (\texttt{is\_active = false}), история операций сохраняется. Ограничения внешних ключей на уровне БД -- защитный рубеж на случай прямого изменения данных в обход приложения: удаление \texttt{user_account}/\texttt{master}/\texttt{service}, на которые ссылаются \texttt{appointment}, запрещено (\texttt{ON DELETE RESTRICT}); зависимые записи \texttt{master} (\texttt{schedule}, \texttt{master\_service}), \texttt{user_account} (\texttt{user\_session}, токены, отзывы) и \texttt{appointment} (\texttt{review}) удаляются каскадно (\texttt{ON DELETE CASCADE}) только вместе со своим родителем.
 
 \subsubsection{Состав входной и выходной информации}
 
@@ -1160,7 +1160,7 @@ Frontend & Vue.js 3 (Composition API), Pinia, Tailwind CSS, Vite \\\hline
   \seqpad{0.3}
   \seqcond{6.7}{email и телефон свободны}
   \seqselfA{9.0}{Хеширование пароля}
-  \seqmsgA{9.0}{13.4}{INSERT в users}
+  \seqmsgA{9.0}{13.4}{INSERT в user\_account}
   \seqmark{\dTopB}
   \seqretA{13.4}{9.0}{Пользователь создан}
   \seqmark{\dBotB}
@@ -1285,7 +1285,7 @@ Frontend & Vue.js 3 (Composition API), Pinia, Tailwind CSS, Vite \\\hline
   \seqpad{0.3}\seqmark{\sepA}
   \seqpad{0.3}
   \seqcond{6.7}{все проверки пройдены}
-  \seqmsgB{9.0}{13.4}{INSERT в appointments\\(EXCLUDE USING gist)}
+  \seqmsgB{9.0}{13.4}{INSERT в appointment\\(EXCLUDE USING gist)}
   \seqmark{\dTopB}
   \seqretB{13.4}{9.0}{Запись создана\\(status=pending)}
   \seqmark{\dBotB}

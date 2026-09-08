@@ -1,6 +1,6 @@
 """Первичная настройка (создание владельца сети + первой точки) — без БД,
 фейковый репозиторий. Сам факт, что на реальной схеме это не падает на
-ck_users_admin_requires_salon, проверяется отдельно и обязательно на
+chk_user_account_admin_requires_salon, проверяется отдельно и обязательно на
 настоящем Postgres — см. tests/integration/test_fresh_install_setup.py."""
 import uuid
 from datetime import datetime, time, timezone
@@ -105,7 +105,7 @@ class TestComplete:
 
     def test_creates_owner_not_admin(self):
         """Regression (ROADMAP.md §4.10 Фаза D): роль admin salon-scoped и
-        требует salon_id (ck_users_admin_requires_salon) — на первом запуске
+        требует salon_id (chk_user_account_admin_requires_salon) — на первом запуске
         его взять неоткуда, поэтому первый аккаунт обязан быть owner."""
         svc = make_service(owner_exists=False, create_result=make_fake_user())
         res = svc.complete(make_request())

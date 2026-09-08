@@ -23,13 +23,13 @@ class Session(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     пользователя разом, синхронно с bump_token_version — иначе access-токен
     отзывался бы, а refresh тихо выдавал бы новый рабочий взамен.
     """
-    __tablename__ = "sessions"
+    __tablename__ = "user_session"
     __table_args__ = (
-        Index("ix_sessions_user", "user_id"),
+        Index("idx_user_session_user_id", "user_id"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

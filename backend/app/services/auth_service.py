@@ -167,7 +167,7 @@ class AuthService:
             self.db.rollback()
             detail = (
                 "Пользователь с таким номером телефона уже существует"
-                if constraint_name(exc) == "uq_users_phone_active"
+                if constraint_name(exc) == "uniq_user_account_phone"
                 else "Пользователь с таким email уже существует"
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc

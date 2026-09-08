@@ -18,7 +18,7 @@ class SetupStatusResponse(BaseModel):
 class SetupRequest(BaseModel):
     # owner, не admin: первый аккаунт управляет всей сетью (ROADMAP.md §4.8).
     # Роль admin с этого момента salon-scoped и требует salon_id
-    # (ck_users_admin_requires_salon), которого на первом запуске взять неоткуда.
+    # (chk_user_account_admin_requires_salon), которого на первом запуске взять неоткуда.
     owner: UserCreate
     # Первая точка сети — обязательна: мастера и записи ссылаются на salon_id
     # (NOT NULL), без точки инсталляция нерабочая.

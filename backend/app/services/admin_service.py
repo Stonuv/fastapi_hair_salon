@@ -63,7 +63,7 @@ class AdminService:
     def create_user(self, data: AdminUserCreate, requesting_user: User) -> UserResponse:
         _ensure_can_assign_role(data.role, requesting_user)
         if data.role == UserRole.admin:
-            # salon_id обязателен для role=admin (ck_users_admin_requires_salon),
+            # salon_id обязателен для role=admin (chk_user_account_admin_requires_salon),
             # а AdminUserCreate его не задаёт — точку назначают отдельным вызовом
             # (PATCH .../salon), см. change_role за той же логикой и объяснением.
             raise HTTPException(
@@ -84,7 +84,7 @@ class AdminService:
             self.db.rollback()
             detail = (
                 "Пользователь с таким номером телефона уже существует"
-                if constraint_name(exc) == "uq_users_phone_active"
+                if constraint_name(exc) == "uniq_user_account_phone"
                 else "Пользователь с таким email уже существует"
             )
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
@@ -194,7 +194,7 @@ class AdminService:
 
     def assign_salon(self, user_id: UUID, salon_id: UUID) -> UserResponse:
         """Назначить/сменить домашнюю точку пользователя — обычно перед
-        повышением до admin (ck_users_admin_requires_salon требует salon_id
+        повышением до admin (chk_user_account_admin_requires_salon требует salon_id
         уже в момент смены роли на admin, см. change_role) или чтобы
         перевести существующего admin в другую точку. Не ограничено ролью
         admin — иначе новый admin не мог бы получить точку ДО повышения."""

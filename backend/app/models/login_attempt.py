@@ -14,15 +14,15 @@ if TYPE_CHECKING:
 
 class LoginAttempt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Аудит-лог попыток входа (требование 5.1 — логирование попыток авторизации)."""
-    __tablename__ = "login_attempts"
+    __tablename__ = "login_attempt_log"
     __table_args__ = (
-        Index("ix_login_attempts_email_created", "email_attempted", "created_at"),
+        Index("idx_login_attempt_log_email_attempted_created_at", "email_attempted", "created_at"),
     )
 
     email_attempted: Mapped[str] = mapped_column(String(255), nullable=False)
     # NULL если email не принадлежит ни одному пользователю
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+        PgUUID(as_uuid=True), ForeignKey("user_account.id", ondelete="SET NULL")
     )
     ip_address: Mapped[str | None] = mapped_column(String(45))
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
