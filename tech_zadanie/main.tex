@@ -6,8 +6,17 @@
 % ============================================================
 % ТИТУЛЬНЫЙ ЛИСТ -- отдельный файл titlepage.tex
 % ============================================================
+% Номер первой страницы после титульного листа. При самостоятельной сборке --
+% 2, как обычно. При сборке приложением к пояснительной записке номер задаётся
+% снаружи (main-appendix.tex: \def\firstpagenumber{63}\input{main}), чтобы
+% нумерация комплекта была сквозной: у \providecommand внешнее определение
+% уже существует, и значение по умолчанию не перезаписывается.
+% Объявлено ДО титульного листа: тот считает по нему объём документа в листах
+% (\tzsheets в titlepage.tex).
+\providecommand{\firstpagenumber}{2}
+
 \input{titlepage}
-\setcounter{page}{2}
+\setcounter{page}{\firstpagenumber}
 
 \newpage
 \renewcommand{\contentsname}{СОДЕРЖАНИЕ}
@@ -204,17 +213,18 @@
 
 \subsubsection{Требования к структуре и функционированию системы}
 
-Клиент-серверная архитектура:
+Клиент-серверная архитектура; компонентный состав системы приведён в
+таблице~\ref{tz:tab:1}.
 
 \begin{xltabular}{\textwidth}{|l|X|}
-\caption{Компонентный состав системы}\\
+\caption{Компонентный состав системы}\label{tz:tab:1}\\
 \hline
-\textbf{Компонент} & \textbf{Технология} \\
+\multicolumn{1}{|c|}{\textbf{Компонент}} & \multicolumn{1}{c|}{\textbf{Технология}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Компонент} & \textbf{Технология} \\
+\multicolumn{1}{|c|}{\textbf{Компонент}} & \multicolumn{1}{c|}{\textbf{Технология}} \\
 \hline
 \endhead
 \endfoot
@@ -278,17 +288,17 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 
 \subsection{Требования к функциям (задачам), выполняемым системой}
 \label{sec:functions}
-В таблицах 2--17 приведены детализации ключевых функций системы. Таблица~\ref{tab:roles} демонстрирует полноту покрытия функциями всех четырёх ролей: «клиент», «мастер», «администратор точки» и «владелец сети», включая функции ролей «мастер» и «администратор» (ФТ-011--ФТ-016).
+В таблицах~\ref{tz:tab:3}--\ref{tz:tab:18} приведены детализации ключевых функций системы (ФТ-001--ФТ-016). Таблица~\ref{tab:roles} демонстрирует полноту покрытия функциями всех четырёх ролей: «клиент», «мастер», «администратор точки» и «владелец сети», включая функции ролей «мастер» и «администратор» (ФТ-011--ФТ-016).
 
 \begin{xltabular}{\textwidth}{|X|c|c|c|c|}
 \caption{Функции системы по ролям}\label{tab:roles}\\
 \hline
-\textbf{Функция} & \textbf{Клиент} & \textbf{Мастер} & \textbf{Админ.} & \textbf{Владелец} \\
+\multicolumn{1}{|c|}{\textbf{Функция}} & \multicolumn{1}{c|}{\textbf{Клиент}} & \multicolumn{1}{c|}{\textbf{Мастер}} & \multicolumn{1}{c|}{\textbf{Админ.}} & \multicolumn{1}{c|}{\textbf{Владелец}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Функция} & \textbf{Клиент} & \textbf{Мастер} & \textbf{Админ.} & \textbf{Владелец} \\
+\multicolumn{1}{|c|}{\textbf{Функция}} & \multicolumn{1}{c|}{\textbf{Клиент}} & \multicolumn{1}{c|}{\textbf{Мастер}} & \multicolumn{1}{c|}{\textbf{Админ.}} & \multicolumn{1}{c|}{\textbf{Владелец}} \\
 \hline
 \endhead
 \endfoot
@@ -313,14 +323,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 Личный кабинет дополнительно обеспечивает функции, не требующие отдельной карточки ФТ ввиду тривиальности реализации: \textbf{выход из системы} (инвалидация текущей сессии -- удаление refresh-токена на стороне сервера и очистка cookie на клиенте) и \textbf{просмотр истории записей} (список записей текущего пользователя с фильтром по статусу, включая завершённые/отменённые, а не только текущие).
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Регистрация нового клиента (ФТ-001)}\\
+\caption{Регистрация нового клиента (ФТ-001)}\label{tz:tab:3}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -344,14 +354,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Подтверждение адреса электронной почты (ФТ-002)}\\
+\caption{Подтверждение адреса электронной почты (ФТ-002)}\label{tz:tab:4}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -371,14 +381,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Авторизация через VK ID (OAuth 2.1, PKCE) (ФТ-003)}\\
+\caption{Авторизация через VK ID (OAuth 2.1, PKCE) (ФТ-003)}\label{tz:tab:5}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -403,14 +413,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Получение списка свободных временных слотов (ФТ-004)}\\
+\caption{Получение списка свободных временных слотов (ФТ-004)}\label{tz:tab:6}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -431,14 +441,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Создание записи (бронирование) (ФТ-005)}\\
+\caption{Создание записи (бронирование) (ФТ-005)}\label{tz:tab:7}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -468,14 +478,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Отмена записи клиентом (ФТ-006)}\\
+\caption{Отмена записи клиентом (ФТ-006)}\label{tz:tab:8}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -497,14 +507,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Управление каталогом услуг и индивидуальным прайсом мастера (ФТ-007)}\\
+\caption{Управление каталогом услуг и индивидуальным прайсом мастера (ФТ-007)}\label{tz:tab:9}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -524,14 +534,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Автоматическая отправка писем-напоминаний о записи (ФТ-008)}\\
+\caption{Автоматическая отправка писем-напоминаний о записи (ФТ-008)}\label{tz:tab:10}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -552,14 +562,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Редактирование контента публичных страниц (главная, мастера) (ФТ-009)}\\
+\caption{Редактирование контента публичных страниц (главная, мастера) (ФТ-009)}\label{tz:tab:11}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -580,14 +590,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Восстановление пароля (ФТ-010)}\\
+\caption{Восстановление пароля (ФТ-010)}\label{tz:tab:12}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -604,14 +614,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Управление расписанием мастера (ФТ-011)}\\
+\caption{Управление расписанием мастера (ФТ-011)}\label{tz:tab:13}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -631,14 +641,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Назначение ролей и создание профиля мастера (ФТ-012)}\\
+\caption{Назначение ролей и создание профиля мастера (ФТ-012)}\label{tz:tab:14}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -658,14 +668,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Управление статусом и переносом записи мастером/администратором (ФТ-013)}\\
+\caption{Управление статусом и переносом записи мастером/администратором (ФТ-013)}\label{tz:tab:15}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -689,14 +699,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Оставление и модерация отзыва (ФТ-014)}\\
+\caption{Оставление и модерация отзыва (ФТ-014)}\label{tz:tab:16}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -718,14 +728,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Формирование отчёта по выручке и загруженности мастеров (ФТ-015)}\\
+\caption{Формирование отчёта по выручке и загруженности мастеров (ФТ-015)}\label{tz:tab:17}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -745,14 +755,14 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \end{xltabular}
 
 \begin{xltabular}{\textwidth}{|P|D|}
-\caption{Управление точками сети (ФТ-016)}\\
+\caption{Управление точками сети (ФТ-016)}\label{tz:tab:18}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Параметр} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Параметр}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -787,12 +797,12 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \begin{xltabular}{\textwidth}{|p{4.2cm}|X|}
 \caption{Основные сущности системы и их атрибуты}\label{tab:entities}\\
 \hline
-\textbf{Сущность} & \textbf{Основные атрибуты} \\
+\multicolumn{1}{|c|}{\textbf{Сущность}} & \multicolumn{1}{c|}{\textbf{Основные атрибуты}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Сущность} & \textbf{Основные атрибуты} \\
+\multicolumn{1}{|c|}{\textbf{Сущность}} & \multicolumn{1}{c|}{\textbf{Основные атрибуты}} \\
 \hline
 \endhead
 \endfoot
@@ -815,18 +825,18 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 
 \subsubsection{Модель организации данных}
 
-Инфологическая модель разделена на две схемы для читаемости: рисунок~1 -- сущности бизнес-домена (точки, пользователи, мастера, услуги, записи, отзывы); рисунок~2 -- сущности, обеспечивающие безопасность входа, и настройки сайта. Точка сети (\texttt{salon}) -- корневая сущность сети: на неё ссылаются мастер, администратор (через \texttt{users.salon\_id}) и запись; профиль мастера отделён от учётной записи пользователя связью 1:0..1 (не каждый пользователь -- мастер); услуга мастера (\texttt{master\_service}) -- связь M:N между мастером и услугой с необязательным переопределением цены.
+Инфологическая модель разделена на две схемы для читаемости: рисунок~\ref{tz:fig:er1} -- сущности бизнес-домена (точки, пользователи, мастера, услуги, записи, отзывы); рисунок~\ref{tz:fig:er2} -- сущности, обеспечивающие безопасность входа, и настройки сайта. Точка сети (\texttt{salon}) -- корневая сущность сети: на неё ссылаются мастер, администратор (через \texttt{users.salon\_id}) и запись; профиль мастера отделён от учётной записи пользователя связью 1:0..1 (не каждый пользователь -- мастер); услуга мастера (\texttt{master\_service}) -- связь M:N между мастером и услугой с необязательным переопределением цены.
 
 \begin{sidewaysfigure}[htbp]
 \centering
 \includegraphics[height=\textwidth, width=\textheight, keepaspectratio]{images/ER_final_1.png}
-\caption{Инфологическая модель -- бизнес-домен}
+\caption{Инфологическая модель -- бизнес-домен}\label{tz:fig:er1}
 \end{sidewaysfigure}
 
 \begin{sidewaysfigure}[htbp]
 \centering
 \includegraphics[height=\textwidth, width=\textheight, keepaspectratio]{images/ER_final_2.png}
-\caption{Инфологическая модель -- аутентификация и настройки сайта}
+\caption{Инфологическая модель -- аутентификация и настройки сайта}\label{tz:fig:er2}
 \end{sidewaysfigure}
 
 % \clearpage выталкивает оба повёрнутых рисунка до начала следующего пункта:
@@ -834,7 +844,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 % относятся (рисунок помещается сразу после ссылки на него).
 \clearpage
 
-Настройки сайта (пунктирная рамка на рисунке~2) -- служебная сущность без связей с остальной моделью: это единственная строка конфигурации, не имеющая внешних ключей ни в одну другую таблицу и ни одной ссылающейся на неё.
+Настройки сайта (пунктирная рамка на рисунке~\ref{tz:fig:er2}) -- служебная сущность без связей с остальной моделью: это единственная строка конфигурации, не имеющая внешних ключей ни в одну другую таблицу и ни одной ссылающейся на неё.
 
 Правила ссылочной целостности: прикладной код никогда не выполняет физическое (\texttt{DELETE}) удаление строк \texttt{user_account}/\texttt{master}/\texttt{service} -- вместо этого используется мягкое удаление (поле \texttt{deleted\_at}) или деактивация (\texttt{is\_active = false}), история операций сохраняется. Ограничения внешних ключей на уровне БД -- защитный рубеж на случай прямого изменения данных в обход приложения: удаление \texttt{user_account}/\texttt{master}/\texttt{service}, на которые ссылаются \texttt{appointment}, запрещено (\texttt{ON DELETE RESTRICT}); зависимые записи \texttt{master} (\texttt{schedule}, \texttt{master\_service}), \texttt{user_account} (\texttt{user\_session}, токены, отзывы) и \texttt{appointment} (\texttt{review}) удаляются каскадно (\texttt{ON DELETE CASCADE}) только вместе со своим родителем.
 
@@ -911,7 +921,7 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 
 \subsubsection{Экранные формы}
 
-Экранные формы представлены на рисунках А.1--А.6 в приложении А.
+Экранные формы представлены на рисунках~\ref{tz:fig:1}--\ref{tz:fig:6} (раздел~\ref{tz:sec:forms}).
 
 \subsubsection{Классификаторы и кодовые системы}
 
@@ -920,12 +930,12 @@ ORM & SQLAlchemy 2.0 (синхронный) + Alembic (миграции) \\\hlin
 \begin{xltabular}{\textwidth}{|l|l|X|}
 \caption{Классификатор статусов записи}\label{tab:status-classifier}\\
 \hline
-\textbf{Код} & \textbf{Название} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Код}} & \multicolumn{1}{c|}{\textbf{Название}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Код} & \textbf{Название} & \textbf{Описание} \\
+\multicolumn{1}{|c|}{\textbf{Код}} & \multicolumn{1}{c|}{\textbf{Название}} & \multicolumn{1}{c|}{\textbf{Описание}} \\
 \hline
 \endhead
 \endfoot
@@ -945,15 +955,17 @@ cancelled & Отменена & Отменена клиентом, мастеро
 
 \subsection{Программное обеспечение}
 
+Программное обеспечение, используемое системой, приведено в таблице~\ref{tz:tab:21}.
+
 \begin{xltabular}{\textwidth}{|l|X|}
-\caption{Программное обеспечение}\\
+\caption{Программное обеспечение}\label{tz:tab:21}\\
 \hline
-\textbf{Компонент} & \textbf{Технология} \\
+\multicolumn{1}{|c|}{\textbf{Компонент}} & \multicolumn{1}{c|}{\textbf{Технология}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Компонент} & \textbf{Технология} \\
+\multicolumn{1}{|c|}{\textbf{Компонент}} & \multicolumn{1}{c|}{\textbf{Технология}} \\
 \hline
 \endhead
 \endfoot
@@ -969,15 +981,17 @@ Frontend & Vue.js 3 (Composition API), Pinia, Tailwind CSS, Vite \\\hline
 
 \subsection{Техническое обеспечение}
 
+Требования к техническому обеспечению приведены в таблице~\ref{tz:tab:22}.
+
 \begin{xltabular}{\textwidth}{|l|X|}
-\caption{Необходимое техническое обеспечение}\\
+\caption{Необходимое техническое обеспечение}\label{tz:tab:22}\\
 \hline
-\textbf{Ресурс} & \textbf{Требование} \\
+\multicolumn{1}{|c|}{\textbf{Ресурс}} & \multicolumn{1}{c|}{\textbf{Требование}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Ресурс} & \textbf{Требование} \\
+\multicolumn{1}{|c|}{\textbf{Ресурс}} & \multicolumn{1}{c|}{\textbf{Требование}} \\
 \hline
 \endhead
 \endfoot
@@ -993,16 +1007,17 @@ Frontend & Vue.js 3 (Composition API), Pinia, Tailwind CSS, Vite \\\hline
 % ============================================================
 
 Сумма длительностей этапов приведена в соответствие с датами начала и окончания работ (раздел 1.3) -- 27 дней (22.06--18.07.2026). Этап «Интеграции» включает настройку фонового планировщика напоминаний (см. также раздел 5.3). Этапы «Тестирование» и «Развёртывание и сдача» объединены в один этап.
+Состав и содержание работ приведены в таблице~\ref{tz:tab:23}.
 
 \begin{xltabular}{\textwidth}{|c|P|D|>{\centering\arraybackslash}p{2.4cm}|}
-\caption{Состав и содержание работ}\\
+\caption{Состав и содержание работ}\label{tz:tab:23}\\
 \hline
-\textbf{№} & \textbf{Этап} & \textbf{Содержание} & \textbf{Срок} \\
+\multicolumn{1}{|c|}{\textbf{№}} & \multicolumn{1}{c|}{\textbf{Этап}} & \multicolumn{1}{c|}{\textbf{Содержание}} & \multicolumn{1}{c|}{\textbf{Срок}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{№} & \textbf{Этап} & \textbf{Содержание} & \textbf{Срок} \\
+\multicolumn{1}{|c|}{\textbf{№}} & \multicolumn{1}{c|}{\textbf{Этап}} & \multicolumn{1}{c|}{\textbf{Содержание}} & \multicolumn{1}{c|}{\textbf{Срок}} \\
 \hline
 \endhead
 \endfoot
@@ -1080,337 +1095,48 @@ Frontend & Vue.js 3 (Composition API), Pinia, Tailwind CSS, Vite \\\hline
 
 Документ подготовлен на основе результатов исследования бизнес-процессов барбершопов и парикмахерских и охватывает требования, необходимые для проектирования и реализации системы.
 
-\clearpage
-\appendix
-% Единственное приложение -- буква "А" зафиксирована явно, без счётчика
-% приложений; счётчик рисунков сброшен, чтобы рисунки приложения шли
-% как А.1, А.2, ... (ГОСТ), а не продолжали сквозную нумерацию рисунка 1.
-\renewcommand{\thefigure}{А.\arabic{figure}}
-\setcounter{figure}{0}
-\gostappendix{А}{Экранные формы}
+% Экранные формы -- обычный раздел, а не приложение: в пояснительной записке
+% всё техническое задание само является приложением Б, и вложенное приложение
+% внутри приложения пособием не предусмотрено. \section сам начинает новый
+% лист (\pretocmd в config.tex), отдельный \clearpage не нужен.
+\section{Экранные формы}\label{tz:sec:forms}
 
-Рисунки приложения пронумерованы последовательно А.1--А.6 и представляют собой макеты экранных форм (wireframes), а не снимки экрана работающей системы.
+Рисунки~\ref{tz:fig:1}--\ref{tz:fig:6} представляют собой макеты экранных форм (wireframes), а не снимки экрана работающей системы.
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Barbers_2.png}}
-  \caption{Каталог мастеров (публичная часть сайта)}
+  \caption{Каталог мастеров (публичная часть сайта)}\label{tz:fig:1}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Main_4.png}}
-  \caption{Главная страница (публичная часть сайта)}
+  \caption{Главная страница (публичная часть сайта)}\label{tz:fig:2}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Services_and_prices_6.png}}
-  \caption{Услуги и цены (публичная часть сайта)}
+  \caption{Услуги и цены (публичная часть сайта)}\label{tz:fig:3}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Dashboard_1.png}}
-  \caption{Панель администратора -- раздел «Дашборд» (статистика)}
+  \caption{Панель администратора -- раздел «Дашборд» (статистика)}\label{tz:fig:4}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Reports_5.png}}
-  \caption{Панель администратора -- раздел «Отчёты»}
+  \caption{Панель администратора -- раздел «Отчёты»}\label{tz:fig:5}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \fbox{\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{images/Gallery_3.png}}
-  \caption{Галерея (публичная часть сайта)}
-\end{figure}
-
-\clearpage
-\renewcommand{\thefigure}{Б.\arabic{figure}}
-\setcounter{figure}{0}
-\gostappendix{Б}{Диаграммы последовательностей}
-
-Диаграммы Б.1--Б.5 иллюстрируют порядок взаимодействия участников для ключевых бизнес-процессов системы, детализированных в карточках функциональных требований (раздел 4.2).
-
-\begin{figure}[htbp]
-\centering
-\resizebox{1\textwidth}{!}{%
-\begin{tikzpicture}
-  \seqinit
-  \seqhead{0}{Клиент}
-  \seqhead{4.4}{Клиентское\\приложение}
-  \seqhead{9.0}{Сервер\\(API)}
-  \seqhead{13.4}{База\\данных}
-
-  \seqmsgB{-0.1}{4.5}{Заполнение формы регистрации\\(email, пароль, имя...)}
-  \seqmsgA{4.3}{9.0}{POST /api/auth/register}
-  \seqmark{\cTop}
-  \seqmsgB{9.0}{13.4}{Проверка уникальности\\email/телефона}
-  \seqmark{\dTopA}
-  \seqretA{13.4}{9.0}{Результат проверки}
-  \seqmark{\dBotA}
-  \seqact{13.4}{\dTopA}{\dBotA}
-
-  \seqpad{0.35}\seqmark{\altTop}
-  \seqcond{6.7}{email или телефон уже заняты}
-  \seqretB{9.0}{4.3}{409 Пользователь с таким\\email уже существует}
-  \seqpad{0.3}\seqmark{\sepA}
-  \seqpad{0.3}
-  \seqcond{6.7}{email и телефон свободны}
-  \seqselfA{9.0}{Хеширование пароля}
-  \seqmsgA{9.0}{13.4}{INSERT в user\_account}
-  \seqmark{\dTopB}
-  \seqretA{13.4}{9.0}{Пользователь создан}
-  \seqmark{\dBotB}
-  \seqact{13.4}{\dTopB}{\dBotB}
-  \seqselfA{9.0}{Генерация JWT\\access/refresh}
-  \seqselfB{9.0}{Токен подтверждения email,\\отправка письма}
-  \seqretA{9.0}{4.3}{201 Created + JWT-токены}
-  \seqmark{\cBot}
-  \seqact{9.0}{\cTop}{\cBot}
-  \seqpad{0.35}\seqmark{\altBot}
-  \seqaltframe{-0.6}{13.8}{\altTop}{\altBot}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-
-  \seqmsgB{4.5}{-0.1}{Переход в личный кабинет\\(клиент уже вошёл)}
-
-  \seqpad{0.9}\seqmark{\finalY}
-  \seqfoot{0}{Клиент}{\finalY}
-  \seqfoot{4.4}{Клиентское\\приложение}{\finalY}
-  \seqfoot{9.0}{Сервер\\(API)}{\finalY}
-  \seqfoot{13.4}{База\\данных}{\finalY}
-\end{tikzpicture}}
-\caption{Диаграмма последовательностей бизнес-процесса «Регистрация» (ФТ-001)}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\resizebox{1\textwidth}{!}{%
-\begin{tikzpicture}
-  \seqinit
-  \seqhead{0}{Клиент}
-  \seqhead{4.4}{Клиентское\\приложение}
-  \seqhead{9.0}{Сервер\\(API)}
-  \seqhead{13.4}{База\\данных}
-
-  \seqmsgA{-0.1}{4.5}{Ввод email и пароля}
-  \seqmsgA{4.3}{9.0}{POST /api/auth/login}
-  \seqmark{\cTop}
-  \seqmsgB{9.0}{13.4}{Поиск пользователя\\по email}
-  \seqmark{\dTopA}
-  \seqretB{13.4}{9.0}{Данные пользователя\\(password\_hash) либо не найден}
-  \seqmark{\dBotA}
-  \seqact{13.4}{\dTopA}{\dBotA}
-
-  \seqpad{0.35}\seqmark{\altTop}
-  \seqcond{6.7}{польз. не найден /\\ вход временно заблокирован}
-  \seqretA{9.0}{4.3}{401 Неверный email или пароль}
-  \seqpad{0.3}\seqmark{\sepA}
-  \seqpad{0.3}
-  \seqcond{6.7}{пользователь найден,\\блокировки нет}
-  \seqselfA{9.0}{Проверка пароля (bcrypt)}
-
-  \seqpad{0.35}\seqmark{\altBTop}
-  \seqcond{7.0}{пароль неверный}
-  \seqmsgA{9.0}{13.5}{Запись неудачной попытки входа}
-  \seqretA{9.0}{4.3}{401 Неверный пароль}
-  \seqpad{0.3}\seqmark{\sepB}
-  \seqpad{0.3}
-  \seqcond{7.0}{пароль верный}
-  \seqselfB{9.0}{Генерация JWT access\\+ refresh-сессии}
-  \seqmsgA{9.0}{13.4}{Сохранение сессии\\(хеш refresh-токена)}
-  \seqmark{\dTopB}
-  \seqretA{13.4}{9.0}{OK}
-  \seqmark{\dBotB}
-  \seqact{13.4}{\dTopB}{\dBotB}
-  \seqretB{9.0}{4.3}{200 + access-токен;\\refresh в httpOnly cookie}
-  \seqmark{\cBot}
-  \seqpad{0.35}\seqmark{\altBBot}
-  \seqframe{alt}{0.4}{13.6}{\altBTop}{\altBBot}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-
-  \seqpad{0.35}\seqmark{\altBot}
-  \seqaltframe{-0.6}{13.8}{\altTop}{\altBot}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-  \seqact{9.0}{\cTop}{\cBot}
-
-  \seqmsgA{4.5}{-0.1}{Переход в личный кабинет}
-
-  \seqpad{0.9}\seqmark{\finalY}
-  \seqfoot{0}{Клиент}{\finalY}
-  \seqfoot{4.4}{Клиентское\\приложение}{\finalY}
-  \seqfoot{9.0}{Сервер\\(API)}{\finalY}
-  \seqfoot{13.4}{База\\данных}{\finalY}
-\end{tikzpicture}}
-\caption{Диаграмма последовательностей бизнес-процесса «Вход по email и паролю»}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\resizebox{1\textwidth}{!}{%
-\begin{tikzpicture}
-  \seqinit
-  \seqhead{0}{Клиент}
-  \seqhead{4.4}{Клиентское\\приложение}
-  \seqhead{9.0}{Сервер\\(API)}
-  \seqhead{13.4}{База\\данных}
-
-  \seqmsgA{-0.1}{4.5}{Выбор мастера, услуги и даты}
-  \seqmsgB{4.3}{9.0}{GET /api/slots?master\_id\\\&service\_id\&date}
-  \seqmark{\cTopA}
-  \seqmsgB{9.0}{13.4}{Запрос расписания\\и записей мастера}
-  \seqmark{\dTopA}
-  \seqretA{13.4}{9.0}{Расписание + список записей}
-  \seqmark{\dBotA}
-  \seqact{13.4}{\dTopA}{\dBotA}
-    \seqselfB{9.0}{Расчёт свободных слотов\\шаг = длительность услуги}
-  \seqretA{9.0}{4.3}{Список свободных слотов}
-  \seqmark{\cBotA}
-  \seqact{9.0}{\cTopA}{\cBotA}
-
-  \seqmsgA{4.5}{-0.1}{Отображение слотов}
-  \seqmsgB{-0.1}{4.5}{Выбор слота,\\подтверждение записи}
-  \seqmsgA{4.3}{9.0}{POST /api/appointments}
-  \seqmark{\cTopB}
-  \seqselfB{9.0}{Проверки: лимит, email,\\расписание, будущее время}
-
-  \seqpad{0.35}\seqmark{\altTop}
-  \seqcond{6.7}{нарушена проверка /\\ конфликт слота}
-  \seqretA{9.0}{4.3}{400/409 ошибка}
-  \seqpad{0.3}\seqmark{\sepA}
-  \seqpad{0.3}
-  \seqcond{6.7}{все проверки пройдены}
-  \seqmsgB{9.0}{13.4}{INSERT в appointment\\(EXCLUDE USING gist)}
-  \seqmark{\dTopB}
-  \seqretB{13.4}{9.0}{Запись создана\\(status=pending)}
-  \seqmark{\dBotB}
-  \seqact{13.4}{\dTopB}{\dBotB}
-  \seqretA{9.0}{4.3}{201 Created + данные записи}
-  \seqmark{\cBotB}
-  \seqpad{0.35}\seqmark{\altBot}
-  \seqaltframe{-0.6}{13.8}{\altTop}{\altBot}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-  \seqact{9.0}{\cTopB}{\cBotB}
-
-  \seqmsgB{4.5}{-0.1}{«Запись создана,\\ожидает подтверждения»}
-
-  \seqpad{0.9}\seqmark{\finalY}
-  \seqfoot{0}{Клиент}{\finalY}
-  \seqfoot{4.4}{Клиентское\\приложение}{\finalY}
-  \seqfoot{9.0}{Сервер\\(API)}{\finalY}
-  \seqfoot{13.4}{База\\данных}{\finalY}
-\end{tikzpicture}}
-\caption{Диаграмма последовательностей бизнес-процесса «Онлайн-запись на приём» (ФТ-004, ФТ-005)}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\resizebox{1\textwidth}{!}{%
-\begin{tikzpicture}
-  \seqinit
-  \seqhead{0}{Клиент}
-  \seqhead{4.4}{Клиентское\\приложение}
-  \seqhead{9.0}{Сервер\\(API)}
-  \seqhead{13.4}{База\\данных}
-
-  \seqmsgB{-0.1}{4.5}{Нажатие «Отменить запись»\\в личном кабинете}
-  \seqmsgA{4.3}{9.0}{POST /api/appointments/\{id\}/cancel}
-  \seqmark{\cTop}
-  \seqmsgA{9.0}{13.4}{Поиск записи по id}
-  \seqmark{\dTopA}
-  \seqretB{13.4}{9.0}{Данные записи\\(client\_id, статус)}
-  \seqmark{\dBotA}
-  \seqact{13.4}{\dTopA}{\dBotA}
-
-  \seqpad{0.35}\seqmark{\altTop}
-  \seqcond{6.7}{запись принадлежит\\другому клиенту}
-  \seqretB{9.0}{4.3}{Можно отменить только\\свою запись}
-  \seqpad{0.3}\seqmark{\sepA}
-  \seqpad{0.3}
-  \seqcond{6.7}{статус не допускает отмену}
-  \seqretA{9.0}{4.3}{400 ошибка с текущим статусом}
-  \seqpad{0.3}\seqmark{\sepB}
-  \seqpad{0.3}
-  \seqcond{6.7}{запись своя,\\статус допускает отмену}
-  \seqmsgA{9.0}{13.4}{UPDATE status = cancelled}
-  \seqmark{\dTopB}
-  \seqretA{13.4}{9.0}{Успех}
-  \seqmark{\dBotB}
-  \seqact{13.4}{\dTopB}{\dBotB}
-  \seqretA{9.0}{4.3}{200 + обновлённый статус}
-  \seqmark{\cBot}
-  \seqpad{0.35}\seqmark{\altBot}
-  \seqaltframe{-0.6}{13.8}{\altTop}{\altBot}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-  \seqsep{-0.6}{\sepA}{8.9}
-  \seqsep{9.1}{\sepA}{13.8}
-  \seqact{9.0}{\cTop}{\cBot}
-
-  \seqmsgA{4.5}{-0.1}{«Запись отменена»}
-
-  \seqpad{0.9}\seqmark{\finalY}
-  \seqfoot{0}{Клиент}{\finalY}
-  \seqfoot{4.4}{Клиентское\\приложение}{\finalY}
-  \seqfoot{9.0}{Сервер\\(API)}{\finalY}
-  \seqfoot{13.4}{База\\данных}{\finalY}
-\end{tikzpicture}}
-\caption{Диаграмма последовательностей бизнес-процесса «Отмена записи клиентом» (ФТ-006)}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\resizebox{1\textwidth}{!}{%
-\begin{tikzpicture}
-  \seqinit
-  \seqhead{0}{Планировщик}
-  \seqhead{4.6}{База данных}
-  \seqhead{9.2}{Email-сервис}
-
-  \seqselfB{-0.1}{Пробуждение по таймеру\\(каждые 5 минут)}
-  \seqmsgB{-0.1}{4.6}{Выборка записей с рубежом\\24ч/2ч и неотправл. напоминанием}
-  \seqmark{\bTop}
-  \seqretA{4.6}{-0.1}{Список записей}
-  \seqmark{\bBot}
-  \seqact{4.6}{\bTop}{\bBot}
-
-  \seqpad{0.35}\seqmark{\loopTop}
-  \seqcond{2.3}{для каждой записи в списке}
-  \seqmark{\aTop}
-  \seqpad{0.75}\seqmark{\seqy}\draw[seqmsg] ($(0,\seqy)!0.09cm!(9.2,\seqy)$) -- ($(9.2,\seqy)!0.09cm!(0,\seqy)$) node[pos=0.75, above] {Отправка письма-напоминания};
-  \seqmark{\cTop}
-  \seqpad{0.75}\seqmark{\seqy}\draw[seqret] ($(9.2,\seqy)!0.09cm!(0,\seqy)$) -- ($(0,\seqy)!0.09cm!(9.2,\seqy)$) node[pos=0.25, above] {Статус отправки};
-  \seqmark{\cBot}
-  \seqact{9.2}{\cTop}{\cBot}
-
-  \seqpad{0.35}\seqmark{\altTop}
-  \seqcond{2.3}{успешно}
-  \seqmsgA{0}{4.7}{UPDATE reminder\_24h/2h\_sent\_at}
-  \seqpad{0.3}\seqmark{\sepA}
-  \seqpad{0.3}
-  \seqcond{2.3}{ошибка отправки}
-  \seqselfB{0}{Логирование ошибки;\\повтор на следующем цикле}
-  \seqpad{0.35}\seqmark{\altBot}
-  \seqframe{alt}{-0.7}{9.3}{\altTop}{\altBot}
-  \seqsep{0.1}{\sepA}{9.3}
-
-  \seqmark{\aBot}
-  \seqact{0}{\aTop}{\aBot}
-  \seqpad{0.35}\seqmark{\loopBot}
-  \seqloopframe{-1}{9.6}{\loopTop}{\loopBot}
-
-  \seqpad{0.9}\seqmark{\finalY}
-  \seqfoot{0}{Планировщик}{\finalY}
-  \seqfoot{4.6}{База данных}{\finalY}
-  \seqfoot{9.2}{Email-сервис}{\finalY}
-\end{tikzpicture}}
-\caption{Диаграмма последовательностей бизнес-процесса «Автоматическая отправка напоминаний» (ФТ-008)}
+  \caption{Галерея (публичная часть сайта)}\label{tz:fig:6}
 \end{figure}
 
 \end{document}

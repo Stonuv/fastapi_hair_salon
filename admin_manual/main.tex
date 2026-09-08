@@ -477,15 +477,18 @@ docker compose start backend
 
 \gostsubsection{5.1}{Сообщения при запуске и настройке}
 
+Сообщения, возникающие при первом запуске и настройке окружения, приведены
+в таблице~1.
+
 \begin{xltabular}{\textwidth}{|M|D|}
 \caption{Сообщения при первом запуске и настройке окружения} \\
 \hline
-\textbf{Сообщение} & \textbf{Значение и действия} \\
+\multicolumn{1}{|c|}{\textbf{Сообщение}} & \multicolumn{1}{c|}{\textbf{Значение и действия}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Сообщение} & \textbf{Значение и действия} \\
+\multicolumn{1}{|c|}{\textbf{Сообщение}} & \multicolumn{1}{c|}{\textbf{Значение и действия}} \\
 \hline
 \endhead
 \endfoot
@@ -522,15 +525,18 @@ docker compose start backend
 \subsection*{\hspace*{\gostindent}5.2\quad Сообщения при развёртывании, обновлении и работе контейнеров}
 \addcontentsline{toc}{subsection}{5.2\quad Сообщения при развёртывании и работе контейнеров}
 
+Сообщения и ситуации, возникающие при эксплуатации Docker-стека, приведены
+в таблице~2.
+
 \begin{xltabular}{\textwidth}{|M|D|}
 \caption{Сообщения и ситуации при эксплуатации Docker-стека} \\
 \hline
-\textbf{Ситуация} & \textbf{Значение и действия} \\
+\multicolumn{1}{|c|}{\textbf{Ситуация}} & \multicolumn{1}{c|}{\textbf{Значение и действия}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Ситуация} & \textbf{Значение и действия} \\
+\multicolumn{1}{|c|}{\textbf{Ситуация}} & \multicolumn{1}{c|}{\textbf{Значение и действия}} \\
 \hline
 \endhead
 \endfoot
@@ -613,27 +619,27 @@ docker compose start backend
 % ============================================================
 \clearpage
 \appendix
-\renewcommand{\thefigure}{\Alph{section}.\arabic{figure}}
 % ============================================================
 
-\gostappendix{А}{Переменные окружения}
+\gostappendix{А}{справочное}{Переменные окружения}
 
 Переменные ниже задаются в корневом \texttt{.env} (Docker Compose,
 раздел 3.1) либо в \texttt{backend/.env} (нативный запуск без
 Docker) -- файл указан в квадратных скобках в начале описания. Полный
 список со всеми техническими деталями и значениями по умолчанию для
 нативного запуска -- всегда файл \seqsplit{backend/app/config.py} в
-исходном коде; здесь -- практический минимум для администратора.
+исходном коде; здесь -- практический минимум для администратора. Перечень
+переменных приведён в таблице~А.1.
 
 \begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash\footnotesize}p{4cm}|D|}
 \caption{Переменные окружения} \\
 \hline
-\textbf{Переменная} & \textbf{Назначение и значение по умолчанию} \\
+\multicolumn{1}{|c|}{\textbf{Переменная}} & \multicolumn{1}{c|}{\textbf{Назначение и значение по умолчанию}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Переменная} & \textbf{Назначение и значение по умолчанию} \\
+\multicolumn{1}{|c|}{\textbf{Переменная}} & \multicolumn{1}{c|}{\textbf{Назначение и значение по умолчанию}} \\
 \hline
 \endhead
 \endfoot
@@ -720,17 +726,20 @@ Docker) -- файл указан в квадратных скобках в на�
   \texttt{s3-backup} не запускается. \\\hline
 \end{xltabular}
 
-\gostappendix{Б}{Состав контейнеров}
+\gostappendix{Б}{справочное}{Состав контейнеров}
+
+Сервисы, из которых собран \texttt{docker-compose.yml}, их назначение и
+профили запуска приведены в таблице~Б.1.
 
 \begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{1.8cm}|D|}
 \caption{Сервисы \texttt{docker-compose.yml}} \\
 \hline
-\textbf{Сервис} & \textbf{Порты наружу} & \textbf{Назначение} \\
+\multicolumn{1}{|c|}{\textbf{Сервис}} & \multicolumn{1}{c|}{\textbf{Порты наружу}} & \multicolumn{1}{c|}{\textbf{Назначение}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Сервис} & \textbf{Порты наружу} & \textbf{Назначение} \\
+\multicolumn{1}{|c|}{\textbf{Сервис}} & \multicolumn{1}{c|}{\textbf{Порты наружу}} & \multicolumn{1}{c|}{\textbf{Назначение}} \\
 \hline
 \endhead
 \endfoot
@@ -755,17 +764,19 @@ Docker) -- файл указан в квадратных скобках в на�
   Выключен по умолчанию (профиль \texttt{s3-backup}). \\\hline
 \end{xltabular}
 
-\gostappendix{В}{Глоссарий терминов}
+\gostappendix{В}{справочное}{Глоссарий терминов}
+
+Термины, используемые в настоящем руководстве, приведены в таблице~В.1.
 
 \begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}p{4cm}|D|}
 \caption{Термины, используемые в настоящем руководстве} \\
 \hline
-\textbf{Термин} & \textbf{Значение} \\
+\multicolumn{1}{|c|}{\textbf{Термин}} & \multicolumn{1}{c|}{\textbf{Значение}} \\
 \hline
 \endfirsthead
 \caption*{Продолжение таблицы \thetable}\\
 \hline
-\textbf{Термин} & \textbf{Значение} \\
+\multicolumn{1}{|c|}{\textbf{Термин}} & \multicolumn{1}{c|}{\textbf{Значение}} \\
 \hline
 \endhead
 \endfoot
@@ -804,7 +815,7 @@ Fail-fast & Принцип, при котором приложение отка�
   вместо того чтобы молча работать в небезопасном состоянии. \\\hline
 \end{xltabular}
 
-\gostappendix{Г}{Пример развёртывания на новом сервере}
+\gostappendix{Г}{рекомендуемое}{Пример развёртывания на новом сервере}
 
 Сквозной пример -- путь от пустого VPS до работающего сайта с доменом.
 
