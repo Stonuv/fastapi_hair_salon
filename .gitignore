@@ -19,6 +19,9 @@ notes/
 ROADMAP.md
 SECURITY.md
 new_issues.md
+# Методика проверки и рецензия на отчёт — входящие документы, не наши
+project_requirements.md
+report.docx
 claude_design_examples/
 
 # user_manual/ и admin_manual/ отслеживаются, но не мусор компиляции LaTeX
