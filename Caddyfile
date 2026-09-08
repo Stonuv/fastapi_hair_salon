@@ -23,7 +23,14 @@
 		# ошибок Sentry (обычно https://*.ingest.sentry.io или
 		# регион-специфичный, см. сам DSN) в connect-src, иначе отчёты об
 		# ошибках будут тихо блокироваться этим CSP.
-		Content-Security-Policy "default-src 'self'; script-src 'self' https://mc.yandex.ru; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+		# frame-src: Метрика создаёт служебный iframe (blob:) для вебвизора,
+		# карты кликов и отслеживания ссылок — без этой директивы он падает
+		# на default-src 'self' и тихо блокируется. Требование самой Метрики:
+		# yandex.ru/support/metrica/ru/code/install-counter-csp.
+		# frame-ancestors там же просят ослабить до "blob: https://mc.yandex.ru"
+		# — это нужно только для воспроизведения записей вебвизора и снимает
+		# защиту от кликджекинга, поэтому оставлено 'none' сознательно.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://mc.yandex.ru; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-src blob: https://mc.yandex.ru; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
 		-Server
 	}
 	reverse_proxy frontend:8080

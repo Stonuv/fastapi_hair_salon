@@ -101,4 +101,27 @@ router.beforeEach(async (to) => {
   return true
 })
 
+// Яндекс.Метрика: вызов ym('init') в /metrika.js засчитывает только ту
+// страницу, на которой приложение загрузилось. Дальше SPA меняет адрес через
+// History API без перезагрузки документа, счётчик об этом не узнаёт — и вся
+// навигация внутри сайта в отчётах не видна. Отправляем просмотр сами.
+//
+// Первую навигацию пропускаем: её ym уже засчитал при init, иначе точка входа
+// удваивалась бы. Метрика может быть не загружена вовсе (блокировщик рекламы,
+// пустой ответ mc.yandex.ru) — тогда window.ym отсутствует и переход просто не
+// отправляется, роутер это не должно ломать.
+let ymFirstNavigation = true
+
+router.afterEach((to, from) => {
+  if (ymFirstNavigation) {
+    ymFirstNavigation = false
+    return
+  }
+  if (typeof window.ym !== 'function' || !window.YM_COUNTER_ID) return
+  window.ym(window.YM_COUNTER_ID, 'hit', to.fullPath, {
+    referer: from.fullPath,
+    title: document.title,
+  })
+})
+
 export default router
