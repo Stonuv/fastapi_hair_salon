@@ -3,7 +3,9 @@ import client from './client'
 export const adminApi = {
   // salon_id во всех трёх — owner может сузить до одной точки, admin всегда
   // видит только свою (бэкенд принудит, см. resolve_salon_scope).
-  getStats: (params) => client.get('/admin/stats', { params }),
+  // config — довесок к axios-конфигу; AdminStats передаёт сюда
+  // { background: true } для тиков автообновления (см. api/client.js).
+  getStats: (params, config) => client.get('/admin/stats', { params, ...config }),
 
   listUsers: (params) => client.get('/admin/users', { params }),
   createUser: (data) => client.post('/admin/users', data),
