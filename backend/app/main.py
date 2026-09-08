@@ -28,6 +28,8 @@ from .utils.rate_limit import limiter
 # восстановлении пароля) молча проглатываются root-логгером.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+logger = logging.getLogger(__name__)
+
 # SENTRY_DSN не задан -> init() не вызывается вообще, мониторинг молча
 # выключен (см. комментарий у settings.sentry_dsn в config.py — TODO
 # завести аккаунт). FastAPI/Starlette-интеграция автоподключается самим
@@ -68,6 +70,26 @@ def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse
         {"detail": "Слишком много запросов. Попробуйте позже."},
         status_code=429,
     )
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    # Без этого хендлера необработанное исключение уходит в Starlette и
+    # отдаётся как text/plain "Internal Server Error": фронтенд читает
+    # response.data.detail (utils/errors.js) и на таком ответе показал бы
+    # пользователю пустое сообщение. Формат тот же, что у ошибок выше —
+    # {"detail": "..."} по-русски.
+    #
+    # Текст намеренно без подробностей исключения: трассировка ушла бы
+    # клиенту и в браузерную консоль. Разбор — по логу и Sentry: Starlette
+    # после этого хендлера всё равно поднимает исключение дальше, поэтому
+    # ни запись в лог uvicorn, ни отчёт в Sentry не теряются.
+    logger.exception("Необработанная ошибка на %s %s", request.method, request.url.path)
+    return JSONResponse(
+        {"detail": "Внутренняя ошибка сервера. Попробуйте позже."},
+        status_code=500,
+    )
+
 
 app.include_router(setup_router)
 app.include_router(auth_router)

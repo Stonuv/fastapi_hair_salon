@@ -9,7 +9,11 @@
   </main>
   <router-view v-else />
   <AppFooter v-if="!route.meta.hideHeader" />
-  <ToastContainer />
+  <!-- На /500 тостов нет: страница уже целиком об этой ошибке, а
+       перехватчик (api/client.js) уводит сюда до того, как экран-источник
+       успевает показать свой тост — иначе одно и то же сообщение висело бы
+       поверх страницы, которая его же и повторяет. -->
+  <ToastContainer v-if="route.name !== 'server-error'" />
 </template>
 
 <script setup>

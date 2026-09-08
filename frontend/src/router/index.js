@@ -53,6 +53,11 @@ const routes = [
     // с Фазы C недоступен salon-admin'у (тот получил бы 403 при сохранении).
     meta: { requiresAuth: true, roles: ['owner'], hideHeader: true },
   },
+  // Не «страница ошибки», на которую можно зайти руками, а экран, куда
+  // перехватчик 5xx (api/client.js) уводит из любого места приложения:
+  // SPA сам по себе жив, упал бэкенд — показать это надо в интерфейсе,
+  // а не оставлять пользователя со сломанной страницей и тостом.
+  { path: '/500', name: 'server-error', component: () => import('../views/ServerErrorPage.vue') },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundPage.vue') },
 ]
 

@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import * as Sentry from '@sentry/vue'
 import router from './router'
 import App from './App.vue'
-import { setUnauthorizedHandler } from './api/client'
+import { setUnauthorizedHandler, setServerErrorHandler } from './api/client'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import './assets/main.css'
@@ -24,6 +24,15 @@ setUnauthorizedHandler(() => {
   const current = router.currentRoute.value
   if (current.path !== '/login') {
     router.push({ path: '/login', query: { redirect: current.fullPath } })
+  }
+})
+
+// 5xx от API: уводим на /500. Проверка текущего маршрута обязательна —
+// пачка параллельных запросов даёт пачку ошибок, и без неё каждая толкала
+// бы свой router.push на уже открытую страницу ошибки.
+setServerErrorHandler(() => {
+  if (router.currentRoute.value.name !== 'server-error') {
+    router.push({ name: 'server-error' })
   }
 })
 
