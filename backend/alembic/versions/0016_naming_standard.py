@@ -90,6 +90,14 @@ CONSTRAINTS = [
     ("service",        "ck_services_duration_positive",      "chk_service_duration_positive"),
     ("service",        "ck_services_price_non_negative",     "chk_service_price_non_negative"),
     ("user_account",   "ck_users_admin_requires_salon",      "chk_user_account_admin_requires_salon"),
+    # Ограничения от колонок с unique=True: в моделях они безымянные, имя
+    # им дала миграция, которая эти таблицы создавала.
+    ("email_verification_token", "uq_email_verification_tokens_token_hash",
+                                 "uniq_email_verification_token_token_hash"),
+    ("password_reset_token",     "uq_password_reset_tokens_hash",
+                                 "uniq_password_reset_token_token_hash"),
+    ("user_session",             "uq_sessions_token_hash",
+                                 "uniq_user_session_token_hash"),
 ]
 
 # Первичные и внешние ключи: имена берём из pg_constraint по типу
@@ -113,6 +121,7 @@ BEGIN
           LEFT JOIN pg_class ft ON ft.oid = c.confrelid
           JOIN pg_namespace n ON n.oid = t.relnamespace
          WHERE n.nspname = current_schema()
+           AND t.relname <> 'alembic_version'
            AND c.contype IN ('p', 'f')
     LOOP
         IF r.contype = 'p' THEN
@@ -149,6 +158,7 @@ BEGIN
           JOIN pg_class t ON t.oid = c.conrelid
           JOIN pg_namespace n ON n.oid = t.relnamespace
          WHERE n.nspname = current_schema()
+           AND t.relname <> 'alembic_version'
            AND c.contype IN ('p', 'f')
     LOOP
         IF r.contype = 'p' THEN
