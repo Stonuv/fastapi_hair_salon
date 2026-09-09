@@ -34,6 +34,7 @@ claude_design_examples/
 # Референсы для стиля, не часть документа
 user_manual/rukovodstvo-polzovatelya-esia-versiya-259.pdf
 user_manual/SantaFoxDoc.pdf
+zapiska/vkr/
 
 
 # Приватные ключи (SSH/TLS) — никогда не в git.
