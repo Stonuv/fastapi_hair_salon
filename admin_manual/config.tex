@@ -249,6 +249,11 @@
 \newcommand{\gostsubsection}[2]{\subsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsection}{#1\quad #2}}
 \newcommand{\gostsubsubsection}[2]{\subsubsection*{\hspace*{\gostindent}#1\quad #2}\addcontentsline{toc}{subsubsection}{#1\quad #2}}
 
+% п. 2.6 пособия: если раздел состоит из одного подраздела, подраздел не
+% нумеруется. Заголовок остаётся -- он называет содержимое раздела точнее
+% самого раздела, -- но набирается и попадает в содержание без номера.
+\newcommand{\gostsubsectionnonum}[1]{\subsection*{\hspace*{\gostindent}#1}\addcontentsline{toc}{subsection}{#1}}
+
 % ---------- Длинные идентификаторы (переменные окружения, пути) ----------
 % Обычный \texttt{} не переносит строку внутри длинного identifier'а без
 % пробелов — в узкой колонке таблицы это даёт либо "наезд" на соседнюю
